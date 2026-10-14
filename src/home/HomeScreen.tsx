@@ -4,6 +4,7 @@ import { errorMessage, notify } from '../app/notices';
 import { countOf } from '../app/plural';
 import { navigate } from '../app/route';
 import { whenSavesSettled } from '../editor/state/autosave';
+import { clampSheets } from '../model/factory';
 import { MAX_SHEETS, MIN_SHEETS } from '../model/geometry';
 import type { Zine } from '../model/types';
 import { pruneUnusedAssets } from '../storage/cleanup';
@@ -17,7 +18,9 @@ export function HomeScreen() {
   const [zines, setZines] = useState<Zine[] | null>(null);
   const [usage, setUsage] = useState<StorageUsage | null>(null);
   const [title, setTitle] = useState('');
-  const [sheets, setSheets] = useState(DEFAULT_SHEETS);
+  // Kept as typed (it may be empty while retyping); the count used is clamped.
+  const [sheetsText, setSheetsText] = useState(String(DEFAULT_SHEETS));
+  const sheets = clampSheets(Number(sheetsText) || MIN_SHEETS);
 
   const reload = useCallback(async () => {
     const result = await listZinesForHome(db);
@@ -77,7 +80,7 @@ export function HomeScreen() {
         </label>
       </header>
 
-      <form className="new-zine" onSubmit={create}>
+      <form className="new-zine" onSubmit={create} noValidate>
         <label>
           Tytuł
           <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Bez tytułu" />
@@ -88,8 +91,9 @@ export function HomeScreen() {
             type="number"
             min={MIN_SHEETS}
             max={MAX_SHEETS}
-            value={sheets}
-            onChange={(event) => setSheets(Number(event.target.value) || MIN_SHEETS)}
+            value={sheetsText}
+            onChange={(event) => setSheetsText(event.target.value)}
+            onBlur={() => setSheetsText(String(sheets))}
           />
         </label>
         <span className="muted">= {countOf(4 * sheets, 'strona', 'strony', 'stron')}</span>

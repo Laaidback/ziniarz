@@ -1,3 +1,4 @@
+import { userEvent } from '@vitest/browser/context';
 import { render } from 'vitest-browser-react';
 import { afterEach, expect, test } from 'vitest';
 import { ConfirmHost } from '../app/ConfirmHost';
@@ -33,6 +34,31 @@ test('creating a zine saves it and opens the editor', async () => {
   await expect.poll(async () => (await listZines(db)).map((z) => [z.title, z.sheets])).toEqual([['Lato', 6]]);
   const [zine] = await listZines(db);
   await expect.poll(() => window.location.hash).toBe(`#/zin/${zine.id}`);
+});
+
+test('the sheet count can be cleared and retyped; too many sheets are capped', async () => {
+  const { db, screen } = await setup();
+  const field = screen.getByLabelText('Kartki');
+  await field.clear();
+  await expect.element(field).toHaveValue(null);
+  await userEvent.keyboard('8');
+  await expect.element(field).toHaveValue(8);
+  await expect.element(screen.getByText('= 32 strony')).toBeVisible();
+  await field.fill('25');
+  await expect.element(screen.getByText('= 80 stron')).toBeVisible();
+  await userEvent.keyboard('{Enter}');
+  await expect.poll(async () => (await listZines(db)).map((z) => z.sheets)).toEqual([20]);
+});
+
+test('leaving the sheet field shows the count that will be used', async () => {
+  const { screen } = await setup();
+  const field = screen.getByLabelText('Kartki');
+  await field.fill('25');
+  await screen.getByLabelText('Tytuł').click();
+  await expect.element(field).toHaveValue(20);
+  await field.clear();
+  await screen.getByLabelText('Tytuł').click();
+  await expect.element(field).toHaveValue(1);
 });
 
 test('a zine can be duplicated and deleted after confirming', async () => {
