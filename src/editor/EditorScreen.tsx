@@ -10,6 +10,7 @@ import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { openEditorSession } from './session';
 import { createAutosaver } from './state/autosave';
+import { SpreadList } from './SpreadList';
 import { createEditorStore, type EditorStore } from './state/store';
 import { TopBar } from './TopBar';
 import { useEditorKeyboard } from './useEditorKeyboard';
@@ -44,7 +45,9 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
     <EditorContext.Provider value={env}>
       <div className="editor">
         <TopBar />
-        <aside className="editor-spreads" />
+        <aside className="editor-spreads">
+          <SpreadList />
+        </aside>
         <section className="editor-canvas">
           <SpreadCanvas />
         </section>

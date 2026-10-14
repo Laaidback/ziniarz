@@ -290,3 +290,48 @@ select {
   overflow-wrap: break-word;
   transform-origin: center center;
 }
+
+.spread-list ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  list-style: none;
+}
+
+.spread-thumb {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 4px;
+  border: 2px solid transparent;
+  background: transparent;
+  justify-items: center;
+}
+
+.spread-thumb img,
+.thumb-empty {
+  width: 100%;
+  aspect-ratio: 302 / 216;
+  background: var(--canvas);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.spread-thumb.current {
+  border-color: var(--accent);
+}
+
+.spread-thumb.doomed {
+  border-color: var(--danger);
+  background: #ffe5e7;
+}
+
+.sheet-buttons {
+  display: flex;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+.sheet-count {
+  padding: 0 12px;
+}
