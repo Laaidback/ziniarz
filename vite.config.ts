@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   // Pre-bundle so the first browser test run is not reloaded mid-run.
-  optimizeDeps: { include: ['konva'] },
+  optimizeDeps: { include: ['konva', 'pdf-lib'] },
   test: {
     projects: [
       {
