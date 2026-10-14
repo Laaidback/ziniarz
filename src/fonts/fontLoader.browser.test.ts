@@ -1,0 +1,48 @@
+import interUrl from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
+import { expect, test } from 'vitest';
+import { createTextElement, createZine } from '../model/factory';
+import { newId } from '../model/ids';
+import { openZiniarzDb, putFontFamily, putFontFile } from '../storage/db';
+import {
+  cssFontFamily,
+  ensureFontsReady,
+  FontImportError,
+  konvaFontFamily,
+  konvaFontStyle,
+  registerFontFile,
+  registerZineFonts,
+} from './fontLoader';
+
+test('font names', () => {
+  expect(cssFontFamily('abc')).toBe('zf-abc');
+  expect(konvaFontFamily('abc')).toBe('zf-abc, sans-serif');
+  expect(konvaFontStyle({ bold: true, italic: true })).toBe('italic bold');
+  expect(konvaFontStyle({ bold: false, italic: false })).toBe('normal');
+});
+
+test('registers a font file and makes it available', async () => {
+  const data = await (await fetch(interUrl)).arrayBuffer();
+  await registerFontFile({ id: 'inter-r', familyId: 'inter', bold: false, italic: false, mime: 'font/woff2', data });
+  const zine = createZine('t', 1);
+  zine.spreads[1].elements.push(createTextElement({ fontFamilyId: 'inter', text: 'A' }));
+  await ensureFontsReady(zine);
+  expect(document.fonts.check('16px "zf-inter"')).toBe(true);
+});
+
+test('rejects data that is not a font', async () => {
+  const data = new TextEncoder().encode('not a font').buffer as ArrayBuffer;
+  await expect(
+    registerFontFile({ id: 'bad', familyId: 'bad', bold: false, italic: false, mime: 'font/ttf', data }),
+  ).rejects.toThrow(FontImportError);
+});
+
+test('registerZineFonts loads the zine font families from the database', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const data = await (await fetch(interUrl)).arrayBuffer();
+  await putFontFamily(db, { id: 'inter2', name: 'Inter' });
+  await putFontFile(db, { id: 'inter2-r', familyId: 'inter2', bold: false, italic: false, mime: 'font/woff2', data });
+  const zine = createZine('t', 1);
+  zine.fonts = ['inter2'];
+  await registerZineFonts(db, zine);
+  expect(document.fonts.check('16px "zf-inter2"')).toBe(true);
+});
