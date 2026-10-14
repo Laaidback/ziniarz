@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { canRedo, canUndo, createHistory, HISTORY_LIMIT, record, redo, replacePresent, undo } from './history';
+import { breakMerge, canRedo, canUndo, createHistory, HISTORY_LIMIT, record, redo, replacePresent, undo } from './history';
 
 test('undo and redo walk through recorded states', () => {
   let h = createHistory('a');
@@ -51,4 +51,16 @@ test('recording the same value or replacing the present adds no step', () => {
   const h = createHistory('a');
   expect(record(h, 'a')).toBe(h);
   expect(replacePresent(h, 'b')).toEqual({ past: [], present: 'b', future: [], lastKey: null });
+});
+
+test('breakMerge makes the next change with the same key a new step', () => {
+  let h = record(createHistory(0), 1, 'k');
+  h = breakMerge(h);
+  h = record(h, 2, 'k');
+  expect(h.past).toEqual([0, 1]);
+});
+
+test('breakMerge returns the same history when nothing is being merged', () => {
+  const h = createHistory(0);
+  expect(breakMerge(h)).toBe(h);
 });

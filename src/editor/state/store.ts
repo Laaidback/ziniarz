@@ -13,7 +13,7 @@ import {
   updateSpreadElements,
   type ElementPatch,
 } from './commands';
-import { canRedo, canUndo, createHistory, record, redo, replacePresent, undo, type History } from './history';
+import { breakMerge, canRedo, canUndo, createHistory, record, redo, replacePresent, undo, type History } from './history';
 import { moveLayer, type LayerOp } from './layers';
 
 export const MAX_CROP_ZOOM = 5;
@@ -47,8 +47,13 @@ export interface EditorState {
   clickPage(page: number | null): void;
   setMode(mode: EditorMode): void;
   setShowGuides(show: boolean): void;
-  /** Any zine change as one undo step; `key` merges consecutive changes (typing, sliders). */
+  /**
+   * Any zine change as one undo step; `key` merges consecutive changes (typing, sliders) until
+   * the interaction ends: endMerge, selecting, clicking a page, changing the mode or the spread.
+   */
   edit(recipe: (zine: Zine) => Zine, key?: string): void;
+  /** The current interaction ended (pointer up, blur, Enter): the next change is a new undo step. */
+  endMerge(): void;
   addElement(element: ZineElement): void;
   updateElement(id: string, patch: ElementPatch, key?: string): void;
   deleteSelected(): void;
@@ -78,6 +83,17 @@ export function selectedElement(state: EditorState): ZineElement | null {
 
 const sameCrop = (a: PhotoCrop, b: PhotoCrop) => a.offsetX === b.offsetX && a.offsetY === b.offsetY && a.zoom === b.zoom;
 
+/**
+ * The spread to show after undo/redo turned `before` into `after`: the current one if it changed
+ * (or the sheet count did), else the first spread whose elements changed, else the current one.
+ */
+function changedSpread(before: Zine, after: Zine, current: number): number {
+  if (before.spreads.length !== after.spreads.length) return current;
+  if (before.spreads[current]?.elements !== after.spreads[current]?.elements) return current;
+  const index = after.spreads.findIndex((spread, i) => spread.elements !== before.spreads[i].elements);
+  return index < 0 ? current : index;
+}
+
 export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
   /** Keeps derived fields true: text height from the text, photo crop covering the frame. */
   const normalize = (element: ZineElement): ZineElement => {
@@ -94,19 +110,44 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
   return createStore<EditorState>()((set, get) => {
     const zineOf = () => get().history.present;
 
-    /** Applies a new history and keeps the spread index and selection valid for it. */
-    const settle = (history: History<Zine>) => {
+    /** Applies a new history, shows `wanted` (or the nearest spread), and keeps the selection valid for it. */
+    const settle = (
+      history: History<Zine>,
+      wanted = get().spread,
+      activePage = wanted === get().spread ? get().activePage : null,
+    ) => {
       const state = get();
-      const spread = Math.min(state.spread, spreadCount(history.present.sheets) - 1);
+      const spread = Math.min(wanted, spreadCount(history.present.sheets) - 1);
       const keep = state.selectedId !== null && findElement(history.present, spread, state.selectedId) !== undefined;
       set({
         history,
         spread,
         selectedId: keep ? state.selectedId : null,
         mode: keep ? state.mode : 'idle',
-        activePage: spread === state.spread ? state.activePage : null,
+        activePage: spread === wanted ? activePage : null,
       });
     };
+
+    /** Adds or removes a sheet and keeps showing the current spread's content where it moved (pages are 2 per spread). */
+    const changeSheets = (change: (zine: Zine, spread: number) => Zine) => {
+      const { history, spread, activePage } = get();
+      const next = change(history.present, spread);
+      if (next === history.present) return;
+      const moved = next.spreads.indexOf(history.present.spreads[spread]);
+      if (moved < 0) settle(record(history, next));
+      else settle(record(history, next), moved, activePage === null ? null : activePage + 2 * (moved - spread));
+    };
+
+    const travel = (step: (history: History<Zine>) => History<Zine>) => {
+      const before = get().history;
+      const after = step(before);
+      if (after === before) return;
+      settle(after, changedSpread(before.present, after.present, get().spread));
+      get().refreshTextHeights();
+    };
+
+    /** The history with merging ended, for actions that start a new interaction. */
+    const unmerged = () => breakMerge(get().history);
 
     const edit = (recipe: (zine: Zine) => Zine, key?: string) => {
       const next = recipe(zineOf());
@@ -128,16 +169,17 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
 
       setSpread: (index) => {
         const spread = Math.max(0, Math.min(spreadCount(zineOf().sheets) - 1, index));
-        set({ spread, selectedId: null, activePage: null, mode: 'idle' });
+        set({ spread, selectedId: null, activePage: null, mode: 'idle', history: unmerged() });
       },
       select: (id) => {
         if (id === get().selectedId) return;
-        set({ selectedId: id, mode: 'idle', activePage: null });
+        set({ selectedId: id, mode: 'idle', activePage: null, history: unmerged() });
       },
-      clickPage: (page) => set({ selectedId: null, activePage: page, mode: 'idle' }),
-      setMode: (mode) => set({ mode }),
+      clickPage: (page) => set({ selectedId: null, activePage: page, mode: 'idle', history: unmerged() }),
+      setMode: (mode) => set({ mode, history: unmerged() }),
       setShowGuides: (showGuides) => set({ showGuides }),
       edit,
+      endMerge: () => set({ history: unmerged() }),
       addElement: (element) => {
         edit((z) => addElement(z, get().spread, normalize(element)));
         set({ selectedId: element.id, mode: 'idle' });
@@ -168,10 +210,10 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
         const id = get().selectedId;
         if (id) edit((z) => updateSpreadElements(z, get().spread, (elements) => moveLayer(elements, id, op)));
       },
-      addSheet: () => edit((z) => addSheet(z, get().spread)),
-      removeSheet: () => edit((z) => removeSheet(z, get().spread)),
-      undo: () => settle(undo(get().history)),
-      redo: () => settle(redo(get().history)),
+      addSheet: () => changeSheets(addSheet),
+      removeSheet: () => changeSheets(removeSheet),
+      undo: () => travel(undo),
+      redo: () => travel(redo),
       refreshTextHeights: () => {
         const z = zineOf();
         let changed = false;

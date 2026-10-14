@@ -29,6 +29,11 @@ test('fitPhotoFrame keeps proportions, centred in the area', () => {
   expect(fitPhotoFrame({ x: 0, y: 0, width: 100, height: 100 }, 100, 200)).toEqual({ x: 25, y: 0, width: 50, height: 100 });
 });
 
+test('fitPhotoFrame treats an image without a size as square', () => {
+  expect(fitPhotoFrame({ x: 0, y: 0, width: 100, height: 50 }, 0, 0)).toEqual({ x: 25, y: 0, width: 50, height: 50 });
+  expect(fitPhotoFrame({ x: 0, y: 0, width: 100, height: 50 }, 300, 0)).toEqual({ x: 25, y: 0, width: 50, height: 50 });
+});
+
 test('a new text frame spans the margins of its page', () => {
   expect(newTextFrame(createZine('t', 1), 1)).toEqual({ x: 178, y: 30, width: 88 });
 });

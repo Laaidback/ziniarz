@@ -44,8 +44,9 @@ export function removeElement(zine: Zine, spread: number, id: string): Zine {
   );
 }
 
-/** `null` goes back to white (no entry). */
+/** `null` goes back to white (no entry). Like the other setters, returns the same zine when nothing changes. */
 export function setPageBackground(zine: Zine, page: number, color: string | null): Zine {
+  if ((zine.pages[page]?.background ?? null) === color) return zine;
   const pages = { ...zine.pages };
   if (color === null) delete pages[page];
   else pages[page] = { background: color };
@@ -53,10 +54,14 @@ export function setPageBackground(zine: Zine, page: number, color: string | null
 }
 
 export function setMargins(zine: Zine, margins: Margins): Zine {
+  const old = zine.margins;
+  const same = old.outer === margins.outer && old.inner === margins.inner && old.top === margins.top && old.bottom === margins.bottom;
+  if (same) return zine;
   return { ...zine, margins };
 }
 
 export function setTitle(zine: Zine, title: string): Zine {
+  if (zine.title === title) return zine;
   return { ...zine, title };
 }
 

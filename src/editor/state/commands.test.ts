@@ -47,6 +47,14 @@ test('page background, margins, title', () => {
   expect(setTitle(zine, 'Nowy').title).toBe('Nowy');
 });
 
+test('page background, margins and title return the same zine when nothing changes', () => {
+  const zine = setPageBackground(createZine('t', 1), 2, '#ff0000');
+  expect(setPageBackground(zine, 2, '#ff0000')).toBe(zine);
+  expect(setPageBackground(zine, 3, null)).toBe(zine);
+  expect(setMargins(zine, { ...zine.margins })).toBe(zine);
+  expect(setTitle(zine, 't')).toBe(zine);
+});
+
 test('addFontFamilies skips families already on the list', () => {
   const zine = { ...createZine('t', 1), fonts: ['a'] };
   expect(addFontFamilies(zine, ['a', 'b', 'b']).fonts).toEqual(['a', 'b']);

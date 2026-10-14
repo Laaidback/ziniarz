@@ -52,3 +52,22 @@ test('a failed save is reported and later saves still run', async () => {
   await saver.flush();
   expect(save).toHaveBeenCalledTimes(2);
 });
+
+test('a second save waits until the first one has finished', async () => {
+  const finishers: (() => void)[] = [];
+  const save = vi.fn((_zine: Zine) => new Promise<void>((resolve) => finishers.push(resolve)));
+  const saver = createAutosaver(save, { onError: vi.fn() });
+  saver.schedule(createZine('A', 1));
+  void saver.flush();
+  await vi.advanceTimersByTimeAsync(0);
+  saver.schedule(createZine('B', 1));
+  void saver.flush();
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(save).toHaveBeenCalledTimes(1);
+  finishers[0]();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(save.mock.calls[1][0]).toMatchObject({ title: 'B' });
+  finishers[1]();
+  await whenSavesSettled();
+});

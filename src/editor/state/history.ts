@@ -23,6 +23,11 @@ export function record<T>(history: History<T>, next: T, key: string | null = nul
   return { past: [...history.past, history.present].slice(-HISTORY_LIMIT), present: next, future: [], lastKey: key };
 }
 
+/** Ends merging: the next change is a new undo step even with the same key (a new interaction began). */
+export function breakMerge<T>(history: History<T>): History<T> {
+  return history.lastKey === null ? history : { ...history, lastKey: null };
+}
+
 /** Replaces the present without an undo step (derived data, such as re-measured text heights). */
 export function replacePresent<T>(history: History<T>, next: T): History<T> {
   return { ...history, present: next };

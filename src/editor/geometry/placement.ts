@@ -37,8 +37,9 @@ export function insertArea(zine: Zine, page: number): Rect {
   return area.width >= MIN_AREA && area.height >= MIN_AREA ? area : pageRect(side, 0);
 }
 
-/** The largest frame with the image's proportions inside `area`, centred. */
+/** The largest frame with the image's proportions inside `area`, centred. An image without a size counts as square. */
 export function fitPhotoFrame(area: Rect, imageWidth: number, imageHeight: number): Rect {
+  if (!(imageWidth > 0 && imageHeight > 0)) imageWidth = imageHeight = 1;
   const scale = Math.min(area.width / imageWidth, area.height / imageHeight);
   const width = imageWidth * scale;
   const height = imageHeight * scale;

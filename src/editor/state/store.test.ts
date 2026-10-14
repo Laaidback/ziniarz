@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { createPhotoElement, createTextElement, createZine } from '../../model/factory';
 import type { PhotoElement, TextElement } from '../../model/types';
-import { createEditorStore, MAX_CROP_ZOOM, selectCanRedo, selectCanUndo, selectedElement, selectZine } from './store';
+import { setTitle } from './commands';
+import { createEditorStore, type EditorState, MAX_CROP_ZOOM, selectCanRedo, selectCanUndo, selectedElement, selectZine } from './store';
 
 const deps = {
   measureText: (e: TextElement) => e.text.split('\n').length * 5,
@@ -148,4 +149,106 @@ test('refreshTextHeights updates heights without an undo step', () => {
   store.getState().refreshTextHeights();
   expect(selectZine(store.getState()).spreads[0].elements[0].height).toBe(15);
   expect(store.getState().history.past.length).toBe(pastLength);
+});
+
+describe('undo steps end with the interaction', () => {
+  type Between = (s: () => EditorState, id: string) => void;
+  const typeTwice = (between: Between) => {
+    const { s, zine } = setup();
+    const text = createTextElement({ text: '' });
+    s().addElement(text);
+    s().updateElement(text.id, { text: 'A' }, `text:${text.id}`);
+    between(s, text.id);
+    s().updateElement(text.id, { text: 'AB' }, `text:${text.id}`);
+    s().undo();
+    return (zine().spreads[0].elements[0] as TextElement).text;
+  };
+
+  test('without a break, the same key merges', () => {
+    expect(typeTwice(() => {})).toBe('');
+  });
+
+  test.each([
+    ['select', (s, id) => (s().select(null), s().select(id))],
+    ['clickPage', (s, id) => (s().clickPage(1), s().select(id))],
+    ['setSpread', (s, id) => (s().setSpread(0), s().select(id))],
+    ['setMode', (s) => (s().setMode('text'), s().setMode('idle'))],
+    ['endMerge', (s) => s().endMerge()],
+  ] satisfies [string, Between][])('%s ends the merge', (_name, between) => {
+    expect(typeTwice(between)).toBe('A');
+  });
+
+  test('an edit that changes nothing records no step', () => {
+    const { s } = setup();
+    const history = s().history;
+    s().edit((z) => setTitle(z, 'Zin'), 'title');
+    expect(s().history).toBe(history);
+  });
+});
+
+describe('undo and redo', () => {
+  test('show the spread the change was on', () => {
+    const { s, zine } = setup();
+    s().setSpread(1);
+    s().addElement(createTextElement({ text: 'a' }));
+    s().setSpread(3);
+    s().undo();
+    expect(s().spread).toBe(1);
+    expect(zine().spreads[1].elements).toEqual([]);
+    s().setSpread(3);
+    s().redo();
+    expect(s().spread).toBe(1);
+  });
+
+  test('stay on the current spread when the change is there or on no spread', () => {
+    const { s } = setup();
+    s().setSpread(2);
+    s().addElement(createTextElement({ text: 'a' }));
+    s().edit((z) => setTitle(z, 'Nowy'));
+    s().undo();
+    expect(s().spread).toBe(2);
+    s().undo();
+    expect(s().spread).toBe(2);
+  });
+
+  test('re-measure text heights', () => {
+    let lines = 1;
+    const store = createEditorStore(createZine('t', 1), { ...deps, measureText: () => lines * 5 });
+    const text = createTextElement({ text: 'a' });
+    store.getState().addElement(text);
+    store.getState().updateElement(text.id, { text: 'b' });
+    lines = 3;
+    store.getState().undo();
+    expect(selectZine(store.getState()).spreads[0].elements[0]).toMatchObject({ text: 'a', height: 15 });
+    expect(selectCanRedo(store.getState())).toBe(true);
+    store.getState().redo();
+    expect(selectZine(store.getState()).spreads[0].elements[0]).toMatchObject({ text: 'b', height: 15 });
+  });
+});
+
+test('adding a sheet on the back cover keeps showing the back cover', () => {
+  const { s, zine } = setup(2);
+  s().setSpread(4);
+  const back = zine().spreads[4];
+  s().addSheet();
+  expect(zine().sheets).toBe(3);
+  expect(zine().spreads[s().spread]).toBe(back);
+  expect(s().spread).toBe(6);
+});
+
+test('adding a sheet on an inside spread stays on it', () => {
+  const { s, zine } = setup(2);
+  s().setSpread(1);
+  const current = zine().spreads[1];
+  s().addSheet();
+  expect(zine().spreads[s().spread]).toBe(current);
+});
+
+test('removing a sheet before the current spread follows it to its new index', () => {
+  const { s, zine } = setup(3);
+  s().setSpread(5);
+  const current = zine().spreads[5];
+  s().removeSheet();
+  expect(zine().sheets).toBe(2);
+  expect(zine().spreads[s().spread]).toBe(current);
 });
