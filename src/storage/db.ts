@@ -108,6 +108,14 @@ export function fontFilesOfFamily(db: ZiniarzDb, familyId: string): Promise<Font
   return db.getAllFromIndex('fontFiles', 'byFamily', familyId);
 }
 
+export function listFontFamilies(db: ZiniarzDb): Promise<FontFamily[]> {
+  return db.getAll('fontFamilies');
+}
+
+export async function deleteFontFile(db: ZiniarzDb, id: string): Promise<void> {
+  await db.delete('fontFiles', id);
+}
+
 export function listFontFamilyIds(db: ZiniarzDb): Promise<string[]> {
   return db.getAllKeys('fontFamilies');
 }
