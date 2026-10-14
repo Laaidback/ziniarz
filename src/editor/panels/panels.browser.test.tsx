@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { userEvent } from '@vitest/browser/context';
 import { createPhotoElement, createTextElement, createZine } from '../../model/factory';
 import type { PhotoElement, TextElement } from '../../model/types';
 import { renderPanel } from '../../test/panelHarness';
@@ -23,6 +24,21 @@ test('a clicked page shows its background colour; HEX and "Białe tło" change i
   expect(zine().pages[1]).toEqual({ background: '#ff0000' });
   await screen.getByRole('button', { name: 'Białe tło' }).click();
   expect(zine().pages[1]).toBeUndefined();
+});
+
+test('HEX can be typed character by character; 3-digit shorthand counts on Enter', async () => {
+  const { screen, zine } = await renderPanel(createZine('Lato', 1), (store) => store.getState().clickPage(1));
+  const hex = screen.getByLabelText('Tło strony (HEX)');
+  await userEvent.clear(hex);
+  await userEvent.type(hex, '#00ff00');
+  expect(zine().pages[1]).toEqual({ background: '#00ff00' });
+  await expect.element(hex).toHaveValue('#00ff00');
+  await userEvent.clear(hex);
+  await userEvent.type(hex, '#f00');
+  expect(zine().pages[1]).toEqual({ background: '#00ff00' });
+  await userEvent.keyboard('{Enter}');
+  expect(zine().pages[1]).toEqual({ background: '#ff0000' });
+  await expect.element(hex).toHaveValue('#ff0000');
 });
 
 test('text settings: size, colour swatch from the zine, alignment', async () => {
