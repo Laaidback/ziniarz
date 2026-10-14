@@ -395,11 +395,15 @@ export class EditorStage {
     if (!view || !element || event?.altKey || this.transformer.getActiveAnchor() === 'rotater' || element.rotation % 360 !== 0) {
       return position;
     }
+    const anchor = this.transformer.getActiveAnchor() ?? '';
+    // Side handles move one edge only: middle-left/right change x, top/bottom-center change y.
+    const movesX = !anchor.endsWith('-center');
+    const movesY = !anchor.startsWith('middle-');
     const { scale, originX, originY } = this.viewportState;
     const targets = snapTargets(view.zine, view.spread, element.id);
     const threshold = SNAP_DISTANCE_PX / scale;
-    const x = snapPoint((position.x - originX) / scale, targets.xs, threshold);
-    const y = snapPoint((position.y - originY) / scale, targets.ys, threshold);
+    const x = snapPoint((position.x - originX) / scale, movesX ? targets.xs : [], threshold);
+    const y = snapPoint((position.y - originY) / scale, movesY ? targets.ys : [], threshold);
     this.drawSnapLines(x.line, y.line);
     return { x: x.value * scale + originX, y: y.value * scale + originY };
   }

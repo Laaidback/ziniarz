@@ -14,6 +14,11 @@ test('unknown paths go home', () => {
   expect(parseRoute('#/zin/abc/inne')).toEqual({ name: 'home' });
 });
 
+test('a badly encoded id goes home instead of throwing', () => {
+  expect(parseRoute('#/zin/%E0%A4%A')).toEqual({ name: 'home' });
+  expect(parseRoute('#/zin/50%/druk')).toEqual({ name: 'home' });
+});
+
 test('routeHash round-trips, ids are encoded', () => {
   const routes: Route[] = [
     { name: 'home' },

@@ -9,7 +9,12 @@ export function parseRoute(hash: string): Route {
   const path = hash.replace(/^#/, '');
   const match = /^\/zin\/([^/]+)(?:\/(druk|3d))?\/?$/.exec(path);
   if (!match) return { name: 'home' };
-  const zineId = decodeURIComponent(match[1]);
+  let zineId: string;
+  try {
+    zineId = decodeURIComponent(match[1]);
+  } catch {
+    return { name: 'home' }; // a mistyped `%` in the address
+  }
   if (match[2] === 'druk') return { name: 'print', zineId };
   if (match[2] === '3d') return { name: 'preview3d', zineId };
   return { name: 'editor', zineId };

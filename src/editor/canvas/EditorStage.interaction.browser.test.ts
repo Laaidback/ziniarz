@@ -81,6 +81,32 @@ test('a resized text reports width but never height', () => {
   expect(patch.y).toBeCloseTo(30, 5);
 });
 
+test('a side handle snaps and shows a snap line only along the axis it moves', async () => {
+  const zine = createZine('t', 1);
+  const text = createTextElement({ text: 'a', x: 40, y: 60, width: 60 });
+  zine.spreads[1].elements.push(text);
+  const { editor, surface, at, view } = mount(zine, { selectedId: text.id });
+  const transformer = editor.stage.findOne('Transformer') as Konva.Transformer;
+  const anchor = transformer.findOne('.middle-right')!.getAbsolutePosition();
+  const v = editor.viewport();
+  const anchorY = (anchor.y - v.originY) / v.scale;
+  // A photo whose left edge is 1 mm right of the handle and whose top edge is 1 mm below it.
+  const photo = createPhotoElement('img', { x: 101, y: anchorY + 1, width: 20, height: 20 });
+  editor.update({ ...view, zine: { ...zine, spreads: zine.spreads.map((sp, i) => (i === 1 ? { ...sp, elements: [text, photo] } : sp)) } });
+  const seen = { vertical: 0, horizontal: 0 };
+  transformer.on('transform', () => {
+    for (const line of editor.stage.find('Line') as Konva.Line[]) {
+      if (line.stroke() !== '#e5487f') continue;
+      const [x1, , x2] = line.points();
+      if (x1 === x2) seen.vertical++;
+      else seen.horizontal++;
+    }
+  });
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: anchor, targetPosition: at(100.5, anchorY) });
+  expect(seen.vertical).toBeGreaterThan(0);
+  expect(seen.horizontal).toBe(0);
+});
+
 test('in crop mode, dragging moves the photo inside the frame and the wheel zooms', async () => {
   const { zine, photo } = photoZine();
   const assets = { images: new Map([['img', await solidBitmap(200, 100, '#00ff00')]]) };

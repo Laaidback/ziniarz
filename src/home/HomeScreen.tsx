@@ -17,15 +17,23 @@ export function HomeScreen() {
   const db = useDb();
   const [zines, setZines] = useState<Zine[] | null>(null);
   const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const [listFailed, setListFailed] = useState(false);
   const [title, setTitle] = useState('');
   // Kept as typed (it may be empty while retyping); the count used is clamped.
   const [sheetsText, setSheetsText] = useState(String(DEFAULT_SHEETS));
   const sheets = clampSheets(Number(sheetsText) || MIN_SHEETS);
 
+  /** Never rejects: a failure shows a message instead of the list. */
   const reload = useCallback(async () => {
-    const result = await listZinesForHome(db);
-    setZines(result.zines);
-    if (result.unreadable > 0) notify(`Nie da się otworzyć zinów: ${result.unreadable}. Odśwież stronę.`);
+    try {
+      const result = await listZinesForHome(db);
+      setZines(result.zines);
+      setListFailed(false);
+      if (result.unreadable > 0) notify(`Nie da się otworzyć zinów: ${result.unreadable}. Odśwież stronę.`);
+    } catch {
+      setListFailed(true);
+      return;
+    }
     setUsage(await storageUsage());
   }, [db]);
 
@@ -102,7 +110,9 @@ export function HomeScreen() {
         </button>
       </form>
 
-      {zines === null ? (
+      {listFailed ? (
+        <p className="warning">Nie udało się wczytać listy zinów. Odśwież stronę.</p>
+      ) : zines === null ? (
         <p className="muted">Wczytywanie…</p>
       ) : zines.length === 0 ? (
         <p className="muted">Nie masz jeszcze żadnego zina.</p>

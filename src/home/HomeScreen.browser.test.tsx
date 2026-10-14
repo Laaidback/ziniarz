@@ -61,6 +61,12 @@ test('leaving the sheet field shows the count that will be used', async () => {
   await expect.element(field).toHaveValue(1);
 });
 
+test('if the list cannot be read, a message replaces the loading text', async () => {
+  const { screen } = await setup(async (db) => db.close());
+  await expect.element(screen.getByText('Nie udało się wczytać listy zinów. Odśwież stronę.')).toBeVisible();
+  await expect.element(screen.getByText('Wczytywanie…')).not.toBeInTheDocument();
+});
+
 test('a zine can be duplicated and deleted after confirming', async () => {
   const { db, screen } = await setup((db) => saveZine(db, createZine('Lato', 5)));
   await expect.element(screen.getByRole('heading', { name: 'Lato', exact: true })).toBeVisible();
