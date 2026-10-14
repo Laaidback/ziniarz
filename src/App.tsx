@@ -5,6 +5,7 @@ import { NoticeList } from './app/NoticeList';
 import { PlaceholderScreen } from './app/PlaceholderScreen';
 import type { Route } from './app/route';
 import { useRoute } from './app/useRoute';
+import { EditorScreen } from './editor/EditorScreen';
 import { HomeScreen } from './home/HomeScreen';
 import { openZiniarzDb, type ZiniarzDb } from './storage/db';
 import { requestPersistentStorage } from './storage/quota';
@@ -14,7 +15,7 @@ function Screen({ route }: { route: Route }) {
     case 'home':
       return <HomeScreen />;
     case 'editor':
-      return <main className="screen-message">Edytor</main>;
+      return <EditorScreen key={route.zineId} zineId={route.zineId} />;
     case 'print':
       return <PlaceholderScreen title="Druk" zineId={route.zineId} />;
     case 'preview3d':

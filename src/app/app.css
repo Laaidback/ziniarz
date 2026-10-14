@@ -202,3 +202,71 @@ select {
 .home-footer {
   margin-top: 32px;
 }
+
+.editor {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) 300px;
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'top top top'
+    'spreads canvas panel';
+  height: 100vh;
+}
+
+.editor-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.editor-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.toolbar:last-child {
+  margin-left: auto;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-spreads {
+  grid-area: spreads;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.editor-canvas {
+  grid-area: canvas;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  background: var(--canvas);
+}
+
+.editor-panel {
+  grid-area: panel;
+  overflow-y: auto;
+  padding: 12px;
+  border-left: 1px solid var(--line);
+  background: var(--paper);
+}
