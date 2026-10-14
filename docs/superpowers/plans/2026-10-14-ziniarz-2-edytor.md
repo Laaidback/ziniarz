@@ -4577,6 +4577,7 @@ export function mountStage(zine: Zine, view: Partial<StageView> = {}) {
     crop: vi.fn(),
     doubleClick: vi.fn(),
     endCrop: vi.fn(),
+    endGesture: vi.fn(),
   };
   const editor = new EditorStage(container, callbacks);
   editor.resize(800, 500);
@@ -4753,6 +4754,8 @@ export interface StageCallbacks {
   crop(id: string, crop: PhotoCrop): void;
   doubleClick(id: string): void;
   endCrop(): void;
+  /** A crop drag ended: its `crop` calls were one gesture, so the next one is a new undo step. */
+  endGesture(): void;
 }
 
 /** Where spread mm (0, 0) lies in the stage, and how many pixels one mm takes. */
@@ -4987,7 +4990,7 @@ git commit -m "Add the Konva editor canvas: drawing, guides, selection, clicks" 
 
 - Dragging an element snaps its box (edges and centre) to the targets from `snapTargets`; Alt turns snapping off; pink lines show what caught it. While a drag or a resize runs, `update()` only stores the view (rebuilding would destroy the node under the mouse); the store change sent at the end brings the next update.
 - The Transformer edits the proxy; the element mirrors it while dragging; `transformend` reports a frame (text: no height).
-- Crop mode: pressing on the photo and moving shifts the crop offset (rotated into the frame's axes), the wheel zooms by 1.1, pressing elsewhere ends cropping.
+- Crop mode: pressing on the photo and moving shifts the crop offset (rotated into the frame's axes), the wheel zooms by 1.1, pressing elsewhere ends cropping. Releasing a crop drag calls `endGesture` (one undo step per drag).
 
 **Files:**
 - Modify: `src/editor/canvas/EditorStage.ts`
@@ -5080,6 +5083,7 @@ test('in crop mode, dragging moves the photo inside the frame and the wheel zoom
   near(crop.offsetX, -10);
   near(crop.offsetY, 0);
   expect(callbacks.change).not.toHaveBeenCalled();
+  expect(callbacks.endGesture).toHaveBeenCalledTimes(1);
   editor.stage.fire('wheel', { evt: new WheelEvent('wheel', { deltaY: -100, cancelable: true }) });
   expect(callbacks.crop.mock.calls.at(-1)![1].zoom).toBeCloseTo(1.1, 5);
 });
@@ -5150,6 +5154,8 @@ export interface StageCallbacks {
   crop(id: string, crop: PhotoCrop): void;
   doubleClick(id: string): void;
   endCrop(): void;
+  /** A crop drag ended: its `crop` calls were one gesture, so the next one is a new undo step. */
+  endGesture(): void;
 }
 
 /** Where spread mm (0, 0) lies in the stage, and how many pixels one mm takes. */
@@ -5523,7 +5529,9 @@ export class EditorStage {
   }
 
   private readonly endCropDrag = (): void => {
+    if (!this.cropDrag) return;
     this.cropDrag = null;
+    this.callbacks.endGesture();
   };
 
   private handleWheel(event: Konva.KonvaEventObject<WheelEvent>): void {
@@ -6246,6 +6254,7 @@ export function SpreadCanvas() {
         state.setMode(target.kind === 'text' ? 'text' : 'crop');
       },
       endCrop: () => store.getState().setMode('idle'),
+      endGesture: () => store.getState().endMerge(),
     });
     const observer = new ResizeObserver(() => stage.resize(element.clientWidth, element.clientHeight));
     observer.observe(element);
@@ -6528,6 +6537,7 @@ export function SpreadCanvas() {
         state.setMode(target.kind === 'text' ? 'text' : 'crop');
       },
       endCrop: () => store.getState().setMode('idle'),
+      endGesture: () => store.getState().endMerge(),
     });
     const fit = () => {
       stage.resize(element.clientWidth, element.clientHeight);
@@ -6882,7 +6892,7 @@ git commit -m "Add spread thumbnails and adding and removing sheets" -m "Co-Auth
 
 ### Task 20: Properties panels
 
-Right column: the selected photo's or text's settings; with nothing selected, the clicked page's background and the zine's title and margins. Every continuous field passes a merge key so typing or sliding is one undo step. The font list here is the plain selector; Task 21 adds uploading.
+Right column: the selected photo's or text's settings; with nothing selected, the clicked page's background and the zine's title and margins. Every continuous field passes a merge key so typing or sliding is one undo step, and calls the store's `endMerge()` when the interaction ends (blur, Enter, pointer up), so the next one is a new step. The font list here is the plain selector; Task 21 adds uploading.
 
 **Files:**
 - Create: `src/editor/panels/NumberField.tsx`, `ColorField.tsx`, `LayerButtons.tsx`, `FontField.tsx`, `TextPanel.tsx`, `PhotoPanel.tsx`, `PagePanel.tsx`, `ZinePanel.tsx`, `PropertiesPanel.tsx` (all in `src/editor/panels/`), `src/test/panelHarness.tsx`
@@ -7016,6 +7026,7 @@ Expected: FAIL, `../editor/panels/PropertiesPanel` cannot be resolved.
 
 ```tsx
 import { useState } from 'react';
+import { useEditorEnv } from '../EditorContext';
 
 interface Props {
   label: string;
@@ -7029,8 +7040,12 @@ interface Props {
 
 const format = (value: number) => String(Math.round(value * 100) / 100);
 
-/** Number input that only reports valid values in [min, max]; what is typed stays until the field loses focus. */
+/**
+ * Number input that only reports valid values in [min, max]; what is typed stays until the field loses focus.
+ * Blur or Enter ends the undo step.
+ */
 export function NumberField({ label, value, min, max, step = 1, unit, onChange }: Props) {
+  const { store } = useEditorEnv();
   const [draft, setDraft] = useState<string | null>(null);
   return (
     <label className="field">
@@ -7048,7 +7063,13 @@ export function NumberField({ label, value, min, max, step = 1, unit, onChange }
             const number = Number(event.target.value);
             if (event.target.value !== '' && Number.isFinite(number) && number >= min && number <= max) onChange(number);
           }}
-          onBlur={() => setDraft(null)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') store.getState().endMerge();
+          }}
+          onBlur={() => {
+            setDraft(null);
+            store.getState().endMerge();
+          }}
         />
         {unit && <span className="muted">{unit}</span>}
       </span>
@@ -7062,7 +7083,7 @@ export function NumberField({ label, value, min, max, step = 1, unit, onChange }
 ```tsx
 import { useEffect, useState } from 'react';
 import { normalizeHex, swatches } from '../colors';
-import { useEditor } from '../EditorContext';
+import { useEditor, useEditorEnv } from '../EditorContext';
 import { selectZine } from '../state/store';
 
 interface Props {
@@ -7071,8 +7092,10 @@ interface Props {
   onChange(color: string): void;
 }
 
-/** Colour picker, HEX field and swatches of the colours already used in the zine. */
+/** Colour picker, HEX field and swatches of the colours already used in the zine. Blur, Enter or a swatch ends the undo step. */
 export function ColorField({ label, value, onChange }: Props) {
+  const { store } = useEditorEnv();
+  const endMerge = () => store.getState().endMerge();
   const zine = useEditor(selectZine);
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -7080,7 +7103,13 @@ export function ColorField({ label, value, onChange }: Props) {
     <fieldset className="color-field">
       <legend>{label}</legend>
       <div className="row">
-        <input type="color" aria-label={label} value={normalizeHex(value) ?? '#000000'} onChange={(e) => onChange(e.target.value)} />
+        <input
+          type="color"
+          aria-label={label}
+          value={normalizeHex(value) ?? '#000000'}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={endMerge}
+        />
         <input
           type="text"
           aria-label={`${label} (HEX)`}
@@ -7092,7 +7121,13 @@ export function ColorField({ label, value, onChange }: Props) {
             const hex = normalizeHex(event.target.value);
             if (hex) onChange(hex);
           }}
-          onBlur={() => setDraft(value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') endMerge();
+          }}
+          onBlur={() => {
+            setDraft(value);
+            endMerge();
+          }}
         />
       </div>
       <div className="swatches">
@@ -7104,7 +7139,10 @@ export function ColorField({ label, value, onChange }: Props) {
             style={{ background: color }}
             aria-label={`Kolor ${color}`}
             title={color}
-            onClick={() => onChange(color)}
+            onClick={() => {
+              onChange(color);
+              endMerge();
+            }}
           />
         ))}
       </div>
@@ -7291,6 +7329,7 @@ export function PhotoPanel({ element }: { element: PhotoElement }) {
   const { store } = useEditorEnv();
   const mode = useEditor((s) => s.mode);
   const update = (patch: ElementPatch, key?: string) => store.getState().updateElement(element.id, patch, key);
+  const endMerge = () => store.getState().endMerge();
   const transparency = Math.round((1 - element.opacity) * 100);
 
   return (
@@ -7312,6 +7351,8 @@ export function PhotoPanel({ element }: { element: PhotoElement }) {
           step={0.01}
           value={element.crop.zoom}
           onChange={(event) => update({ crop: { ...element.crop, zoom: Number(event.target.value) } }, `zoom:${element.id}`)}
+          onPointerUp={endMerge}
+          onBlur={endMerge}
         />
       </label>
       <label className="toggle">
@@ -7328,6 +7369,8 @@ export function PhotoPanel({ element }: { element: PhotoElement }) {
           step={1}
           value={transparency}
           onChange={(event) => update({ opacity: 1 - Number(event.target.value) / 100 }, `opacity:${element.id}`)}
+          onPointerUp={endMerge}
+          onBlur={endMerge}
         />
       </label>
       <NumberField
@@ -7396,7 +7439,15 @@ export function ZinePanel() {
       <h2>Zin</h2>
       <label className="field">
         <span>Tytuł</span>
-        <input aria-label="Tytuł" value={title} onChange={(event) => store.getState().edit((z) => setTitle(z, event.target.value), 'title')} />
+        <input
+          aria-label="Tytuł"
+          value={title}
+          onChange={(event) => store.getState().edit((z) => setTitle(z, event.target.value), 'title')}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') store.getState().endMerge();
+          }}
+          onBlur={() => store.getState().endMerge()}
+        />
       </label>
       <h3>Marginesy</h3>
       {MARGINS.map(([side, label]) => (
