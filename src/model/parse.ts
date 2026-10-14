@@ -6,7 +6,7 @@ import {
   DEFAULT_PRINT,
   FORMAT_VERSION,
 } from './factory';
-import { spreadCount } from './geometry';
+import { pageExists, spreadCount } from './geometry';
 import { newId } from './ids';
 import type { Frame, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
 
@@ -53,7 +53,7 @@ function parseElement(v: unknown): ZineElement | null {
         zoom: Math.max(1, num(crop.zoom, 1)),
       },
       flipX: bool(v.flipX, false),
-      opacity: num(v.opacity, 1),
+      opacity: Math.min(1, Math.max(0, num(v.opacity, 1))),
     });
   }
   if (v.kind === 'text') {
@@ -99,7 +99,7 @@ export function parseZine(input: unknown): Zine {
   if (isObj(input.pages)) {
     for (const [key, value] of Object.entries(input.pages)) {
       const page = Number(key);
-      if (Number.isInteger(page) && isObj(value) && typeof value.background === 'string') {
+      if (Number.isInteger(page) && pageExists(page, sheets) && isObj(value) && typeof value.background === 'string') {
         pages[page] = { background: value.background };
       }
     }

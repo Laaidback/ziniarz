@@ -57,6 +57,30 @@ describe('parseZine', () => {
     raw.spreads.pop();
     expect(() => parseZine(raw)).toThrow(ZineFormatError);
   });
+
+  test('drops page styles for pages that do not exist', () => {
+    const raw = roundTrip(createZine('Lato', 1)); // 4 pages
+    raw.pages = {
+      '': { background: '#111111' },
+      '-1': { background: '#222222' },
+      '0': { background: '#333333' },
+      '2': { background: '#444444' },
+      '4': { background: '#555555' },
+      '5': { background: '#666666' },
+    };
+    expect(parseZine(raw).pages).toEqual({ 2: { background: '#444444' }, 4: { background: '#555555' } });
+  });
+
+  test('clamps photo opacity to 0..1', () => {
+    const raw = roundTrip(createZine('Lato', 1));
+    raw.spreads[0].elements.push(
+      { ...createPhotoElement('a'), opacity: 5 },
+      { ...createPhotoElement('b'), opacity: -2 },
+      { ...createPhotoElement('c'), opacity: 0.4 },
+    );
+    const photos = parseZine(raw).spreads[0].elements;
+    expect(photos.map((e) => (e.kind === 'photo' ? e.opacity : null))).toEqual([1, 0, 0.4]);
+  });
 });
 
 test('imageIdsOfZine lists photos of all spreads', () => {
