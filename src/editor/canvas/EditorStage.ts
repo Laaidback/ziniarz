@@ -35,6 +35,8 @@ export interface StageView {
   selectedId: string | null;
   mode: EditorMode;
   showGuides: boolean;
+  /** Changes when photos or fonts change in place (same `assets` object), so the spread is drawn again. */
+  contentVersion?: string;
 }
 
 /** What the canvas asks the store to do. */
@@ -79,6 +81,8 @@ export class EditorStage {
   private readonly proxy = new Konva.Rect();
   private readonly transformer: Konva.Transformer;
   private view: StageView | null = null;
+  /** The view the element nodes in `content` were built from (see contentChanged). */
+  private builtView: StageView | null = null;
   private viewportState: Viewport = { scale: 1, originX: 0, originY: 0 };
   /** True while a drag or a resize runs: store updates must not rebuild the nodes under the pointer. */
   private interacting = false;
@@ -147,7 +151,7 @@ export class EditorStage {
       layer.scale({ x: scale, y: scale });
       layer.position({ x: this.viewportState.originX, y: this.viewportState.originY });
     }
-    this.rebuild();
+    this.redraw(true);
   }
 
   viewport(): Viewport {
@@ -164,12 +168,42 @@ export class EditorStage {
   update(view: StageView): void {
     this.view = view;
     // The next update after the drag or resize ends redraws everything.
-    if (!this.interacting) this.rebuild();
+    if (!this.interacting) this.redraw();
   }
 
-  private rebuild(): void {
+  /**
+   * Whether the element nodes must be built again. Selecting alone must keep them: Konva fires
+   * `dblclick` only when both clicks land on the same node, and the first click selects.
+   */
+  private contentChanged(view: StageView): boolean {
+    const built = this.builtView;
+    if (!built) return true;
+    const hidden = (v: StageView) => (v.mode === 'text' ? v.selectedId : null);
+    return (
+      built.zine !== view.zine ||
+      built.spread !== view.spread ||
+      built.assets !== view.assets ||
+      built.contentVersion !== view.contentVersion ||
+      built.mode !== view.mode ||
+      hidden(built) !== hidden(view)
+    );
+  }
+
+  /** Rebuilds the spread only when its content changed; guides and selection always. */
+  private redraw(force = false): void {
     const view = this.view;
     if (!view) return;
+    if (force || this.contentChanged(view)) this.buildContent(view);
+    this.decorations.destroyChildren();
+    this.decorations.add(buildMissingPagesShade(view.zine, view.spread));
+    if (view.showGuides) this.decorations.add(buildGuidesGroup(view.zine, view.spread, this.viewportState.scale));
+    this.snapLines.destroyChildren();
+    this.attachSelection();
+    this.stage.batchDraw();
+  }
+
+  private buildContent(view: StageView): void {
+    this.builtView = view;
     this.content.destroyChildren();
     const spread = buildSpreadGroup(view.zine, view.spread, view.assets);
     for (const node of spread.getChildren((child) => child.hasName(ELEMENT_NODE_NAME))) {
@@ -178,12 +212,6 @@ export class EditorStage {
       if (view.mode === 'text' && node.id() === view.selectedId) node.visible(false);
     }
     this.content.add(spread);
-    this.decorations.destroyChildren();
-    this.decorations.add(buildMissingPagesShade(view.zine, view.spread));
-    if (view.showGuides) this.decorations.add(buildGuidesGroup(view.zine, view.spread, this.viewportState.scale));
-    this.snapLines.destroyChildren();
-    this.attachSelection();
-    this.stage.batchDraw();
   }
 
   private selectedElement(): ZineElement | null {

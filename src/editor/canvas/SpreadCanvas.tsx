@@ -58,7 +58,7 @@ export function SpreadCanvas() {
   }, [store]);
 
   useEffect(() => {
-    editor?.update({ zine, spread, assets, selectedId, mode, showGuides });
+    editor?.update({ zine, spread, assets, selectedId, mode, showGuides, contentVersion: `${assetsVersion}:${fontsVersion}` });
   }, [editor, zine, spread, assets, selectedId, mode, showGuides, assetsVersion, fontsVersion]);
 
   // Fonts of this spread load in the background; when they arrive the text is measured again.

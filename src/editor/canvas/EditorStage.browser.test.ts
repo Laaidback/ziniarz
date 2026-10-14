@@ -61,6 +61,31 @@ test('double-clicking an element asks to edit it', async () => {
   expect(callbacks.doubleClick).toHaveBeenCalledWith(text.id);
 });
 
+test('double-clicking an unselected element works when selecting it redraws the canvas', async () => {
+  const { zine, photo, text } = sample();
+  const { editor, callbacks, surface, at, view } = mount(zine);
+  // Like the real store: the first click selects, and the new selection comes back as an update.
+  callbacks.select.mockImplementation((id: string) => editor.update({ ...view, selectedId: id }));
+  await userEvent.dblClick(surface, { position: at(190, 34) });
+  expect(callbacks.doubleClick).toHaveBeenCalledWith(text.id);
+  await userEvent.dblClick(surface, { position: at(50, 70) });
+  expect(callbacks.doubleClick).toHaveBeenCalledWith(photo.id);
+});
+
+test('selection changes keep the element nodes; content changes rebuild them', () => {
+  const { zine, photo, text } = sample();
+  const { editor, view } = mount(zine);
+  const nodeOf = (id: string) => editor.stage.findOne((n: Konva.Node) => n.id() === id);
+  const before = nodeOf(text.id);
+  editor.update({ ...view, selectedId: text.id });
+  expect(nodeOf(text.id)).toBe(before);
+  expect(transformer(editor.stage).nodes()).toHaveLength(1);
+  const moved = { ...zine, spreads: zine.spreads.map((s, i) => (i === 1 ? { ...s, elements: [photo, { ...text, x: 100 }] } : s)) };
+  editor.update({ ...view, zine: moved, selectedId: text.id });
+  expect(nodeOf(text.id)).not.toBe(before);
+  expect(nodeOf(text.id)!.x()).toBeCloseTo(100 + text.width / 2, 5);
+});
+
 test('guides follow the switch; the missing page next to a cover is shaded', () => {
   const { zine } = sample();
   const { editor, view } = mount(zine);

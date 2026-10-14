@@ -1,7 +1,9 @@
 import { userEvent } from '@vitest/browser/context';
+import Konva from 'konva';
 import { expect, test } from 'vitest';
-import { createZine } from '../../model/factory';
+import { createTextElement, createZine } from '../../model/factory';
 import type { TextElement } from '../../model/types';
+import '../../app/app.css';
 import { openInEditor } from '../../test/editorHarness';
 
 test('"+ Napis" opens the text box; typing changes the text and Escape ends editing', async () => {
@@ -35,4 +37,20 @@ test('a text frame left empty is removed', async () => {
       return { saved: zine.updatedAt !== savedBefore, elements: zine.spreads[0].elements };
     })
     .toEqual({ saved: true, elements: [] });
+});
+
+test('double-clicking a text that is not selected yet opens the text box', async () => {
+  const zine = createZine('Lato', 1);
+  const text = createTextElement({ text: 'Ala', x: 178, y: 30, width: 88, size: 24 });
+  zine.spreads[0].elements.push(text);
+  const { screen } = await openInEditor(zine);
+  await expect.element(screen.getByRole('heading', { name: 'Lato' })).toBeVisible();
+  const surface = document.querySelector('.spread-stage .konvajs-content') as HTMLElement;
+  const stage = Konva.stages.find((s) => s.content === surface)!;
+  await expect.poll(() => stage.findOne((n: Konva.Node) => n.id() === text.id)).toBeTruthy();
+  const box = stage.findOne((n: Konva.Node) => n.id() === text.id)!.getClientRect();
+  await userEvent.dblClick(surface, { position: { x: box.x + box.width / 2, y: box.y + box.height / 2 } });
+  const editor = screen.getByRole('textbox', { name: 'Treść napisu' });
+  await expect.element(editor).toBeVisible();
+  await expect.element(editor).toHaveValue('Ala');
 });
