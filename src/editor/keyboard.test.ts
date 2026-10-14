@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createPhotoElement, createTextElement, createZine } from '../model/factory';
-import { applyKeyCommand, isTypingTarget, keyCommand, type KeyLike } from './keyboard';
+import { applyKeyCommand, fieldOwnsKey, isTypingTarget, keyCommand, type KeyLike } from './keyboard';
 import { createEditorStore, selectedElement, selectZine } from './state/store';
 
 const key = (k: string, mods: Partial<KeyLike> = {}): KeyLike => ({
@@ -38,11 +38,32 @@ describe('keyCommand', () => {
   });
 });
 
-test('isTypingTarget', () => {
-  expect(isTypingTarget({ tagName: 'INPUT' } as unknown as EventTarget)).toBe(true);
-  expect(isTypingTarget({ tagName: 'DIV', isContentEditable: true } as unknown as EventTarget)).toBe(true);
-  expect(isTypingTarget({ tagName: 'BUTTON' } as unknown as EventTarget)).toBe(false);
+const target = (tagName: string, extra: object = {}) => ({ tagName, ...extra }) as unknown as EventTarget;
+
+test('isTypingTarget: text fields, selects and editable text only', () => {
+  expect(isTypingTarget(target('INPUT'))).toBe(true);
+  for (const type of ['text', 'search', 'number', 'email', 'url', 'tel', 'password']) {
+    expect(isTypingTarget(target('INPUT', { type }))).toBe(true);
+  }
+  expect(isTypingTarget(target('TEXTAREA'))).toBe(true);
+  expect(isTypingTarget(target('SELECT'))).toBe(true);
+  expect(isTypingTarget(target('DIV', { isContentEditable: true }))).toBe(true);
+  for (const type of ['checkbox', 'range', 'color', 'file', 'button']) {
+    expect(isTypingTarget(target('INPUT', { type }))).toBe(false);
+  }
+  expect(isTypingTarget(target('BUTTON'))).toBe(false);
   expect(isTypingTarget(null)).toBe(false);
+});
+
+test('fieldOwnsKey: a slider keeps its arrows, other editor keys still work there', () => {
+  const slider = target('INPUT', { type: 'range' });
+  expect(fieldOwnsKey(slider, 'ArrowLeft')).toBe(true);
+  expect(fieldOwnsKey(slider, 'ArrowUp')).toBe(true);
+  for (const key of ['z', 'Delete', 'PageUp', 'PageDown', 'Enter']) expect(fieldOwnsKey(slider, key)).toBe(false);
+  const checkbox = target('INPUT', { type: 'checkbox' });
+  expect(fieldOwnsKey(checkbox, 'ArrowLeft')).toBe(false);
+  expect(fieldOwnsKey(checkbox, 'Delete')).toBe(false);
+  expect(fieldOwnsKey(target('INPUT', { type: 'text' }), 'Delete')).toBe(true);
 });
 
 describe('applyKeyCommand', () => {

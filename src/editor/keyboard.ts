@@ -52,11 +52,28 @@ export function keyCommand(event: KeyLike): KeyCommand | null {
   }
 }
 
-/** Keys typed into fields belong to the field, not to the editor. */
+const TEXT_INPUT_TYPES = new Set(['text', 'search', 'number', 'email', 'url', 'tel', 'password']);
+
+interface FieldLike {
+  tagName?: unknown;
+  type?: unknown;
+  isContentEditable?: boolean;
+}
+
+/** Keys typed into fields belong to the field, not to the editor. Checkboxes, sliders and buttons are not typed into. */
 export function isTypingTarget(target: EventTarget | null): boolean {
-  const element = target as { tagName?: unknown; isContentEditable?: boolean } | null;
+  const element = target as FieldLike | null;
   if (!element || typeof element.tagName !== 'string') return false;
-  return element.isContentEditable === true || ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName);
+  if (element.isContentEditable === true) return true;
+  if (element.tagName === 'INPUT') return TEXT_INPUT_TYPES.has(typeof element.type === 'string' ? element.type : 'text');
+  return element.tagName === 'TEXTAREA' || element.tagName === 'SELECT';
+}
+
+/** Whether the focused field handles `key` itself: every key while typing, the arrows on a slider. */
+export function fieldOwnsKey(target: EventTarget | null, key: string): boolean {
+  if (isTypingTarget(target)) return true;
+  const element = target as FieldLike | null;
+  return element?.tagName === 'INPUT' && element.type === 'range' && key.startsWith('Arrow');
 }
 
 /** Runs a shortcut; returns false when it does nothing here (the browser keeps its default). */
