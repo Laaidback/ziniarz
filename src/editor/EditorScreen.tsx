@@ -42,6 +42,20 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
     };
   }, [env.db, env.store]);
 
+  // A file dropped beside the canvas would make the browser open it and leave the editor.
+  useEffect(() => {
+    const blockFileDrop = (event: DragEvent) => {
+      const onFileInput = event.target instanceof HTMLInputElement && event.target.type === 'file';
+      if (!onFileInput && event.dataTransfer?.types.includes('Files')) event.preventDefault();
+    };
+    window.addEventListener('dragover', blockFileDrop);
+    window.addEventListener('drop', blockFileDrop);
+    return () => {
+      window.removeEventListener('dragover', blockFileDrop);
+      window.removeEventListener('drop', blockFileDrop);
+    };
+  }, []);
+
   return (
     <EditorContext.Provider value={env}>
       <div className="editor">

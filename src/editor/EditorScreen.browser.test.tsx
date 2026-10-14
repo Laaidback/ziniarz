@@ -44,3 +44,20 @@ test('"+ Napis" adds a text on the cover and autosave stores it', async () => {
     .toEqual([['Napis', 178, 88]]);
   await expect.element(screen.getByRole('button', { name: 'Cofnij' })).toBeEnabled();
 });
+
+test('files dropped outside the canvas do not make the browser leave the editor', async () => {
+  const { screen } = await openInEditor(createZine('Lato', 1));
+  await expect.element(screen.getByRole('heading', { name: 'Lato' })).toBeVisible();
+  const fire = (type: 'dragover' | 'drop', target: Element) => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(new File(['x'], 'zdjecie.png', { type: 'image/png' }));
+    const event = new DragEvent(type, { dataTransfer, bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+  const heading = screen.getByRole('heading', { name: 'Lato' }).element();
+  expect(fire('dragover', heading)).toBe(true);
+  expect(fire('drop', heading)).toBe(true);
+  screen.unmount();
+  expect(fire('drop', document.body)).toBe(false);
+});
