@@ -40,7 +40,7 @@ interface Zine {
   margins: { outer: number; inner: number; top: number; bottom: number }; // domyślnie 30 mm
   spreads: Spread[];            // długość P/2 + 1
   pages: Record<number, PageStyle>; // kolor tła strony, brak = biały
-  fonts: string[];              // id własnych fontów wgranych do tego zina
+  fonts: string[];              // id własnych rodzin fontów wgranych do tego zina
   print: PrintSettings;         // ostatnie ustawienia eksportu
   createdAt: string; updatedAt: string;
 }
@@ -61,8 +61,9 @@ interface PhotoElement extends Frame {
 interface TextElement extends Frame {
   kind: 'text';                 // height liczona z tekstu, width = szerokość łamania
   text: string;
-  fontId: string; size: number; // punkty typograficzne w skali A5
-  bold: boolean; italic: boolean; // tylko gdy font ma taki wariant
+  fontFamilyId: string;         // rodzina fontu (wbudowana albo własna)
+  size: number;                 // punkty typograficzne w skali A5
+  bold: boolean; italic: boolean; // wybiera plik z rodziny; tylko gdy rodzina ma taki wariant
   letterSpacing: number;        // kerning, w tysięcznych em
   lineHeight: number;           // mnożnik, domyślnie 1.2
   color: string; align: 'left' | 'center' | 'right' | 'justify';
@@ -71,7 +72,9 @@ interface TextElement extends Frame {
 
 - Element należy do rozkładówki, nie do strony. Może leżeć przez grzbiet.
 - Część elementu na nieistniejącej stronie (obok okładki) jest w edytorze wyszarzona i nie trafia do druku.
-- **„+ kartka”** wstawia 2 puste rozkładówki (4 strony) zaraz za bieżącą rozkładówką; na tylnej okładce wstawia je przed nią. Rozkładówki przesuwają się w całości, więc okładki i wewnętrzne strony okładek zostają na miejscu. **„− kartka”** usuwa bieżącą rozkładówkę i następną (nie działa na okładkach ani gdy następna to tylna okładka); gdy mają elementy albo kolor tła, apka najpierw pyta. Minimum 1 kartka.
+- Rozkładówka 1 zawiera wewnętrzną stronę przedniej okładki (strona 2), rozkładówka `P/2 − 1` wewnętrzną stronę tylnej okładki (strona `P − 1`). Rozkładówki przesuwają się zawsze w całości.
+- **„+ kartka”** wstawia 2 puste rozkładówki (4 strony) za rozkładówką `j = clamp(bieżąca, 1, P/2 − 2)`. Dzięki temu obie okładki i obie wewnętrzne strony okładek zostają na miejscu. Wyjątek: przy 1 kartce (P = 4) rozkładówka 1 zawiera obie wewnętrzne strony okładek; nowe strony idą za nią, więc treść strony 3 zostaje na stronie 3, a nowa wewnętrzna strona tylnej okładki (7) jest pusta.
+- **„− kartka”** usuwa dwie sąsiednie rozkładówki `j` i `j + 1`, gdzie `j = clamp(bieżąca, 2, P/2 − 3)`, więc okładki i ich wewnętrzne strony zostają. Przy 2 kartkach (P = 8) takiej pary nie ma; wtedy usuwa rozkładówki 2 i 3, a wewnętrzną stroną tylnej okładki staje się strona 3. Zanim usunie, zawsze podświetla, które strony znikną, i pyta, gdy mają elementy albo kolor tła. Minimum 1 kartka.
 - Kolory tła stron przesuwają się razem z numeracją przy dodawaniu i usuwaniu kartek.
 - Nowe pola w modelu zawsze z wartością domyślną przy wczytywaniu. Zmiana znaczenia pola = nowa `formatVersion` i migracja. Test wczytuje zapisane pliki starych wersji.
 
@@ -85,7 +88,7 @@ interface TextElement extends Frame {
 - **Napis:** „+ Napis” wstawia ramkę od marginesu do marginesu bieżącej strony (szerokość łamania = szerokość obszaru między marginesami). Tekst łamie się w ramce, wysokość rośnie z tekstem. Krawędzie ramki przyciągają się do marginesów, ale ramkę można przeciągnąć i rozciągnąć poza margines, aż przez grzbiet. Podwójne kliknięcie = edycja tekstu na miejscu. Ustawienia: font, rozmiar, pogrubienie, kursywa, kerning, odstęp między wierszami, kolor, wyrównanie, obrót.
 - **Strona:** klik w puste miejsce strony pokazuje jej ustawienia: kolor tła. Ustawienia zina: marginesy (cztery wartości), tytuł.
 - **Kolory:** próbnik z HEX-em i próbki kolorów użytych w zinie.
-- **Fonty:** zestaw darmowych fontów (licencja OFL) dostarczony z apką i wgrywanie własnych `.ttf`/`.otf`/`.woff2`. Własny font wgrywa się do bieżącego zina (trafia na listę `Zine.fonts`) i jest dostępny w nim także wtedy, gdy żaden napis go jeszcze nie używa. Plik `.zin` zabiera wszystkie fonty z tej listy. Przycisk „użyj fontu z innego zina” dopisuje istniejący font do listy bez ponownego wgrywania. Pogrubienie i kursywa są dostępne tylko, gdy font ma taki plik; inaczej przełącznik jest wyszarzony.
+- **Fonty:** zestaw darmowych fontów (licencja OFL) dostarczony z apką i wgrywanie własnych `.ttf`/`.otf`/`.woff2`. Własny font wgrywa się do bieżącego zina. Pliki o tej samej nazwie rodziny (np. Regular, Bold, Italic) łączą się w jedną rodzinę, która trafia na listę `Zine.fonts` . Rodzina jest dostępna w zinie także wtedy, gdy żaden napis jej jeszcze nie używa. Plik `.zin` zabiera wszystkie rodziny z tej listy. Przycisk „użyj fontu z innego zina” dopisuje istniejącą rodzinę do listy bez ponownego wgrywania. Pogrubienie i kursywa są dostępne tylko, gdy rodzina ma taki plik; inaczej przełącznik jest wyszarzony.
 - **Warstwy:** „na wierzch”, „wyżej”, „niżej”, „na spód”.
 - **Skróty:** Cmd+Z / Shift+Cmd+Z, Delete, Cmd+C / Cmd+V (także między rozkładówkami), Cmd+D (powiel), strzałki przesuwają o 1 mm, z Shiftem o 10 mm, Escape odznacza, PageUp/PageDown zmieniają rozkładówkę.
 - **Historia:** cofnij/ponów do 100 kroków, w pamięci, na otwarty zin.
@@ -152,8 +155,8 @@ Przy `m = 4`, spadach i bez znaczników: `s ≈ 0,935`, strona po przycięciu ok
 
 ## Magazyn (`src/storage/`)
 
-- IndexedDB: tabela zinów (JSON), tabela zdjęć (Blob, klucz `imageId`), tabela fontów (Blob + nazwa, grubość, kursywa).
-- Zdjęcia, których nie używa żaden element żadnego zina, i fonty, których nie ma na liście `fonts` żadnego zina, są usuwane przy otwarciu listy zinów, nigdy w trakcie edycji.
+- IndexedDB: tabela zinów (JSON), tabela zdjęć (Blob, klucz `imageId`), tabela rodzin fontów (id, nazwa) i tabela plików fontów (Blob, id rodziny, pogrubienie, kursywa).
+- Zdjęcia, których nie używa żaden element żadnego zina, i rodziny fontów (z plikami), których nie ma na liście `fonts` żadnego zina, są usuwane przy otwarciu listy zinów, nigdy w trakcie edycji.
 - Plik `.zin`: zip z `zine.json`, folderem `images/` i `fonts/`. Wczytanie tworzy nowy zin (nowe id), nigdy nie nadpisuje istniejącego.
 - Apka prosi przeglądarkę o trwały magazyn (`navigator.storage.persist()`) i pokazuje zajęte miejsce. Przy braku miejsca komunikat: zapisz plik `.zin` i usuń stare ziny.
 
@@ -176,7 +179,7 @@ Komunikaty po polsku, bez technicznych szczegółów. Nic się nie nadpisuje po 
 
 ## Testy
 
-- **Vitest, czysta logika:** impozycja (5 i 6 kartek dokładnie, każda strona dokładnie raz dla N = 1…20), skala `s` i rozmiar po przycięciu dla różnych opcji, pozycje znaczników, dodawanie i usuwanie kartek (tylna okładka zostaje na końcu, kolory tła idą za stronami), przypisanie fragmentów elementu przez grzbiet do stron, migracje `formatVersion`, zapis i odczyt `.zin`.
+- **Vitest, czysta logika:** impozycja (5 i 6 kartek dokładnie, każda strona dokładnie raz dla N = 1…20), skala `s` i rozmiar po przycięciu dla różnych opcji, pozycje znaczników, dodawanie i usuwanie kartek przy każdej bieżącej rozkładówce dla 1…6 kartek (okładki i ich wewnętrzne strony zostają na miejscu poza opisanymi wyjątkami, kolory tła idą za stronami), przypisanie fragmentów elementu przez grzbiet do stron, migracje `formatVersion`, zapis i odczyt `.zin`.
 - **Testy renderu:** arkusze przykładowego zina rysowane do PNG i porównywane z wzorcem (z tolerancją); wzorce w repo, odświeżane świadomie.
 - **Playwright (Chrome):** nowy zin 5 kartek, dodanie zdjęcia i napisu, eksport PDF; sprawdzenie, że PDF ma 10 stron A4.
 
