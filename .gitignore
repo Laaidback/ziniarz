@@ -3,3 +3,4 @@ dist
 test-output/*
 !test-output/.gitkeep
 .DS_Store
+__screenshots__/
