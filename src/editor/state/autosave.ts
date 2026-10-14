@@ -21,6 +21,7 @@ export interface Autosaver {
 
 export interface AutosaveOptions {
   delayMs?: number;
+  /** Called for the first failed save in a row (e.g. storage full), not again until a save succeeds. */
   onError(error: unknown): void;
   now?: () => Date;
 }
@@ -31,6 +32,7 @@ export function createAutosaver(save: (zine: Zine) => Promise<void>, options: Au
   let pending: Zine | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let chain: Promise<void> = Promise.resolve();
+  let failing = false;
 
   const run = (): Promise<void> => {
     if (timer !== null) clearTimeout(timer);
@@ -39,7 +41,17 @@ export function createAutosaver(save: (zine: Zine) => Promise<void>, options: Au
     pending = null;
     if (!zine) return chain;
     // One save at a time, in order, so an older version never lands after a newer one.
-    const job = chain.then(() => save({ ...zine, updatedAt: now().toISOString() })).catch(options.onError);
+    const job = chain
+      .then(() => save({ ...zine, updatedAt: now().toISOString() }))
+      .then(
+        () => {
+          failing = false;
+        },
+        (error: unknown) => {
+          if (!failing) options.onError(error);
+          failing = true;
+        },
+      );
     chain = job;
     inFlight.add(job);
     void job.finally(() => inFlight.delete(job));
