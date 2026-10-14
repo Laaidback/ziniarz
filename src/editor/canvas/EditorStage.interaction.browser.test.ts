@@ -35,6 +35,18 @@ test('dragging a frame near a margin snaps it there and reports the new position
   near(patch.y, 40);
 });
 
+test('dragging an unselected frame leaves it selected with handles, even if the drop changes nothing', async () => {
+  const { zine, photo } = photoZine();
+  const { editor, callbacks, surface, at, view } = mount(zine);
+  // The selection arrives mid-drag; the drop is a no-op for the store, so no update follows it.
+  callbacks.select.mockImplementation((id: string) => editor.update({ ...view, selectedId: id }));
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(70, 90) });
+  expect(callbacks.change).toHaveBeenCalled();
+  const nodes = (editor.stage.findOne('Transformer') as Konva.Transformer).nodes();
+  expect(nodes).toHaveLength(1);
+  near(nodes[0].x(), photo.x + photo.width / 2);
+});
+
 test('holding Alt turns snapping off', async () => {
   const { zine } = photoZine();
   const { callbacks, surface, at } = mount(zine);

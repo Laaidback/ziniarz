@@ -86,6 +86,8 @@ export class EditorStage {
   private viewportState: Viewport = { scale: 1, originX: 0, originY: 0 };
   /** True while a drag or a resize runs: store updates must not rebuild the nodes under the pointer. */
   private interacting = false;
+  /** An update arrived while interacting and has not been drawn yet. */
+  private stale = false;
   private dragTargets: SnapTargets | null = null;
   private cropDrag: { id: string; startX: number; startY: number; crop: PhotoCrop; rotation: number; flipX: boolean } | null = null;
 
@@ -167,8 +169,13 @@ export class EditorStage {
 
   update(view: StageView): void {
     this.view = view;
-    // The next update after the drag or resize ends redraws everything.
-    if (!this.interacting) this.redraw();
+    // Drawn when the drag or resize ends (see finishGesture).
+    if (this.interacting) {
+      this.stale = true;
+      return;
+    }
+    this.stale = false;
+    this.redraw();
   }
 
   /**
@@ -315,13 +322,21 @@ export class EditorStage {
     const node = event.target;
     if (!node.hasName(ELEMENT_NODE_NAME)) return;
     this.dragTargets = null;
-    this.endInteraction();
-    this.callbacks.change(node.id(), { x: node.x() - node.offsetX(), y: node.y() - node.offsetY() });
+    this.finishGesture(() => this.callbacks.change(node.id(), { x: node.x() - node.offsetX(), y: node.y() - node.offsetY() }));
   }
 
-  private endInteraction(): void {
+  /**
+   * Ends a drag or resize and reports it. If the store skips a no-op change, no update follows,
+   * so a view that arrived during the gesture (such as the new selection) is drawn here.
+   */
+  private finishGesture(report: () => void): void {
     this.interacting = false;
     this.drawSnapLines(null, null);
+    report();
+    if (this.stale) {
+      this.stale = false;
+      this.redraw(true);
+    }
   }
 
   private drawSnapLines(x: number | null, y: number | null): void {
@@ -356,15 +371,16 @@ export class EditorStage {
 
   private handleTransformEnd(): void {
     const element = this.selectedElement();
-    this.endInteraction();
-    if (!element) return;
-    const p = this.proxy;
-    const frame = frameFromCentre(p.x(), p.y(), p.width() * p.scaleX(), p.height() * p.scaleY(), p.rotation());
-    // A text's height always comes from its text, so only width, position and rotation are kept.
-    this.callbacks.change(
-      element.id,
-      element.kind === 'text' ? { x: frame.x, y: frame.y, width: frame.width, rotation: frame.rotation } : frame,
-    );
+    this.finishGesture(() => {
+      if (!element) return;
+      const p = this.proxy;
+      const frame = frameFromCentre(p.x(), p.y(), p.width() * p.scaleX(), p.height() * p.scaleY(), p.rotation());
+      // A text's height always comes from its text, so only width, position and rotation are kept.
+      this.callbacks.change(
+        element.id,
+        element.kind === 'text' ? { x: frame.x, y: frame.y, width: frame.width, rotation: frame.rotation } : frame,
+      );
+    });
   }
 
   private limitBox<T extends { width: number; height: number }>(oldBox: T, newBox: T): T {
