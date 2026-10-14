@@ -8,24 +8,44 @@ export interface RenderOptions {
   pxPerMm: number;
 }
 
-function renderRegion(zine: Zine, spread: number, assets: RenderAssets, region: Rect, pxPerMm: number) {
-  return drawToCanvas(Math.round(region.width * pxPerMm), Math.round(region.height * pxPerMm), (layer) => {
+export interface PixelSize {
+  width: number;
+  height: number;
+}
+
+/**
+ * Draws `region` so that it fills the canvas exactly, edge to edge. The canvas
+ * has whole-pixel dimensions (by default the region at `pxPerMm`, rounded) and
+ * the drawing is stretched by the sub-pixel rounding difference, so no edge
+ * column or row is left partly transparent.
+ */
+function renderRegion(zine: Zine, spread: number, assets: RenderAssets, region: Rect, pxPerMm: number, size?: PixelSize) {
+  const width = size?.width ?? Math.round(region.width * pxPerMm);
+  const height = size?.height ?? Math.round(region.height * pxPerMm);
+  const scaleX = width / region.width;
+  const scaleY = height / region.height;
+  return drawToCanvas(width, height, (layer) => {
     const group = buildSpreadGroup(zine, spread, assets);
-    group.position({ x: -region.x * pxPerMm, y: -region.y * pxPerMm });
-    group.scale({ x: pxPerMm, y: pxPerMm });
+    group.position({ x: -region.x * scaleX, y: -region.y * scaleY });
+    group.scale({ x: scaleX, y: scaleY });
     layer.add(group);
   });
 }
 
-/** One page cut from its spread: bleed only on outer edges, a clean cut at the spine. */
+/**
+ * One page cut from its spread: bleed only on outer edges, a clean cut at the spine.
+ * `sizePx` forces exact canvas dimensions (the imposed sheet uses it so both pages
+ * meet on the same whole-pixel column at the fold).
+ */
 export function renderPage(
   zine: Zine,
   page: number,
   assets: RenderAssets,
-  options: RenderOptions & { bleed: boolean },
+  options: RenderOptions & { bleed: boolean; sizePx?: PixelSize },
 ): HTMLCanvasElement {
   const { spread, side } = slotOfPage(page);
-  return renderRegion(zine, spread, assets, pageRect(side, options.bleed ? BLEED : 0), options.pxPerMm);
+  const region = pageRect(side, options.bleed ? BLEED : 0);
+  return renderRegion(zine, spread, assets, region, options.pxPerMm, options.sizePx);
 }
 
 /** Whole spread with bleed on all sides (thumbnails, editor background). */

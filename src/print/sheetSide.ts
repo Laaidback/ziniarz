@@ -36,15 +36,26 @@ export function renderSheetSide(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const pageOptions = { pxPerMm: k * layout.scale, bleed: layout.bleed > 0 };
-  const top = (layout.spread.y - layout.bleed) * k;
-  const placements: [number, number][] = [
-    [side.left, (layout.spread.x - layout.bleed) * k],
-    [side.right, (layout.spread.x + layout.trimPage.width) * k],
+  // Page edges on whole pixels, the fold computed once and shared by both pages:
+  // canvases drawn at fractional positions get snapped or antialiased by the
+  // browser, which left a white column at the fold.
+  const { spread, bleed, trimPage } = layout;
+  const x0 = Math.round((spread.x - bleed) * k);
+  const fold = Math.round((spread.x + trimPage.width) * k);
+  const x1 = Math.round((spread.x + spread.width + bleed) * k);
+  const y0 = Math.round((spread.y - bleed) * k);
+  const y1 = Math.round((spread.y + spread.height + bleed) * k);
+  const placements: [number, number, number][] = [
+    [side.left, x0, fold - x0],
+    [side.right, fold, x1 - fold],
   ];
-  for (const [page, left] of placements) {
-    const pageCanvas = renderPage(zine, page, assets, pageOptions);
-    ctx.drawImage(pageCanvas, left, top);
+  for (const [page, left, width] of placements) {
+    const pageCanvas = renderPage(zine, page, assets, {
+      pxPerMm: k * layout.scale,
+      bleed: bleed > 0,
+      sizePx: { width, height: y1 - y0 },
+    });
+    ctx.drawImage(pageCanvas, left, y0);
     releaseCanvas(pageCanvas);
   }
 
