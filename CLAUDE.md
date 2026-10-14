@@ -13,32 +13,48 @@ npm test
 npm run dev
 ```
 
-- `npm run test:unit`: czysta logika w Node. `npm run test:browser`: render, fonty, PDF w Chromium (Vitest browser mode).
+- `npm run test:unit`: czysta logika w Node. `npm run test:browser`: render, fonty, PDF i komponenty React w Chromium (Vitest browser mode, okno 1280×900).
 - `test-output/`: próbne arkusze PNG i PDF z `src/print/samples.browser.test.ts` do obejrzenia.
-- `vite.config.ts` wymienia `konva` i `pdf-lib` w `optimizeDeps.include`, żeby testy w przeglądarce nie przeładowywały się w trakcie przebiegu. Każdą nową bibliotekę używaną w testach przeglądarkowych dopisz tam też.
+- `vite.config.ts` wymienia biblioteki w `optimizeDeps.include`, żeby testy w przeglądarce nie przeładowywały się w trakcie przebiegu. Każdą nową bibliotekę używaną w testach przeglądarkowych dopisz tam też.
 
 ## Struktura
 
 | Ścieżka | Odpowiedzialność |
 |---|---|
-| `src/model/` | Typy zina (`types.ts`), numeracja stron i rozkładówek (`geometry.ts`), wartości domyślne (`factory.ts`), wczytywanie z wartościami domyślnymi i wersją (`parse.ts`), dodawanie i usuwanie kartek (`sheets.ts`). |
+| `src/App.tsx`, `src/app/` | Ekrany według adresu (`route.ts`: `#/`, `#/zin/<id>`, `#/zin/<id>/druk`, `#/zin/<id>/3d`), baza w kontekście (`dbContext.ts`), komunikaty (`notices.ts`, `NoticeList.tsx`), pytania „na pewno?” (`confirm.ts`, `ConfirmHost.tsx`), odmiana liczebników (`plural.ts`), style (`app.css`). |
+| `src/home/` | Lista zinów: nowy, powiel, usuń, pliki `.zin` (`homeActions.ts`), miniatura okładki (`coverThumbnail.ts`), ekran (`HomeScreen.tsx`, `ZineCard.tsx`). |
+| `src/editor/state/` | Stan edytora w Zustand (`store.ts`), historia cofania (`history.ts`), zmiany zina (`commands.ts`), warstwy (`layers.ts`), schowek (`clipboard.ts`), autozapis (`autosave.ts`). Czysta logika, testy w Node. |
+| `src/editor/geometry/` | Gdzie wstawić zdjęcie i napis (`placement.ts`), przyciąganie (`snapping.ts`). Czysta matematyka. |
+| `src/editor/canvas/` | Płótno edytora w Konvie (`EditorStage.ts`), jego opakowanie w React (`SpreadCanvas.tsx`), edycja tekstu na miejscu (`TextEditor.tsx`). |
+| `src/editor/panels/` | Prawa kolumna: ustawienia zdjęcia (`PhotoPanel.tsx`), napisu (`TextPanel.tsx`), strony (`PagePanel.tsx`), zina (`ZinePanel.tsx`), a do tego pola `ColorField`, `FontField`, `NumberField` i przyciski warstw (`LayerButtons.tsx`); `PropertiesPanel.tsx` wybiera właściwy panel. |
+| `src/editor/` (reszta) | Ekran edytora (`EditorScreen.tsx`, `EditorContext.ts`, `session.ts`), pasek u góry (`TopBar.tsx`, `InsertButtons.tsx`), miniatury rozkładówek i „± kartka” (`SpreadList.tsx`, `useSpreadThumbnails.ts`, `spreadLabels.ts`), wstawianie (`insert.ts`), skróty (`keyboard.ts`, `useEditorKeyboard.ts`), kolory (`colors.ts`). |
+| `src/model/` | Typy zina (`types.ts`), numeracja stron i rozkładówek, marginesy (`geometry.ts`), wartości domyślne (`factory.ts`), wczytywanie z wartościami domyślnymi i wersją (`parse.ts`), dodawanie i usuwanie kartek (`sheets.ts`). |
 | `src/imposition/` | Kolejność stron na arkuszach (`imposition.ts`), skala pod margines drukarki (`layout.ts`), znaczniki cięcia i zgięcia (`marks.ts`). Czysta matematyka. |
-| `src/storage/` | IndexedDB (`db.ts`), sprzątanie nieużywanych zdjęć i fontów (`cleanup.ts`), pliki `.zin` (`zinFile.ts`). |
+| `src/storage/` | IndexedDB (`db.ts`), sprzątanie nieużywanych zdjęć i fontów (`cleanup.ts`), pliki `.zin` (`zinFile.ts`), trwały magazyn i zajęte miejsce (`quota.ts`). |
 | `src/images/` | Wczytywanie zdjęć: zmniejszanie do 3600 px, JPEG albo PNG z przezroczystością. |
-| `src/fonts/` | Rejestracja fontów (`FontFace`), nazwy rodzin dla Konvy, czekanie na fonty przed eksportem. |
-| `src/render/` | Jedyny rysownik (Konva): rozkładówka w mm (`buildSpread.ts`), strona i rozkładówka do canvasu (`renderPage.ts`). |
-| `src/print/` | Strona arkusza (`sheetSide.ts`), PDF arkuszy i stron (`pdf.ts`), strona próbna (`testPage.ts`). |
+| `src/fonts/` | Wbudowane fonty (`fontChoices.ts`, pliki w `builtinFontFiles.ts`), rejestracja fontów i czekanie na nie (`fontLoader.ts`), nazwa rodziny z pliku (`fontNames.ts`), wgrywanie (`fontImport.ts`), lista fontów zina i fonty innych zinów (`catalogue.ts`), odświeżanie po załadowaniu fontów (`useFontsVersion.ts`). |
+| `src/render/` | Jedyny rysownik (Konva): rozkładówka w mm (`buildSpread.ts`), prowadnice i wyszarzenie brakującej strony (`guides.ts`), wczytywanie zdjęć do rysowania (`assets.ts`, pomija uszkodzone), geometria zdjęcia (`photoGeometry.ts`), strona i rozkładówka do canvasu (`renderPage.ts`). |
+| `src/print/` | Strona arkusza (`sheetSide.ts`), PDF arkuszy i stron (`pdf.ts`), grupowanie stron do druku (`printGroups.ts`), nazwy plików (`fileName.ts`), strona próbna (`testPage.ts`). |
+| `src/test/` | Pomocniki testów: piksele, sztuczny plik TTF (`sfnt.ts`), płótno edytora (`stageHarness.ts`), cały edytor (`editorHarness.tsx`), panel (`panelHarness.tsx`), wybór plików (`files.ts`). |
 
 ## Zasady i niezmienniki
 
 - **Jednostki:** wszystko w milimetrach w skali A5 (strona 148×210). Rozkładówka: x 0…296, grzbiet x = 148, spad 3 mm poza nią.
 - **Rozkładówka `i`** ma strony `2i` (lewa) i `2i + 1` (prawa). Strony 0 i `P + 1` nie istnieją (okładki stoją same). Element należy do rozkładówki i może leżeć przez grzbiet.
-- **Jeden rysownik.** Edytor, miniatury, PDF i 3D rysują przez `buildSpreadGroup`. Nie twórz osobnej ścieżki rysowania. Tekst rysuje tylko `Konva.Text`.
+- **Jeden rysownik.** Edytor, miniatury, PDF i 3D rysują przez `buildSpreadGroup`. Nie twórz osobnej ścieżki rysowania. Tekst rysuje i mierzy tylko `createTextShape` (`Konva.Text`); wysokość ramki napisu liczy `measureTextHeight`, a pole edycji tekstu bierze rozmiary z `textStyleMm`.
+- **Płótno edytora to zwykła Konva** (`EditorStage`), nie react-konva: rysunek rozkładówki pochodzi z rysownika, klasa dokłada tylko prowadnice, zaznaczenie, przyciąganie i obsługę myszy. Transformer działa na niewidocznym prostokącie (`proxy`) w warstwie bez skali.
+- **Stan edytora:** zmiany zina tylko przez akcje sklepu (`edit`, `updateElement`…), każda to krok cofania (do 100). Zmiany z tym samym kluczem (pisanie, suwaki, pola liczb, przesuwanie zdjęcia w kadrze) łączą się w jeden krok, a **na końcu każdej interakcji (puszczenie myszy, blur, Enter) wołaj `endMerge()`**; łączenie kończy też `select`, `clickPage`, `setSpread` i `setMode`. Zmiana, która nic nie zmienia, zwraca ten sam zin i nie robi kroku cofania. Cofnięcie i ponowienie ponownie mierzą wysokości napisów i przełączają na rozkładówkę ze zmianą. Dodanie i usunięcie kartki zostawia podgląd na tej samej rozkładówce. Zaznaczenie, rozkładówka i tryb nie są w historii. Sklep nie importuje Konvy: pomiar tekstu i rozmiar zdjęcia dostaje w `EditorDeps`.
+- **`EditorStage.update` przebudowuje węzły elementów tylko, gdy zmieniła się treść** (zin, rozkładówka, zdjęcia, `contentVersion` z wersji zdjęć i fontów, tryb, napis w edycji). Samo zaznaczenie ich nie rusza: Konva wysyła `dblclick` tylko wtedy, gdy oba kliknięcia trafią w ten sam węzeł, a pierwsze kliknięcie zaznacza. Aktualizacje w trakcie przeciągania czekają do `finishGesture()`, które rysuje je po puszczeniu myszy. Test pilnuje obu rzeczy.
+- **Selektory Zustand** zwracają wartości stałe (pole stanu albo element), nigdy nowy obiekt, bo React wpada w pętlę.
 - **Spad tylko na zewnętrznych krawędziach strony;** przy grzbiecie strona kończy się równo (`pageRect`).
 - **Impozycja:** kartka `k`: przód `P − 2k | 2k + 1`, tył `2k + 2 | P − 2k − 1`. PDF poziomy, tył pod „odwracanie po krótszej krawędzi”; „Obróć tyły o 180°” dla drukarek odwracających po dłuższej.
 - **Skala druku:** `s = min(1, (297 − 2m − 2c)/(296 + 2b), (210 − 2m − 2c)/(210 + 2b))`; spad i znaczniki zawsze mieszczą się w obszarze druku (pilnuje test).
 - **Kartki:** dodawanie i usuwanie nigdy nie przesuwa okładek ani wewnętrznych stron okładek (poza wyjątkami 1 i 2 kartek opisanymi w specu). Kolory tła idą za stronami.
-- **Kompatybilność danych:** nowe pole = wartość domyślna w `parseZine`. Zmiana znaczenia pola = nowa `FORMAT_VERSION` i migracja. Nowsza wersja pliku = czytelny błąd, nigdy częściowy zin.
-- **Zdjęcia i fonty leżą w IndexedDB, nigdy w JSON-ie zina.** Sprzątanie (`pruneUnusedAssets`) tylko z listy zinów, nigdy w trakcie edycji. Font jest „używany”, gdy jest na liście `Zine.fonts`.
-- **Wczytanie `.zin` tworzy nowy zin** (nowe id), nigdy nie nadpisuje istniejącego.
+- **Kompatybilność danych:** nowe pole = wartość domyślna w `parseZine`. Zmiana znaczenia pola = nowa `FORMAT_VERSION` i migracja. Nowsza wersja pliku = czytelny błąd, nigdy częściowy zin. **Zin z bazy zawsze przechodzi przez `parseZine`** (lista zinów, otwieranie w edytorze).
+- **Zdjęcia i fonty leżą w IndexedDB, nigdy w JSON-ie zina.** Sprzątanie (`pruneUnusedAssets`) tylko z listy zinów, nigdy w trakcie edycji, i dopiero po `whenSavesSettled()`, żeby świeżo dodane zdjęcie nie wyglądało na nieużywane. Font jest „używany”, gdy jest na liście `Zine.fonts`.
+- **Autozapis** 500 ms po zmianie, zapisy po kolei; wyjście z edytora zapisuje od razu. `updatedAt` ustawia zapis.
+- **Fonty:** wbudowane rodziny mają id jak `fontFamilyId` (`inter`, `lora`…), domyślna `inter`. Każdy styl to dwa pliki (latin i latin-ext z polskimi literami), przeglądarka pobiera je dopiero, gdy tekst ich potrzebuje; `ensureFontsReady` i `loadSpreadFonts` podają tekst, żeby pobrała właściwe. Nowy wbudowany font = wpis w `BUILTIN_FONTS` i pliki w `builtinFontFiles.ts` (test pilnuje zgodności). Własne fonty: rodzina z tabeli `name` (ID 1) i bitów OS/2 dla TTF/OTF, z nazwy pliku dla WOFF2. Poza pogrubieniem i kursywą waga (Light, SemiBold…) zostaje w nazwie rodziny („Lato Light”), żeby komplet wag nie nadpisywał Regular i Bold.
+- **Wczytanie `.zin` tworzy nowy zin** (nowe id), nigdy nie nadpisuje istniejącego. Rodzina fontów, której id już jest w bazie, dostaje nowe id razem z plikami, a zin i napisy idą za nią.
 - **Eksport rysuje arkusze po jednym** i zwalnia canvas (`releaseCanvas`); `drawToCanvas` wymusza `Konva.pixelRatio = 1`.
+- **Nazwy plików** nie mogą różnić się tylko wielkością liter (macOS jej nie rozróżnia): stąd `notices.ts` i `NoticeList.tsx`, `spreadLabels.ts` i `SpreadList.tsx`.
+- **Testy komponentów:** `*.browser.test.tsx` z `vitest-browser-react`. Pliki do `<input type="file">` podawaj przez `chooseFiles` (`src/test/files.ts`), bo `userEvent.upload` psuje pliki binarne.
