@@ -1,0 +1,23 @@
+import { expect, test } from 'vitest';
+import { createTextElement, createZine } from '../model/factory';
+import { removalMessage, spreadLabel, thumbnailKey } from './spreadLabels';
+
+test('spread labels', () => {
+  expect([0, 1, 2, 3, 4].map((i) => spreadLabel(i, 2))).toEqual(['Okładka', '2–3', '4–5', '6–7', 'Tył']);
+});
+
+test('removal message names the pages', () => {
+  expect(removalMessage([4, 5, 6, 7])).toBe('Strony 4–7 mają treść, która zniknie. Usunąć kartkę?');
+});
+
+test('thumbnail key changes with the spread, its page colours and the version only', () => {
+  const zine = createZine('t', 2);
+  const key = thumbnailKey(zine, 1, 0);
+  expect(thumbnailKey({ ...zine, title: 'x' }, 1, 0)).toBe(key);
+  expect(thumbnailKey({ ...zine, pages: { 5: { background: '#000' } } }, 1, 0)).toBe(key);
+  expect(thumbnailKey({ ...zine, pages: { 3: { background: '#000' } } }, 1, 0)).not.toBe(key);
+  expect(thumbnailKey(zine, 1, 1)).not.toBe(key);
+  const edited = structuredClone(zine);
+  edited.spreads[1].elements.push(createTextElement());
+  expect(thumbnailKey(edited, 1, 0)).not.toBe(key);
+});
