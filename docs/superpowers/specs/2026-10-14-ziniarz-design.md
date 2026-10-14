@@ -40,6 +40,7 @@ interface Zine {
   margins: { outer: number; inner: number; top: number; bottom: number }; // domyślnie 30 mm
   spreads: Spread[];            // długość P/2 + 1
   pages: Record<number, PageStyle>; // kolor tła strony, brak = biały
+  fonts: string[];              // id własnych fontów wgranych do tego zina
   print: PrintSettings;         // ostatnie ustawienia eksportu
   createdAt: string; updatedAt: string;
 }
@@ -70,7 +71,7 @@ interface TextElement extends Frame {
 
 - Element należy do rozkładówki, nie do strony. Może leżeć przez grzbiet.
 - Część elementu na nieistniejącej stronie (obok okładki) jest w edytorze wyszarzona i nie trafia do druku.
-- **„+ kartka”** wstawia 2 puste rozkładówki tuż przed ostatnią (tylna okładka zostaje na końcu). **„− kartka”** usuwa 2 rozkładówki przed ostatnią; gdy mają elementy albo kolor tła, apka najpierw pyta. Minimum 1 kartka.
+- **„+ kartka”** wstawia 2 puste rozkładówki (4 strony) zaraz za bieżącą rozkładówką; na tylnej okładce wstawia je przed nią. Rozkładówki przesuwają się w całości, więc okładki i wewnętrzne strony okładek zostają na miejscu. **„− kartka”** usuwa bieżącą rozkładówkę i następną (nie działa na okładkach ani gdy następna to tylna okładka); gdy mają elementy albo kolor tła, apka najpierw pyta. Minimum 1 kartka.
 - Kolory tła stron przesuwają się razem z numeracją przy dodawaniu i usuwaniu kartek.
 - Nowe pola w modelu zawsze z wartością domyślną przy wczytywaniu. Zmiana znaczenia pola = nowa `formatVersion` i migracja. Test wczytuje zapisane pliki starych wersji.
 
@@ -84,7 +85,7 @@ interface TextElement extends Frame {
 - **Napis:** „+ Napis” wstawia ramkę od marginesu do marginesu bieżącej strony (szerokość łamania = szerokość obszaru między marginesami). Tekst łamie się w ramce, wysokość rośnie z tekstem. Krawędzie ramki przyciągają się do marginesów, ale ramkę można przeciągnąć i rozciągnąć poza margines, aż przez grzbiet. Podwójne kliknięcie = edycja tekstu na miejscu. Ustawienia: font, rozmiar, pogrubienie, kursywa, kerning, odstęp między wierszami, kolor, wyrównanie, obrót.
 - **Strona:** klik w puste miejsce strony pokazuje jej ustawienia: kolor tła. Ustawienia zina: marginesy (cztery wartości), tytuł.
 - **Kolory:** próbnik z HEX-em i próbki kolorów użytych w zinie.
-- **Fonty:** zestaw darmowych fontów (licencja OFL) dostarczony z apką i wgrywanie własnych `.ttf`/`.otf`/`.woff2`. Własne fonty leżą w magazynie i jadą w pliku `.zin`. Pogrubienie i kursywa są dostępne tylko, gdy font ma taki plik; inaczej przełącznik jest wyszarzony.
+- **Fonty:** zestaw darmowych fontów (licencja OFL) dostarczony z apką i wgrywanie własnych `.ttf`/`.otf`/`.woff2`. Własny font wgrywa się do bieżącego zina (trafia na listę `Zine.fonts`) i jest dostępny w nim także wtedy, gdy żaden napis go jeszcze nie używa. Plik `.zin` zabiera wszystkie fonty z tej listy. Przycisk „użyj fontu z innego zina” dopisuje istniejący font do listy bez ponownego wgrywania. Pogrubienie i kursywa są dostępne tylko, gdy font ma taki plik; inaczej przełącznik jest wyszarzony.
 - **Warstwy:** „na wierzch”, „wyżej”, „niżej”, „na spód”.
 - **Skróty:** Cmd+Z / Shift+Cmd+Z, Delete, Cmd+C / Cmd+V (także między rozkładówkami), Cmd+D (powiel), strzałki przesuwają o 1 mm, z Shiftem o 10 mm, Escape odznacza, PageUp/PageDown zmieniają rozkładówkę.
 - **Historia:** cofnij/ponów do 100 kroków, w pamięci, na otwarty zin.
@@ -108,7 +109,11 @@ Kartka `k` (0…`sheets − 1`), arkusz A4 poziomo:
 - przód: lewa połowa = strona `P − 2k`, prawa = strona `2k + 1`,
 - tył: lewa połowa = strona `2k + 2`, prawa = strona `P − 2k − 1`.
 
-Przykład dla 20 stron: kartka 1 przód 20 | 1, tył 2 | 19; kartka 5 przód 12 | 9, tył 10 | 11.
+Przykład dla 20 stron: k = 0 (pierwsza kartka) przód 20 | 1, tył 2 | 19; k = 4 (piąta kartka) przód 12 | 9, tył 10 | 11.
+
+Strony parzyste leżą zawsze na lewej połowie arkusza, nieparzyste na prawej, więc grzbiet każdej strony jest na środku arkusza, a zewnętrzna krawędź przy brzegu arkusza.
+
+Strony PDF są poziome (MediaBox 842×595 pt), treść nie jest obracana. Tył jest ułożony dla kartki odwracanej w lewo/prawo, czyli dla druku dwustronnego **„odwracanie po krótszej krawędzi”**. Ekran druku mówi, żeby wybrać tę opcję w oknie drukowania.
 
 ### Skala pod domową drukarkę
 
@@ -127,9 +132,9 @@ Przy `m = 4`, spadach i bez znaczników: `s ≈ 0,935`, strona po przycięciu ok
 - **Spady** wł./wył. (domyślnie wł.).
 - **Linie cięcia** wł./wył.: krótkie kreski 4 mm w przedłużeniu krawędzi przycięcia, zaczynające się 1 mm za spadem, w pasie `c`. Na zewnętrznych rogach pary stron; przy grzbiecie brak (tam się zgina, nie tnie).
 - **Linia zgięcia** wł./wył.: krótkie kreski 4 mm na środku arkusza, u góry i u dołu, w pasie `c`, na obu stronach kartki. Nigdy przez całą wysokość, żeby nie było jej widać w zinie.
-- **Obróć tyły o 180°** dla drukarek, które odwracają kartkę po krótszym boku.
-- **Tryb dwustronny:** „automatycznie” (jeden PDF: przód 1, tył 1, przód 2, tył 2…) albo „ręcznie” (dwa PDF-y: same przody i same tyły w odwrotnej kolejności, do odwrócenia stosu).
-- **Strona próbna:** jedna kartka z numerami i strzałkami na przodzie i tyle, do sprawdzenia dwustronności i marginesu drukarki.
+- **Obróć tyły o 180°** dla drukarek, które umieją odwracać kartkę tylko po dłuższej krawędzi (wtedy bez obrotu tył wychodzi do góry nogami).
+- **Tryb dwustronny:** „automatycznie” (jeden PDF: przód 1, tył 1, przód 2, tył 2…) albo „ręcznie” (dwa PDF-y: same przody i same tyły, do włożenia stosu z powrotem). W trybie ręcznym przełącznik „tyły w odwrotnej kolejności” (domyślnie wł.), bo zależy to od tego, jak drukarka odkłada kartki.
+- **Strona próbna:** jedna kartka z numerami i strzałkami na przodzie i tyle, do sprawdzenia dwustronności i marginesu drukarki. Pod nią krótka instrukcja: tył do góry nogami = włącz „Obróć tyły o 180°”; tyły w złej kolejności = przełącz kolejność.
 - **PDF stronami:** strony A5 po kolei, ze spadami albo bez, do przejrzenia.
 
 ### Eksport
@@ -148,7 +153,7 @@ Przy `m = 4`, spadach i bez znaczników: `s ≈ 0,935`, strona po przycięciu ok
 ## Magazyn (`src/storage/`)
 
 - IndexedDB: tabela zinów (JSON), tabela zdjęć (Blob, klucz `imageId`), tabela fontów (Blob + nazwa, grubość, kursywa).
-- Zdjęcia i fonty nieużywane przez żaden zin są usuwane przy otwarciu listy zinów, nigdy w trakcie edycji.
+- Zdjęcia, których nie używa żaden element żadnego zina, i fonty, których nie ma na liście `fonts` żadnego zina, są usuwane przy otwarciu listy zinów, nigdy w trakcie edycji.
 - Plik `.zin`: zip z `zine.json`, folderem `images/` i `fonts/`. Wczytanie tworzy nowy zin (nowe id), nigdy nie nadpisuje istniejącego.
 - Apka prosi przeglądarkę o trwały magazyn (`navigator.storage.persist()`) i pokazuje zajęte miejsce. Przy braku miejsca komunikat: zapisz plik `.zin` i usuń stare ziny.
 
@@ -174,3 +179,12 @@ Komunikaty po polsku, bez technicznych szczegółów. Nic się nie nadpisuje po 
 - **Vitest, czysta logika:** impozycja (5 i 6 kartek dokładnie, każda strona dokładnie raz dla N = 1…20), skala `s` i rozmiar po przycięciu dla różnych opcji, pozycje znaczników, dodawanie i usuwanie kartek (tylna okładka zostaje na końcu, kolory tła idą za stronami), przypisanie fragmentów elementu przez grzbiet do stron, migracje `formatVersion`, zapis i odczyt `.zin`.
 - **Testy renderu:** arkusze przykładowego zina rysowane do PNG i porównywane z wzorcem (z tolerancją); wzorce w repo, odświeżane świadomie.
 - **Playwright (Chrome):** nowy zin 5 kartek, dodanie zdjęcia i napisu, eksport PDF; sprawdzenie, że PDF ma 10 stron A4.
+
+## Kolejność budowy
+
+1. Model, impozycja, skala i znaczniki, magazyn i `.zin` (czysta logika z testami, bez UI).
+2. Rysownik i eksport PDF (arkusze, strona próbna, PDF stronami) z testami renderu.
+3. Edytor: lista zinów, rozkładówki, zdjęcia, napisy, fonty, prowadnice, przyciąganie, historia.
+4. Ekran druku z podglądem arkuszy.
+5. Podgląd 3D.
+6. Hosting na GitHub Pages i `CLAUDE.md`.
