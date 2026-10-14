@@ -5,6 +5,7 @@ import { parseZine } from '../model/parse';
 import type { Zine } from '../model/types';
 import { loadRenderAssets, type RenderAssets } from '../render/assets';
 import { getImage, loadZine, type ZiniarzDb } from '../storage/db';
+import { whenSavesSettled } from './state/autosave';
 
 export class ZineNotFoundError extends Error {
   constructor() {
@@ -19,8 +20,12 @@ export interface EditorSession {
   fonts: FontChoice[];
 }
 
-/** Everything the editor needs before it shows a zine. Stored data goes through parseZine. */
+/**
+ * Everything the editor needs before it shows a zine. Stored data goes through parseZine.
+ * Waits for saves still running (editor → Druk → editor) so it never loads an older version.
+ */
 export async function openEditorSession(db: ZiniarzDb, zineId: string): Promise<EditorSession> {
+  await whenSavesSettled();
   const raw = await loadZine(db, zineId);
   if (!raw) throw new ZineNotFoundError();
   const zine = parseZine(raw);
