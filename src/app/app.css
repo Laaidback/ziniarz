@@ -270,3 +270,9 @@ select {
   border-left: 1px solid var(--line);
   background: var(--paper);
 }
+
+.spread-canvas,
+.spread-stage {
+  position: absolute;
+  inset: 0;
+}

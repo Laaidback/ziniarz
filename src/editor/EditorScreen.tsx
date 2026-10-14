@@ -6,6 +6,7 @@ import type { FontChoice } from '../fonts/fontChoices';
 import { releaseRenderAssets, type RenderAssets } from '../render/assets';
 import { measureTextHeight } from '../render/buildSpread';
 import { saveZine } from '../storage/db';
+import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { openEditorSession } from './session';
 import { createAutosaver } from './state/autosave';
@@ -44,7 +45,9 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
       <div className="editor">
         <TopBar />
         <aside className="editor-spreads" />
-        <section className="editor-canvas" />
+        <section className="editor-canvas">
+          <SpreadCanvas />
+        </section>
         <aside className="editor-panel" />
       </div>
     </EditorContext.Provider>

@@ -34,3 +34,13 @@ test('a missing zine shows a message and a way back', async () => {
   await expect.element(screen.getByText('Nie znaleziono tego zina. Może został usunięty.')).toBeVisible();
   await expect.element(screen.getByRole('link', { name: 'Wróć do listy zinów' })).toHaveAttribute('href', '#/');
 });
+
+test('"+ Napis" adds a text on the cover and autosave stores it', async () => {
+  const zine = createZine('Lato', 1);
+  const { screen, stored } = await openInEditor(zine);
+  await screen.getByRole('button', { name: '+ Napis' }).click();
+  await expect
+    .poll(async () => (await stored()).spreads[0].elements.map((e) => e.kind === 'text' && [e.text, e.x, e.width]))
+    .toEqual([['Napis', 178, 88]]);
+  await expect.element(screen.getByRole('button', { name: 'Cofnij' })).toBeEnabled();
+});

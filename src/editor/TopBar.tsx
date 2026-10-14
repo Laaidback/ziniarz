@@ -1,5 +1,6 @@
 import { routeHash } from '../app/route';
 import { useEditor, useEditorEnv } from './EditorContext';
+import { InsertButtons } from './InsertButtons';
 import { selectCanRedo, selectCanUndo } from './state/store';
 
 export function TopBar() {
@@ -15,6 +16,7 @@ export function TopBar() {
         ← Ziny
       </a>
       <h1 className="editor-title">{title}</h1>
+      <InsertButtons />
       <div className="toolbar">
         <button type="button" onClick={() => store.getState().undo()} disabled={!canUndo} title="Cofnij (⌘Z)">
           Cofnij
