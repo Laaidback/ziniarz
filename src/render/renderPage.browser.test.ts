@@ -3,6 +3,7 @@ import { createPhotoElement, createTextElement, createZine } from '../model/fact
 import type { Zine } from '../model/types';
 import { expectColor, hasDarkPixel, pixel, solidBitmap, splitBitmap } from '../test/pixels';
 import type { RenderAssets } from './assets';
+import { buildSpreadGroup, ELEMENT_NODE_NAME, measureTextHeight, ptToMm, textStyleMm } from './buildSpread';
 import { renderPage, renderSpread } from './renderPage';
 
 const RED: [number, number, number] = [255, 0, 0];
@@ -110,4 +111,57 @@ test('renderSpread leaves the missing half of a cover spread empty', async () =>
   expect([canvas.width, canvas.height]).toEqual([302 * PX, 216 * PX]);
   expectColor(pixel(canvas, 203 * PX, 103 * PX), RED);
   expect(pixel(canvas, 50 * PX, 103 * PX)[3]).toBe(0);
+});
+
+describe('renderSpread overlays', () => {
+  const bluish = (canvas: HTMLCanvasElement, x0: number, y0: number, width: number, height: number) => {
+    const data = canvas.getContext('2d')!.getImageData(x0, y0, width, height).data;
+    for (let i = 0; i < data.length; i += 4) if (data[i + 2] > data[i] + 60) return true;
+    return false;
+  };
+
+  test('guides draw the blue margin line only when asked', () => {
+    const zine = createZine('t', 1);
+    // Left page of spread 1: outer margin 30 mm, plus 3 mm bleed at the canvas edge.
+    const column = (30 + 3) * PX - 2;
+    const plain = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX });
+    const withGuides = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX, guides: true });
+    expect(bluish(plain, column, 100 * PX, 4, 40 * PX)).toBe(false);
+    expect(bluish(withGuides, column, 100 * PX, 4, 40 * PX)).toBe(true);
+  });
+
+  test('shadeMissing greys out the part of an element on the missing page', async () => {
+    const zine = createZine('t', 1);
+    zine.spreads[0].elements.push(createPhotoElement('red', { x: 100, y: 50, width: 100, height: 100 }));
+    const assets = { images: new Map([['red', await solidBitmap(100, 100, '#ff0000')]]) };
+    const at = (canvas: HTMLCanvasElement) => pixel(canvas, (120 + 3) * PX, (100 + 3) * PX);
+    expectColor(at(renderSpread(zine, 0, assets, { pxPerMm: PX })), RED);
+    expect(at(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }))[1]).toBeGreaterThan(150);
+    expectColor(pixel(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }), 170 * PX, 100 * PX), RED);
+  });
+});
+
+describe('shared text builder', () => {
+  test('element nodes carry the element id', () => {
+    const zine = createZine('t', 1);
+    const text = createTextElement({ text: 'A' });
+    zine.spreads[1].elements.push(text);
+    const group = buildSpreadGroup(zine, 1, { images: new Map() });
+    const nodes = group.getChildren((node) => node.hasName(ELEMENT_NODE_NAME));
+    expect(nodes.map((node) => node.id())).toEqual([text.id]);
+  });
+
+  test('measureTextHeight grows with the number of lines', () => {
+    const one = measureTextHeight(createTextElement({ text: 'a', size: 12, lineHeight: 1.2 }));
+    const three = measureTextHeight(createTextElement({ text: 'a\nb\nc', size: 12, lineHeight: 1.2 }));
+    expect(one).toBeCloseTo(ptToMm(12) * 1.2, 5);
+    expect(three).toBeCloseTo(one * 3, 5);
+  });
+
+  test('textStyleMm converts points and thousandths of an em to mm', () => {
+    const style = textStyleMm(createTextElement({ size: 72, letterSpacing: 100, lineHeight: 1.5 }));
+    expect(style.fontSize).toBeCloseTo(25.4, 5);
+    expect(style.letterSpacing).toBeCloseTo(2.54, 5);
+    expect(style.lineHeight).toBe(1.5);
+  });
 });

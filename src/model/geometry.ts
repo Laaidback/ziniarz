@@ -1,4 +1,4 @@
-import type { Frame, Side } from './types';
+import type { Frame, Margins, Side } from './types';
 
 export const PAGE_WIDTH = 148;
 export const PAGE_HEIGHT = 210;
@@ -51,6 +51,17 @@ export function pageRect(side: Side, bleed: number): Rect {
     y: 0 - bleed,
     width: PAGE_WIDTH + bleed,
     height: PAGE_HEIGHT + 2 * bleed,
+  };
+}
+
+/** Area between the margins of a page, in spread coordinates. Never negative. */
+export function marginRect(margins: Margins, side: Side): Rect {
+  const left = side === 'left' ? margins.outer : PAGE_WIDTH + margins.inner;
+  return {
+    x: left,
+    y: margins.top,
+    width: Math.max(0, PAGE_WIDTH - margins.outer - margins.inner),
+    height: Math.max(0, PAGE_HEIGHT - margins.top - margins.bottom),
   };
 }
 

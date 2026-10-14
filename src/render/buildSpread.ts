@@ -1,19 +1,60 @@
 import Konva from 'konva';
 import { konvaFontFamily, konvaFontStyle } from '../fonts/fontLoader';
 import { BLEED, pageRect, pagesOfSpread, slotOfPage } from '../model/geometry';
-import type { PhotoElement, TextElement, Zine } from '../model/types';
+import type { PhotoElement, TextElement, Zine, ZineElement } from '../model/types';
 import type { RenderAssets } from './assets';
 import { imagePlacement } from './photoGeometry';
 
 export const PLACEHOLDER_COLOR = '#dddddd';
+/** Konva name of every element node; its Konva id is the element id. */
+export const ELEMENT_NODE_NAME = 'element';
 
 export function ptToMm(points: number): number {
   return (points * 25.4) / 72;
 }
 
+export interface TextStyleMm {
+  fontSize: number;
+  letterSpacing: number;
+  lineHeight: number;
+}
+
+/** Text metrics in mm, shared by the renderer and the editor's in-place text box. */
+export function textStyleMm(element: TextElement): TextStyleMm {
+  const fontSize = ptToMm(element.size);
+  return { fontSize, letterSpacing: (element.letterSpacing / 1000) * fontSize, lineHeight: element.lineHeight };
+}
+
+/** The only Konva.Text configuration. Drawing and measuring both use it, so they always agree. */
+export function createTextShape(element: TextElement): Konva.Text {
+  const style = textStyleMm(element);
+  return new Konva.Text({
+    text: element.text,
+    width: element.width,
+    fontFamily: konvaFontFamily(element.fontFamilyId),
+    fontSize: style.fontSize,
+    fontStyle: konvaFontStyle(element),
+    letterSpacing: style.letterSpacing,
+    lineHeight: style.lineHeight,
+    fill: element.color,
+    align: element.align,
+    wrap: 'word',
+  });
+}
+
+/** Height of the wrapped text in mm (what `TextElement.height` should be). */
+export function measureTextHeight(element: TextElement): number {
+  const shape = createTextShape(element);
+  const height = shape.height();
+  shape.destroy();
+  return height;
+}
+
 function photoNode(element: PhotoElement, assets: RenderAssets): Konva.Group {
   const { width, height } = element;
   const group = new Konva.Group({
+    id: element.id,
+    name: ELEMENT_NODE_NAME,
     x: element.x + width / 2,
     y: element.y + height / 2,
     offsetX: width / 2,
@@ -45,21 +86,11 @@ function photoNode(element: PhotoElement, assets: RenderAssets): Konva.Group {
 }
 
 function textNode(element: TextElement): Konva.Group {
-  const fontSize = ptToMm(element.size);
-  const text = new Konva.Text({
-    text: element.text,
-    width: element.width,
-    fontFamily: konvaFontFamily(element.fontFamilyId),
-    fontSize,
-    fontStyle: konvaFontStyle(element),
-    letterSpacing: (element.letterSpacing / 1000) * fontSize,
-    lineHeight: element.lineHeight,
-    fill: element.color,
-    align: element.align,
-    wrap: 'word',
-  });
+  const text = createTextShape(element);
   const height = text.height();
   const group = new Konva.Group({
+    id: element.id,
+    name: ELEMENT_NODE_NAME,
     x: element.x + element.width / 2,
     y: element.y + height / 2,
     offsetX: element.width / 2,
@@ -70,15 +101,18 @@ function textNode(element: TextElement): Konva.Group {
   return group;
 }
 
+/** One element positioned by its centre: offset = half its size, so rotation turns it around the centre. */
+export function buildElementNode(element: ZineElement, assets: RenderAssets): Konva.Group {
+  return element.kind === 'photo' ? photoNode(element, assets) : textNode(element);
+}
+
 /** The single drawing of a spread, in spread millimetres (page backgrounds include bleed). */
 export function buildSpreadGroup(zine: Zine, spreadIndex: number, assets: RenderAssets): Konva.Group {
   const group = new Konva.Group();
   for (const page of pagesOfSpread(spreadIndex, zine.sheets)) {
     const rect = pageRect(slotOfPage(page).side, BLEED);
-    group.add(new Konva.Rect({ ...rect, fill: zine.pages[page]?.background ?? '#ffffff' }));
+    group.add(new Konva.Rect({ ...rect, fill: zine.pages[page]?.background ?? '#ffffff', name: 'page' }));
   }
-  for (const element of zine.spreads[spreadIndex].elements) {
-    group.add(element.kind === 'photo' ? photoNode(element, assets) : textNode(element));
-  }
+  for (const element of zine.spreads[spreadIndex].elements) group.add(buildElementNode(element, assets));
   return group;
 }

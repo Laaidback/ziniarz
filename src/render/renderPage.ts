@@ -1,7 +1,9 @@
+import type Konva from 'konva';
 import { BLEED, PAGE_HEIGHT, pageRect, slotOfPage, SPREAD_WIDTH, type Rect } from '../model/geometry';
 import type { Zine } from '../model/types';
 import type { RenderAssets } from './assets';
 import { buildSpreadGroup } from './buildSpread';
+import { buildGuidesGroup, buildMissingPagesShade } from './guides';
 import { drawToCanvas } from './konvaCanvas';
 
 export interface RenderOptions {
@@ -13,13 +15,31 @@ export interface PixelSize {
   height: number;
 }
 
+export interface SpreadRenderOptions extends RenderOptions {
+  /** Bleed, margin and spine lines (editor look). */
+  guides?: boolean;
+  /** Grey out the missing page next to a cover. */
+  shadeMissing?: boolean;
+}
+
+/** Nodes drawn on top of the spread, in spread mm; gets the final pixels per mm. */
+type Overlays = (pxPerMm: number) => Konva.Group[];
+
 /**
  * Draws `region` so that it fills the canvas exactly, edge to edge. The canvas
  * has whole-pixel dimensions (by default the region at `pxPerMm`, rounded) and
  * the drawing is stretched by the sub-pixel rounding difference, so no edge
  * column or row is left partly transparent.
  */
-function renderRegion(zine: Zine, spread: number, assets: RenderAssets, region: Rect, pxPerMm: number, size?: PixelSize) {
+function renderRegion(
+  zine: Zine,
+  spread: number,
+  assets: RenderAssets,
+  region: Rect,
+  pxPerMm: number,
+  size?: PixelSize,
+  overlays?: Overlays,
+) {
   const width = size?.width ?? Math.round(region.width * pxPerMm);
   const height = size?.height ?? Math.round(region.height * pxPerMm);
   const scaleX = width / region.width;
@@ -28,6 +48,7 @@ function renderRegion(zine: Zine, spread: number, assets: RenderAssets, region: 
     const group = buildSpreadGroup(zine, spread, assets);
     group.position({ x: -region.x * scaleX, y: -region.y * scaleY });
     group.scale({ x: scaleX, y: scaleY });
+    for (const overlay of overlays?.(scaleX) ?? []) group.add(overlay);
     layer.add(group);
   });
 }
@@ -48,8 +69,17 @@ export function renderPage(
   return renderRegion(zine, spread, assets, region, options.pxPerMm, options.sizePx);
 }
 
-/** Whole spread with bleed on all sides (thumbnails, editor background). */
-export function renderSpread(zine: Zine, spread: number, assets: RenderAssets, options: RenderOptions): HTMLCanvasElement {
+/** Whole spread with bleed on all sides (thumbnails), optionally with guides and the missing page greyed out. */
+export function renderSpread(
+  zine: Zine,
+  spread: number,
+  assets: RenderAssets,
+  options: SpreadRenderOptions,
+): HTMLCanvasElement {
   const region = { x: -BLEED, y: -BLEED, width: SPREAD_WIDTH + 2 * BLEED, height: PAGE_HEIGHT + 2 * BLEED };
-  return renderRegion(zine, spread, assets, region, options.pxPerMm);
+  const overlays: Overlays = (pxPerMm) => [
+    ...(options.shadeMissing ? [buildMissingPagesShade(zine, spread)] : []),
+    ...(options.guides ? [buildGuidesGroup(zine, spread, pxPerMm)] : []),
+  ];
+  return renderRegion(zine, spread, assets, region, options.pxPerMm, undefined, overlays);
 }
