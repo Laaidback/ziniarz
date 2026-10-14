@@ -1413,7 +1413,7 @@ function photoNode(element: PhotoElement, assets: RenderAssets): Konva.Group {
   group.add(
     new Konva.Image({
       image: bitmap,
-      x: element.flipX ? placed.x + placed.width : placed.x,
+      x: element.flipX ? width - placed.x : placed.x,
       y: placed.y,
       width: placed.width,
       height: placed.height,
@@ -4882,7 +4882,7 @@ export class EditorStage {
         new Konva.Image({
           image: bitmap,
           opacity: 0.35,
-          x: element.flipX ? placed.x + placed.width : placed.x,
+          x: element.flipX ? width - placed.x : placed.x,
           y: placed.y,
           width: placed.width,
           height: placed.height,
@@ -5114,7 +5114,7 @@ export class EditorStage {
   /** True while a drag or a resize runs: store updates must not rebuild the nodes under the pointer. */
   private interacting = false;
   private dragTargets: SnapTargets | null = null;
-  private cropDrag: { id: string; startX: number; startY: number; crop: PhotoCrop; rotation: number } | null = null;
+  private cropDrag: { id: string; startX: number; startY: number; crop: PhotoCrop; rotation: number; flipX: boolean } | null = null;
 
   constructor(
     container: HTMLDivElement,
@@ -5409,7 +5409,7 @@ export class EditorStage {
         new Konva.Image({
           image: bitmap,
           opacity: 0.35,
-          x: element.flipX ? placed.x + placed.width : placed.x,
+          x: element.flipX ? width - placed.x : placed.x,
           y: placed.y,
           width: placed.width,
           height: placed.height,
@@ -5428,7 +5428,7 @@ export class EditorStage {
     const element = this.selectedElement();
     const point = this.pointerMm();
     if (element?.kind === 'photo' && point && elementNodeOf(event.target)?.id() === element.id) {
-      this.cropDrag = { id: element.id, startX: point.x, startY: point.y, crop: { ...element.crop }, rotation: element.rotation };
+      this.cropDrag = { id: element.id, startX: point.x, startY: point.y, crop: { ...element.crop }, rotation: element.rotation, flipX: element.flipX };
     } else {
       this.callbacks.endCrop();
     }
@@ -5442,9 +5442,11 @@ export class EditorStage {
     const angle = (-drag.rotation * Math.PI) / 180;
     const dx = point.x - drag.startX;
     const dy = point.y - drag.startY;
+    // A flipped photo is mirrored around the frame centre, so its x offset moves the other way.
+    const flip = drag.flipX ? -1 : 1;
     this.callbacks.crop(drag.id, {
       ...drag.crop,
-      offsetX: drag.crop.offsetX + dx * Math.cos(angle) - dy * Math.sin(angle),
+      offsetX: drag.crop.offsetX + flip * (dx * Math.cos(angle) - dy * Math.sin(angle)),
       offsetY: drag.crop.offsetY + dx * Math.sin(angle) + dy * Math.cos(angle),
     });
   }

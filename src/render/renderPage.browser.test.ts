@@ -54,6 +54,29 @@ describe('renderPage', () => {
     expectColor(pixel(renderPage(zine, 2, assets, { pxPerMm: PX, bleed: false }), 25 * PX, 45 * PX), YELLOW);
   });
 
+  test('flipX mirrors the visible crop, not the whole image', async () => {
+    // Image 100x50 mm in a 50x50 frame, shifted so the frame shows image x 10..60:
+    // green on frame x 0..40, yellow on 40..50. Flipped: yellow 0..10, green 10..50.
+    const zine = createZine('t', 1);
+    const photo = createPhotoElement('split', {
+      x: 20,
+      y: 20,
+      width: 50,
+      height: 50,
+      crop: { offsetX: 15, offsetY: 0, zoom: 1 },
+    });
+    zine.spreads[1].elements.push(photo);
+    const assets = { images: new Map([['split', await splitBitmap(200, 100, '#00ff00', '#ffff00')]]) };
+    const at = (frameX: number) =>
+      pixel(renderPage(zine, 2, assets, { pxPerMm: PX, bleed: false }), (20 + frameX) * PX, 45 * PX);
+    expectColor(at(5), GREEN);
+    expectColor(at(45), YELLOW);
+    photo.flipX = true;
+    expectColor(at(5), YELLOW);
+    expectColor(at(25), GREEN);
+    expectColor(at(45), GREEN);
+  });
+
   test('rotation turns the frame around its centre', async () => {
     const zine = createZine('t', 1);
     const photo = createPhotoElement('green', { x: 24, y: 95, width: 100, height: 20 });

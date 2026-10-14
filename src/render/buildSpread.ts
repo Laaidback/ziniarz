@@ -28,10 +28,13 @@ function photoNode(element: PhotoElement, assets: RenderAssets): Konva.Group {
     return group;
   }
   const placed = imagePlacement(element, element.crop, bitmap.width, bitmap.height);
+  // A flip mirrors the visible crop around the frame's vertical centre line:
+  // with scaleX -1, image column u lands at x - u, so x = width - placed.x
+  // puts column u at width - (placed.x + u), the mirror of its unflipped spot.
   group.add(
     new Konva.Image({
       image: bitmap,
-      x: element.flipX ? placed.x + placed.width : placed.x,
+      x: element.flipX ? width - placed.x : placed.x,
       y: placed.y,
       width: placed.width,
       height: placed.height,
