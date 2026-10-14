@@ -1,28 +1,44 @@
+import { sheetSides } from '../imposition/imposition';
 import { createTextElement, createZine } from '../model/factory';
 import { pageRect, PAGE_WIDTH, slotOfPage } from '../model/geometry';
 import type { Zine } from '../model/types';
 
+const SHEETS = 2;
+
 /**
- * One sheet (pages 1–4) with big page numbers and "↑ góra", on light grey pages so the
- * bleed is visible. Printed duplex and folded it must read 1, 2, 3, 4 the right way up.
+ * Two sheets (pages 1–8) with big page numbers, "↑ góra" and the sheet side, on light
+ * grey pages so the bleed is visible. Two sheets, because with one a wrong back order
+ * cannot show. Printed duplex and folded, it must read 1–8 the right way up.
  */
 export function testPageZine(): Zine {
-  const zine = createZine('Strona próbna', 1);
-  for (let page = 1; page <= 4; page++) {
-    zine.pages[page] = { background: '#e6e6e6' };
-    const { spread, side } = slotOfPage(page);
-    const left = pageRect(side, 0).x;
-    zine.spreads[spread].elements.push(
-      createTextElement({ text: `${page}\n↑ góra`, size: 72, align: 'center', x: left, y: 60, width: PAGE_WIDTH, lineHeight: 1 }),
-    );
+  const zine = createZine('Strona próbna', SHEETS);
+  const sides = sheetSides(SHEETS);
+  for (const side of sides) {
+    const label = `kartka ${side.sheet + 1} · ${side.face === 'front' ? 'przód' : 'tył'}`;
+    for (const page of [side.left, side.right]) {
+      zine.pages[page] = { background: '#e6e6e6' };
+      const slot = slotOfPage(page);
+      const x = pageRect(slot.side, 0).x;
+      zine.spreads[slot.spread].elements.push(
+        createTextElement({ text: `${page}\n↑ góra`, size: 72, align: 'center', x, y: 45, width: PAGE_WIDTH, lineHeight: 1 }),
+        createTextElement({ text: label, size: 16, align: 'center', x, y: 110, width: PAGE_WIDTH }),
+      );
+    }
   }
+  const backs = sides.filter((s) => s.face === 'back').map((s) => `${s.left} | ${s.right}`);
   zine.spreads[0].elements.push(
     createTextElement({
-      text: 'Tył do góry nogami? Włącz „Obróć tyły o 180°”.\nStrony 2 i 3 zamienione? Przełącz kolejność tyłów.',
+      text: [
+        'Złóż obie kartki na pół, kartka 2 w środku: strony mają iść od 1 do 8 i stać „↑ góra”.',
+        '• Tył do góry nogami? Włącz „Obróć tyły o 180°”.',
+        `• Na tyle kartki 1 mają być strony ${backs[0]}, na tyle kartki 2: ${backs[1]}. ` +
+          'Przód i tył kartki pokazują różne numery kartki? Przełącz „tyły w odwrotnej kolejności”.',
+        '• Coś ważnego ucięte przy krawędzi kartki? Zwiększ margines drukarki.',
+      ].join('\n'),
       size: 9,
-      align: 'center',
+      align: 'left',
       x: PAGE_WIDTH + 10,
-      y: 170,
+      y: 135,
       width: PAGE_WIDTH - 20,
     }),
   );

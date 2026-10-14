@@ -42,8 +42,8 @@ test('pages PDF: A5 pages with outer bleed, in reading order', async () => {
   expect(sizes[0].height).toBeCloseTo(216 * MM_TO_PT, 1);
 });
 
-test('test page prints as one sheet', async () => {
+test('test page prints as two sheets, front and back', async () => {
   const zine = testPageZine();
   const files = await buildSheetsPdf({ zine, assets, settings: zine.print, dpi });
-  expect(await pagesOf(files[0].bytes)).toHaveLength(2);
+  expect(await pagesOf(files[0].bytes)).toHaveLength(4);
 });

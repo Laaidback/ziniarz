@@ -137,7 +137,7 @@ Przy `m = 4`, spadach i bez znaczników: `s ≈ 0,935`, strona po przycięciu ok
 - **Linia zgięcia** wł./wył.: krótkie kreski 4 mm na środku arkusza, u góry i u dołu, w pasie `c`, na obu stronach kartki. Nigdy przez całą wysokość, żeby nie było jej widać w zinie.
 - **Obróć tyły o 180°** dla drukarek, które umieją odwracać kartkę tylko po dłuższej krawędzi (wtedy bez obrotu tył wychodzi do góry nogami).
 - **Tryb dwustronny:** „automatycznie” (jeden PDF: przód 1, tył 1, przód 2, tył 2…) albo „ręcznie” (dwa PDF-y: same przody i same tyły, do włożenia stosu z powrotem). W trybie ręcznym przełącznik „tyły w odwrotnej kolejności” (domyślnie wł.), bo zależy to od tego, jak drukarka odkłada kartki.
-- **Strona próbna:** jedna kartka z numerami i strzałkami na przodzie i tyle, do sprawdzenia dwustronności i marginesu drukarki. Pod nią krótka instrukcja: tył do góry nogami = włącz „Obróć tyły o 180°”; tyły w złej kolejności = przełącz kolejność.
+- **Strona próbna:** dwie kartki (strony 1–8), na każdej stronie duży numer, strzałka „↑ góra” i podpis „kartka N · przód/tył”, do sprawdzenia dwustronności i marginesu drukarki (dwie, bo przy jednej kartce złej kolejności tyłów nie widać). Na okładce krótka instrukcja: tył do góry nogami = włącz „Obróć tyły o 180°”; na tyle kartki 1 mają być strony 2 | 7, na tyle kartki 2 strony 4 | 5, a jeśli tyły trafiły na złe kartki = przełącz „tyły w odwrotnej kolejności”; coś ważnego ucięte przy krawędzi = zwiększ margines drukarki.
 - **PDF stronami:** strony A5 po kolei, ze spadami albo bez, do przejrzenia.
 
 ### Eksport
