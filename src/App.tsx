@@ -1,3 +1,49 @@
+import { useEffect, useState } from 'react';
+import { ConfirmHost } from './app/ConfirmHost';
+import { DbContext } from './app/dbContext';
+import { NoticeList } from './app/NoticeList';
+import { PlaceholderScreen } from './app/PlaceholderScreen';
+import type { Route } from './app/route';
+import { useRoute } from './app/useRoute';
+import { openZiniarzDb, type ZiniarzDb } from './storage/db';
+import { requestPersistentStorage } from './storage/quota';
+
+function Screen({ route }: { route: Route }) {
+  switch (route.name) {
+    case 'home':
+      return <main className="screen-message">Lista zinów</main>;
+    case 'editor':
+      return <main className="screen-message">Edytor</main>;
+    case 'print':
+      return <PlaceholderScreen title="Druk" zineId={route.zineId} />;
+    case 'preview3d':
+      return <PlaceholderScreen title="Podgląd 3D" zineId={route.zineId} />;
+  }
+}
+
 export function App() {
-  return <main style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: 32 }}>ZINIARZ</main>;
+  const route = useRoute();
+  const [db, setDb] = useState<ZiniarzDb | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    openZiniarzDb().then(setDb, () => setFailed(true));
+    void requestPersistentStorage();
+  }, []);
+
+  if (failed) {
+    return (
+      <main className="screen-message">
+        Ta przeglądarka nie pozwala zapisywać zinów. Wyłącz tryb prywatny albo użyj innej przeglądarki.
+      </main>
+    );
+  }
+  if (!db) return <main className="screen-message">Wczytywanie…</main>;
+  return (
+    <DbContext.Provider value={db}>
+      <Screen route={route} />
+      <NoticeList />
+      <ConfirmHost />
+    </DbContext.Provider>
+  );
 }
