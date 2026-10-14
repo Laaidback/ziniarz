@@ -13,8 +13,8 @@ export const DEFAULT_PRINT: PrintSettings = {
   duplex: 'auto',
   manualReverseBacks: true,
 };
-/** Falls back to the browser's sans-serif until built-in fonts arrive (plan 2). */
-export const DEFAULT_FONT_FAMILY = 'system-sans';
+/** Id of a built-in family (src/fonts/fontChoices.ts). */
+export const DEFAULT_FONT_FAMILY = 'inter';
 
 export function clampSheets(sheets: number): number {
   return Math.min(MAX_SHEETS, Math.max(MIN_SHEETS, Math.round(sheets)));

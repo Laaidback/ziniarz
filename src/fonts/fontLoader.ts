@@ -1,5 +1,6 @@
-import type { TextElement, Zine } from '../model/types';
+import type { Spread, TextElement, Zine, ZineElement } from '../model/types';
 import { fontFilesOfFamily, type FontFile, type ZiniarzDb } from '../storage/db';
+import { BUILTIN_FONT_FILES, LATIN_EXT_RANGE, LATIN_RANGE } from './builtinFontFiles';
 
 export class FontImportError extends Error {
   constructor() {
@@ -38,16 +39,50 @@ export async function registerFontFile(file: FontFile): Promise<void> {
   registered.add(file.id);
 }
 
-/** Waits until every font style used by the zine's texts is loaded (missing ones resolve empty). */
-export async function ensureFontsReady(zine: Zine): Promise<void> {
-  const specs = new Set<string>();
-  for (const spread of zine.spreads) {
-    for (const e of spread.elements) {
-      if (e.kind !== 'text') continue;
-      specs.add(`${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}16px "${cssFontFamily(e.fontFamilyId)}"`);
+let builtinsRegistered = false;
+
+/**
+ * Adds the bundled fonts to document.fonts. Nothing is downloaded yet: the browser
+ * fetches a file when a text needs it (see loadTextFonts).
+ */
+export function registerBuiltinFonts(): void {
+  if (builtinsRegistered) return;
+  builtinsRegistered = true;
+  for (const file of BUILTIN_FONT_FILES) {
+    const descriptors = { weight: file.bold ? '700' : '400', style: file.italic ? 'italic' : 'normal' };
+    for (const [url, unicodeRange] of [
+      [file.latin, LATIN_RANGE],
+      [file.latinExt, LATIN_EXT_RANGE],
+    ]) {
+      document.fonts.add(
+        new FontFace(cssFontFamily(file.familyId), `url(${url}) format('woff2')`, { ...descriptors, unicodeRange }),
+      );
     }
   }
-  await Promise.all([...specs].map((spec) => document.fonts.load(spec)));
+}
+
+/** Loads the font files the given texts need. The text matters: Polish letters live in the latin-ext files. */
+async function loadTextFonts(elements: Iterable<ZineElement>): Promise<void> {
+  registerBuiltinFonts();
+  const requests = new Map<string, Set<string>>();
+  for (const e of elements) {
+    if (e.kind !== 'text') continue;
+    const spec = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}16px "${cssFontFamily(e.fontFamilyId)}"`;
+    const chars = requests.get(spec) ?? new Set<string>();
+    for (const char of e.text) chars.add(char);
+    requests.set(spec, chars);
+  }
+  await Promise.all([...requests].map(([spec, chars]) => document.fonts.load(spec, [...chars].join('') || ' ')));
+}
+
+/** Waits until every font style used by the zine's texts is loaded (missing ones resolve empty). */
+export async function ensureFontsReady(zine: Zine): Promise<void> {
+  await loadTextFonts(zine.spreads.flatMap((s) => s.elements));
+}
+
+/** Same as ensureFontsReady for one spread (the editor calls it when a spread changes). */
+export async function loadSpreadFonts(spread: Spread): Promise<void> {
+  await loadTextFonts(spread.elements);
 }
 
 /** Registers every file of the zine's custom font families from the database, skipping corrupt files. Call before rendering. */
