@@ -10,8 +10,8 @@ import {
   type FontFile,
   type ZiniarzDb,
 } from '../storage/db';
-import { FontImportError, registerFontFile } from './fontLoader';
-import { describeFontFile, groupByFamily, type FontDescription } from './fontNames';
+import { FontImportError, registerFontFile, unregisterFontFile } from './fontLoader';
+import { describeFontFile, fontMime, groupByFamily, type FontDescription } from './fontNames';
 
 export interface FontImportResult {
   /** Families that got at least one file; add them to `Zine.fonts`. */
@@ -34,6 +34,10 @@ export async function importFontFiles(db: ZiniarzDb, zine: Zine, files: File[]):
   let skipped = 0;
   const uploads: Upload[] = [];
   for (const file of files) {
+    if (!fontMime(file.name)) {
+      skipped++;
+      continue;
+    }
     const data = await file.arrayBuffer();
     const description = describeFontFile(file.name, data);
     if (description) uploads.push({ description, data });
@@ -63,8 +67,16 @@ export async function importFontFiles(db: ZiniarzDb, zine: Zine, files: File[]):
         skipped++;
         continue;
       }
-      await putFontFile(db, file);
-      for (const old of current.filter((f) => f.bold === bold && f.italic === italic)) await deleteFontFile(db, old.id);
+      try {
+        await putFontFile(db, file);
+      } catch (error) {
+        unregisterFontFile(file.id);
+        throw error;
+      }
+      for (const old of current.filter((f) => f.bold === bold && f.italic === italic)) {
+        await deleteFontFile(db, old.id);
+        unregisterFontFile(old.id);
+      }
       current = [...current.filter((f) => f.bold !== bold || f.italic !== italic), file];
       added++;
     }

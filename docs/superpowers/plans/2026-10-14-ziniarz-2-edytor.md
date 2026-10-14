@@ -511,7 +511,8 @@ export class FontImportError extends Error {
   }
 }
 
-const registered = new Set<string>();
+/** FontFace of each registered uploaded file, so a replaced file can be taken out of document.fonts. */
+const registered = new Map<string, FontFace>();
 
 export function cssFontFamily(familyId: string): string {
   return `zf-${familyId}`;
@@ -538,7 +539,15 @@ export async function registerFontFile(file: FontFile): Promise<void> {
     throw new FontImportError();
   }
   document.fonts.add(face);
-  registered.add(file.id);
+  registered.set(file.id, face);
+}
+
+/** Removes the FontFace of an uploaded file that was replaced or deleted. Unknown ids are ignored. */
+export function unregisterFontFile(fileId: string): void {
+  const face = registered.get(fileId);
+  if (!face) return;
+  document.fonts.delete(face);
+  registered.delete(fileId);
 }
 
 let builtinsRegistered = false;
@@ -738,8 +747,20 @@ test('style from file names', () => {
   expect(styleFromFileName('Lato-BoldItalic.woff2')).toEqual({ family: 'Lato', bold: true, italic: true });
   expect(styleFromFileName('PlayfairDisplay-Regular.ttf')).toEqual({ family: 'Playfair Display', bold: false, italic: false });
   expect(styleFromFileName('Comic_Neue.woff2')).toEqual({ family: 'Comic Neue', bold: false, italic: false });
-  expect(styleFromFileName('Inter-SemiBoldItalic.woff2')).toEqual({ family: 'Inter', bold: true, italic: true });
+  expect(styleFromFileName('Inter-SemiBoldItalic.woff2')).toEqual({ family: 'Inter SemiBold', bold: false, italic: true });
   expect(styleFromFileName('Space-Mono.woff2')).toEqual({ family: 'Space Mono', bold: false, italic: false });
+});
+
+test('weight words other than regular and bold stay part of the family name', () => {
+  expect(styleFromFileName('Lato-Light.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Black.woff2')).toEqual({ family: 'Lato Black', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Medium.woff2')).toEqual({ family: 'Lato Medium', bold: false, italic: false });
+  expect(styleFromFileName('Inter-SemiBold.woff2')).toEqual({ family: 'Inter SemiBold', bold: false, italic: false });
+  expect(styleFromFileName('Inter-ExtraBold.woff2')).toEqual({ family: 'Inter ExtraBold', bold: false, italic: false });
+  expect(styleFromFileName('Lato-LightItalic.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: true });
+  expect(styleFromFileName('Lato-light.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Bold.woff2')).toEqual({ family: 'Lato', bold: true, italic: false });
+  expect(styleFromFileName('Lato-Book.woff2')).toEqual({ family: 'Lato', bold: false, italic: false });
 });
 
 test('describeFontFile reads tables for .ttf/.otf and the file name for .woff2', () => {
@@ -869,24 +890,33 @@ export function readSfntNames(data: ArrayBuffer): FontStyleName | null {
   }
 }
 
-const STYLE_SUFFIX = /^(regular|normal|book|roman|bold|italic|oblique|semi|demi|extra|ultra|black|heavy|light|thin|medium)+$/;
+const WEIGHT_WORDS = /^(semi|demi|extra|ultra|black|heavy|light|thin|medium|bold)+$/i;
+const PLAIN_STYLES = new Set(['', 'regular', 'normal', 'book', 'roman', 'bold']);
 
 function prettyFamily(raw: string): string {
   const spaced = raw.replace(/[-_]+/g, ' ').trim();
   return (spaced.includes(' ') ? spaced : spaced.replace(/([a-z])([A-Z])/g, '$1 $2')) || 'Font';
 }
 
-/** Fallback for WOFF2 (compressed tables): "Lato-BoldItalic.woff2" → Lato, bold, italic. */
+/**
+ * Fallback for WOFF2 (compressed tables): "Lato-BoldItalic.woff2" → Lato, bold, italic. Only regular,
+ * bold and italic are styles; any other weight word ("Light", "SemiBold") stays in the family name
+ * ("Lato Light"), like nameID 1 does for TTF/OTF, so a full set of weights never overwrites Regular/Bold.
+ */
 export function styleFromFileName(fileName: string): FontStyleName {
   const base = fileName.replace(/\.[^.]+$/, '');
   const cut = Math.max(base.lastIndexOf('-'), base.lastIndexOf('_'));
-  const suffix = cut > 0 ? base.slice(cut + 1).toLowerCase() : '';
-  const isStyle = STYLE_SUFFIX.test(suffix);
-  return {
-    family: prettyFamily(isStyle ? base.slice(0, cut) : base),
-    bold: isStyle && suffix.includes('bold'),
-    italic: isStyle && /italic|oblique/.test(suffix),
-  };
+  const suffix = cut > 0 ? base.slice(cut + 1) : '';
+  const italic = /italic|oblique/i.test(suffix);
+  const weight = suffix.replace(/italic|oblique/gi, '');
+  const plain = PLAIN_STYLES.has(weight.toLowerCase());
+  if (suffix && (plain || WEIGHT_WORDS.test(weight))) {
+    const family = prettyFamily(base.slice(0, cut));
+    return plain
+      ? { family, bold: weight.toLowerCase() === 'bold', italic }
+      : { family: `${family} ${weight[0].toUpperCase()}${weight.slice(1)}`, bold: false, italic };
+  }
+  return { family: prettyFamily(base), bold: false, italic: false };
 }
 
 export function fontMime(fileName: string): string | null {
@@ -966,6 +996,10 @@ async function dbWithFamilies() {
   await putFontFile(db, { id: 'm1', familyId: 'mine', bold: false, italic: false, mime: 'font/ttf', data });
   await putFontFile(db, { id: 'm2', familyId: 'mine', bold: true, italic: false, mime: 'font/ttf', data });
   await putFontFamily(db, { id: 'z', name: 'Żabka' });
+  await putFontFile(db, { id: 'z1', familyId: 'z', bold: false, italic: false, mime: 'font/ttf', data });
+  await putFontFamily(db, { id: 'empty', name: 'Pusta' }); // no files
+  await putFontFamily(db, { id: 'dup', name: 'MOJA' }); // same name as the zine's own family, other case
+  await putFontFile(db, { id: 'd1', familyId: 'dup', bold: false, italic: false, mime: 'font/ttf', data });
   await putFontFamily(db, { id: 'a', name: 'Alfa' });
   await putFontFile(db, { id: 'a1', familyId: 'a', bold: false, italic: true, mime: 'font/ttf', data });
   return db;
@@ -980,13 +1014,13 @@ test('loadFontChoices lists built-in fonts, then the zine families with their st
   expect(choices.slice(BUILTIN_FONTS.length)).toEqual([{ id: 'mine', name: 'Moja', styles: ['regular', 'bold'], builtin: false }]);
 });
 
-test('otherZineFamilies lists families this zine does not use, by name', async () => {
+test('otherZineFamilies lists usable families this zine does not have, by name', async () => {
   const db = await dbWithFamilies();
   const zine = createZine('t', 1);
   zine.fonts = ['mine'];
   expect((await otherZineFamilies(db, zine)).map((f) => [f.name, f.styles])).toEqual([
     ['Alfa', ['italic']],
-    ['Żabka', []],
+    ['Żabka', ['regular']],
   ]);
 });
 ```
@@ -1017,13 +1051,23 @@ export async function loadFontChoices(db: ZiniarzDb, zine: Zine): Promise<FontCh
   return [...BUILTIN_FONTS, ...custom];
 }
 
-/** Families uploaded to other zines that this zine does not list yet ("użyj fontu z innego zina"). */
+/**
+ * Families uploaded to other zines that this zine does not have yet ("użyj fontu z innego zina").
+ * Skips empty families and any whose name (ignoring case) the zine already has, so the list never
+ * offers a second "Lato" next to the zine's own.
+ */
 export async function otherZineFamilies(db: ZiniarzDb, zine: Zine): Promise<FontChoice[]> {
-  const own = new Set(zine.fonts);
+  const ownIds = new Set(zine.fonts);
+  const ownNames = new Set<string>();
+  for (const id of zine.fonts) {
+    const family = await getFontFamily(db, id);
+    if (family) ownNames.add(family.name.toLowerCase());
+  }
   const families = (await listFontFamilies(db))
-    .filter((family) => !own.has(family.id))
+    .filter((family) => !ownIds.has(family.id) && !ownNames.has(family.name.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name, 'pl'));
-  return Promise.all(families.map((family) => choiceOf(db, family)));
+  const choices = await Promise.all(families.map((family) => choiceOf(db, family)));
+  return choices.filter((choice) => choice.styles.length > 0);
 }
 ```
 
@@ -1040,7 +1084,7 @@ The Inter woff2 files stand in for an uploaded family; their file names decide t
 import interBold from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
 import interItalic from '@fontsource/inter/files/inter-latin-400-italic.woff2?url';
 import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import { fontFilesOfFamily, getFontFamily, openZiniarzDb } from '../storage/db';
@@ -1091,6 +1135,16 @@ test('a family the zine already has gets the new file, and the same style is rep
     [false, false],
     [false, true],
   ]);
+  expect(loadedFaces(first.familyIds[0])).toHaveLength(2); // the replaced Regular is gone from document.fonts
+});
+
+test('files that are not fonts are not read at all', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const notes = new File(['hello'], 'notatki.txt');
+  const read = vi.spyOn(notes, 'arrayBuffer');
+  const result = await importFontFiles(db, createZine('t', 1), [notes]);
+  expect(result).toEqual({ familyIds: [], skipped: 1 });
+  expect(read).not.toHaveBeenCalled();
 });
 
 test('an upload with no usable file leaves no empty family behind', async () => {
@@ -1121,8 +1175,8 @@ import {
   type FontFile,
   type ZiniarzDb,
 } from '../storage/db';
-import { FontImportError, registerFontFile } from './fontLoader';
-import { describeFontFile, groupByFamily, type FontDescription } from './fontNames';
+import { FontImportError, registerFontFile, unregisterFontFile } from './fontLoader';
+import { describeFontFile, fontMime, groupByFamily, type FontDescription } from './fontNames';
 
 export interface FontImportResult {
   /** Families that got at least one file; add them to `Zine.fonts`. */
@@ -1145,6 +1199,10 @@ export async function importFontFiles(db: ZiniarzDb, zine: Zine, files: File[]):
   let skipped = 0;
   const uploads: Upload[] = [];
   for (const file of files) {
+    if (!fontMime(file.name)) {
+      skipped++;
+      continue;
+    }
     const data = await file.arrayBuffer();
     const description = describeFontFile(file.name, data);
     if (description) uploads.push({ description, data });
@@ -1174,8 +1232,16 @@ export async function importFontFiles(db: ZiniarzDb, zine: Zine, files: File[]):
         skipped++;
         continue;
       }
-      await putFontFile(db, file);
-      for (const old of current.filter((f) => f.bold === bold && f.italic === italic)) await deleteFontFile(db, old.id);
+      try {
+        await putFontFile(db, file);
+      } catch (error) {
+        unregisterFontFile(file.id);
+        throw error;
+      }
+      for (const old of current.filter((f) => f.bold === bold && f.italic === italic)) {
+        await deleteFontFile(db, old.id);
+        unregisterFontFile(old.id);
+      }
       current = [...current.filter((f) => f.bold !== bold || f.italic !== italic), file];
       added++;
     }

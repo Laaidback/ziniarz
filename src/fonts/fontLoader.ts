@@ -9,7 +9,8 @@ export class FontImportError extends Error {
   }
 }
 
-const registered = new Set<string>();
+/** FontFace of each registered uploaded file, so a replaced file can be taken out of document.fonts. */
+const registered = new Map<string, FontFace>();
 
 export function cssFontFamily(familyId: string): string {
   return `zf-${familyId}`;
@@ -36,7 +37,15 @@ export async function registerFontFile(file: FontFile): Promise<void> {
     throw new FontImportError();
   }
   document.fonts.add(face);
-  registered.add(file.id);
+  registered.set(file.id, face);
+}
+
+/** Removes the FontFace of an uploaded file that was replaced or deleted. Unknown ids are ignored. */
+export function unregisterFontFile(fileId: string): void {
+  const face = registered.get(fileId);
+  if (!face) return;
+  document.fonts.delete(face);
+  registered.delete(fileId);
 }
 
 let builtinsRegistered = false;

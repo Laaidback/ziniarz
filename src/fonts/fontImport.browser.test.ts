@@ -1,7 +1,7 @@
 import interBold from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
 import interItalic from '@fontsource/inter/files/inter-latin-400-italic.woff2?url';
 import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import { fontFilesOfFamily, getFontFamily, openZiniarzDb } from '../storage/db';
@@ -52,6 +52,16 @@ test('a family the zine already has gets the new file, and the same style is rep
     [false, false],
     [false, true],
   ]);
+  expect(loadedFaces(first.familyIds[0])).toHaveLength(2); // the replaced Regular is gone from document.fonts
+});
+
+test('files that are not fonts are not read at all', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const notes = new File(['hello'], 'notatki.txt');
+  const read = vi.spyOn(notes, 'arrayBuffer');
+  const result = await importFontFiles(db, createZine('t', 1), [notes]);
+  expect(result).toEqual({ familyIds: [], skipped: 1 });
+  expect(read).not.toHaveBeenCalled();
 });
 
 test('an upload with no usable file leaves no empty family behind', async () => {

@@ -90,24 +90,33 @@ export function readSfntNames(data: ArrayBuffer): FontStyleName | null {
   }
 }
 
-const STYLE_SUFFIX = /^(regular|normal|book|roman|bold|italic|oblique|semi|demi|extra|ultra|black|heavy|light|thin|medium)+$/;
+const WEIGHT_WORDS = /^(semi|demi|extra|ultra|black|heavy|light|thin|medium|bold)+$/i;
+const PLAIN_STYLES = new Set(['', 'regular', 'normal', 'book', 'roman', 'bold']);
 
 function prettyFamily(raw: string): string {
   const spaced = raw.replace(/[-_]+/g, ' ').trim();
   return (spaced.includes(' ') ? spaced : spaced.replace(/([a-z])([A-Z])/g, '$1 $2')) || 'Font';
 }
 
-/** Fallback for WOFF2 (compressed tables): "Lato-BoldItalic.woff2" → Lato, bold, italic. */
+/**
+ * Fallback for WOFF2 (compressed tables): "Lato-BoldItalic.woff2" → Lato, bold, italic. Only regular,
+ * bold and italic are styles; any other weight word ("Light", "SemiBold") stays in the family name
+ * ("Lato Light"), like nameID 1 does for TTF/OTF, so a full set of weights never overwrites Regular/Bold.
+ */
 export function styleFromFileName(fileName: string): FontStyleName {
   const base = fileName.replace(/\.[^.]+$/, '');
   const cut = Math.max(base.lastIndexOf('-'), base.lastIndexOf('_'));
-  const suffix = cut > 0 ? base.slice(cut + 1).toLowerCase() : '';
-  const isStyle = STYLE_SUFFIX.test(suffix);
-  return {
-    family: prettyFamily(isStyle ? base.slice(0, cut) : base),
-    bold: isStyle && suffix.includes('bold'),
-    italic: isStyle && /italic|oblique/.test(suffix),
-  };
+  const suffix = cut > 0 ? base.slice(cut + 1) : '';
+  const italic = /italic|oblique/i.test(suffix);
+  const weight = suffix.replace(/italic|oblique/gi, '');
+  const plain = PLAIN_STYLES.has(weight.toLowerCase());
+  if (suffix && (plain || WEIGHT_WORDS.test(weight))) {
+    const family = prettyFamily(base.slice(0, cut));
+    return plain
+      ? { family, bold: weight.toLowerCase() === 'bold', italic }
+      : { family: `${family} ${weight[0].toUpperCase()}${weight.slice(1)}`, bold: false, italic };
+  }
+  return { family: prettyFamily(base), bold: false, italic: false };
 }
 
 export function fontMime(fileName: string): string | null {

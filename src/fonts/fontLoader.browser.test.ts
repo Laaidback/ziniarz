@@ -11,6 +11,7 @@ import {
   konvaFontStyle,
   registerFontFile,
   registerZineFonts,
+  unregisterFontFile,
 } from './fontLoader';
 
 function loadedFaces(family: string): FontFace[] {
@@ -31,6 +32,18 @@ test('registers a font file and makes it available', async () => {
   zine.spreads[1].elements.push(createTextElement({ fontFamilyId: 'inter', text: 'A' }));
   await ensureFontsReady(zine);
   expect(loadedFaces('zf-inter').length).toBeGreaterThan(0);
+});
+
+test('unregisterFontFile removes the face of a replaced file', async () => {
+  const data = await (await fetch(interUrl)).arrayBuffer();
+  const file = { id: 'gone-r', familyId: 'gone', bold: false, italic: false, mime: 'font/woff2', data };
+  await registerFontFile(file);
+  expect(loadedFaces('zf-gone')).toHaveLength(1);
+  unregisterFontFile(file.id);
+  expect(loadedFaces('zf-gone')).toHaveLength(0);
+  unregisterFontFile(file.id); // unknown ids are ignored
+  await registerFontFile(file); // and the id can be registered again
+  expect(loadedFaces('zf-gone')).toHaveLength(1);
 });
 
 test('rejects data that is not a font', async () => {

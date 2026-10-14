@@ -25,8 +25,20 @@ test('style from file names', () => {
   expect(styleFromFileName('Lato-BoldItalic.woff2')).toEqual({ family: 'Lato', bold: true, italic: true });
   expect(styleFromFileName('PlayfairDisplay-Regular.ttf')).toEqual({ family: 'Playfair Display', bold: false, italic: false });
   expect(styleFromFileName('Comic_Neue.woff2')).toEqual({ family: 'Comic Neue', bold: false, italic: false });
-  expect(styleFromFileName('Inter-SemiBoldItalic.woff2')).toEqual({ family: 'Inter', bold: true, italic: true });
+  expect(styleFromFileName('Inter-SemiBoldItalic.woff2')).toEqual({ family: 'Inter SemiBold', bold: false, italic: true });
   expect(styleFromFileName('Space-Mono.woff2')).toEqual({ family: 'Space Mono', bold: false, italic: false });
+});
+
+test('weight words other than regular and bold stay part of the family name', () => {
+  expect(styleFromFileName('Lato-Light.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Black.woff2')).toEqual({ family: 'Lato Black', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Medium.woff2')).toEqual({ family: 'Lato Medium', bold: false, italic: false });
+  expect(styleFromFileName('Inter-SemiBold.woff2')).toEqual({ family: 'Inter SemiBold', bold: false, italic: false });
+  expect(styleFromFileName('Inter-ExtraBold.woff2')).toEqual({ family: 'Inter ExtraBold', bold: false, italic: false });
+  expect(styleFromFileName('Lato-LightItalic.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: true });
+  expect(styleFromFileName('Lato-light.woff2')).toEqual({ family: 'Lato Light', bold: false, italic: false });
+  expect(styleFromFileName('Lato-Bold.woff2')).toEqual({ family: 'Lato', bold: true, italic: false });
+  expect(styleFromFileName('Lato-Book.woff2')).toEqual({ family: 'Lato', bold: false, italic: false });
 });
 
 test('describeFontFile reads tables for .ttf/.otf and the file name for .woff2', () => {
