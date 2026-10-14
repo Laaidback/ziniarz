@@ -13,7 +13,12 @@ export async function loadRenderAssets(
   const images = new Map<string, ImageBitmap>();
   for (const id of imageIdsOfZine(zine)) {
     const image = await getImage(id);
-    if (image) images.set(id, await createImageBitmap(new Blob([image.data], { type: image.mime })));
+    if (!image) continue;
+    try {
+      images.set(id, await createImageBitmap(new Blob([image.data], { type: image.mime })));
+    } catch {
+      // A corrupt stored image is left out, so it draws as the placeholder instead of stopping the render.
+    }
   }
   return { images };
 }
