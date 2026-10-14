@@ -8,6 +8,7 @@ import { measureTextHeight } from '../render/buildSpread';
 import { saveZine } from '../storage/db';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
+import { PropertiesPanel } from './panels/PropertiesPanel';
 import { openEditorSession } from './session';
 import { createAutosaver } from './state/autosave';
 import { SpreadList } from './SpreadList';
@@ -51,7 +52,9 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
         <section className="editor-canvas">
           <SpreadCanvas />
         </section>
-        <aside className="editor-panel" />
+        <aside className="editor-panel">
+          <PropertiesPanel />
+        </aside>
       </div>
     </EditorContext.Provider>
   );
