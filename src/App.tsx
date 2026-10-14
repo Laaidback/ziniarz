@@ -5,13 +5,14 @@ import { NoticeList } from './app/NoticeList';
 import { PlaceholderScreen } from './app/PlaceholderScreen';
 import type { Route } from './app/route';
 import { useRoute } from './app/useRoute';
+import { HomeScreen } from './home/HomeScreen';
 import { openZiniarzDb, type ZiniarzDb } from './storage/db';
 import { requestPersistentStorage } from './storage/quota';
 
 function Screen({ route }: { route: Route }) {
   switch (route.name) {
     case 'home':
-      return <main className="screen-message">Lista zinów</main>;
+      return <HomeScreen />;
     case 'editor':
       return <main className="screen-message">Edytor</main>;
     case 'print':
