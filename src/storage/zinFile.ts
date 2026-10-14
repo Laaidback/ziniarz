@@ -99,7 +99,7 @@ export async function readZin(data: Uint8Array | ArrayBuffer): Promise<ZinBundle
   assertShape(isRecord(fontIndex) && Array.isArray(fontIndex.families) && Array.isArray(fontIndex.files));
   const fontMeta = fontIndex as { families: FontFamily[]; files: Omit<FontFile, 'data'>[] };
   assertShape(fontMeta.families.every((f) => isRecord(f) && typeof f.id === 'string'));
-  assertShape(fontMeta.files.every((f) => isRecord(f) && typeof f.id === 'string'));
+  assertShape(fontMeta.files.every((f) => isRecord(f) && typeof f.id === 'string' && typeof f.familyId === 'string'));
   const listedImages = new Set(imageMeta.map((m) => m.id));
   for (const id of imageIdsOfZine(zine)) {
     if (!listedImages.has(id)) throw new ZinFileError('Plik zina jest niekompletny (brakuje zdjęć).');

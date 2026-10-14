@@ -66,6 +66,16 @@ describe('writeZin / readZin', () => {
     await expect(readZin(await zipWith(overrides))).rejects.toThrow(ZinFileError);
   });
 
+  test.each([
+    ['without familyId', '{"id":"ff"}'],
+    ['with a numeric familyId', '{"id":"ff","familyId":7}'],
+  ])('a font file entry %s is rejected as corrupt', async (_name, entry) => {
+    const overrides = { 'fonts/index.json': `{"families":[{"id":"fam","name":"Grotesk"}],"files":[${entry}]}` };
+    const read = readZin(await zipWith(overrides));
+    await expect(read).rejects.toThrow(ZinFileError);
+    await expect(read).rejects.toThrow('Plik zina jest uszkodzony.');
+  });
+
   test('a corrupt binary entry gives a ZinFileError', async () => {
     const bytes = await writeZin(sampleBundle());
     const zip = await JSZip.loadAsync(bytes);
