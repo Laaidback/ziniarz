@@ -17,6 +17,8 @@ export default defineConfig({
       'react/jsx-dev-runtime',
       'zustand',
       'zustand/vanilla',
+      'three',
+      'three/examples/jsm/controls/OrbitControls.js',
       'vitest-browser-react',
     ],
   },
@@ -42,7 +44,7 @@ export default defineConfig({
             headless: true,
             // The default 414 px wide viewport is too small for the editor layout.
             viewport: { width: 1280, height: 900 },
-            instances: [{ browser: 'chromium' }],
+            instances: [{ browser: 'chromium', launch: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } }],
           },
         },
       },
