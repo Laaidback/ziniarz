@@ -6,20 +6,21 @@
 
 **Architecture:** No app code changes. Vite already builds with `base: './'` and the app uses hash routes (`src/app/route.ts`), so the build runs from any sub-path (`https://<user>.github.io/<repo>/`) with no server-side routing or `404.html` fallback. A small plain-JS script (`scripts/checkDist.mjs`, pure functions plus a CLI) scans `dist/` for root-absolute URLs and missing referenced files; its pure functions are unit-tested by Vitest and the CLI runs in CI as `npm run check:dist`. A three-job workflow (`test` -> `build` -> `deploy`) uses the official Pages actions.
 
-**Tech Stack:** GitHub Actions, GitHub Pages, Node 22 in CI, Vite 7, Vitest 3.2, Playwright (Chromium).
+**Tech Stack:** GitHub Actions, GitHub Pages, Node 24 in CI, Vite 7, Vitest 3.2, Playwright (Chromium).
 
 **Spec:** `docs/superpowers/specs/2026-10-14-ziniarz-design.md`, section "Technika" (hosting: GitHub Pages, publication through GitHub Actions after a push to `main`). Earlier plans: 1 = core, 2 = editor, 3 = print screen and 3D preview.
 
 ## Decisions (nobody could be asked, so these were made up front)
 
 - **No publishing is done by this plan.** No GitHub repo is created, no remote is added, nothing is pushed. That is public publishing and is the owner's decision; the README explains how, step by step. Every task only commits locally on `main`.
-- **Action versions:** `actions/checkout@v4`, `actions/setup-node@v4` (Node 22, npm cache), `actions/configure-pages@v5`, `actions/upload-pages-artifact@v3`, `actions/deploy-pages@v4`. This is the combination that works together. Newer majors exist (checked through the GitHub API on 2026-10-15: checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5) but could not be run here, so they were not adopted. Bumping them later is a separate, optional change (`upload-pages-artifact` and `deploy-pages` must be bumped together).
+- **Action versions:** the newest majors (checked through the GitHub API on 2026-10-15): `actions/checkout@v7`, `actions/setup-node@v7` (Node 24, npm cache), `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`. Older majors (v4/v5/v3/v4) run on the Node 20 runtime that GitHub is retiring in 2026; these all run on Node 24 (`runs.using: node24`). The inputs the workflow uses (`node-version`, `cache`, `path`) are unchanged; setup-node v7's only breaking change (dummy `NODE_AUTH_TOKEN` removed) does not matter here (no `registry-url`). `upload-pages-artifact@v5` (uploads via upload-artifact v7, artifact name `github-pages`) and `deploy-pages@v5` are used together and must be bumped together. They could not be run here, only inspected.
+- **Node in CI:** 24 (current LTS; the project needs Node >= 20.19, Vite 7 requirement).
 - **Triggers:** push to `main` and manual `workflow_dispatch`. No `pull_request` trigger (single owner, no PRs).
 - **Gate:** `build` needs `test`, `deploy` needs `build`; a red test or typecheck blocks publication.
 - **Permissions:** top-level `contents: read`, `pages: write`, `id-token: write` (what the Pages actions need); the `test` job narrows itself to `contents: read`.
 - **Concurrency:** group `pages`, `cancel-in-progress: false`, so a running deployment is never cancelled half-way.
 - **E2E tests:** plan 3 or a later plan may add `npm run test:e2e`. The workflow runs it only when the script exists (`npm pkg get scripts.test:e2e` returns `{}` when absent), so no edit is needed later.
-- **Sub-path check** is a plain `.mjs` script with a `.d.mts` typing file, not TypeScript, so `node scripts/checkDist.mjs` runs on any Node 22 without a loader. Its pure functions are tested from `src/build/checkDist.test.ts` (the existing unit project includes `src/**/*.test.ts`). Dynamic chunks and fonts: Vite emits them as `new URL("file", import.meta.url)` relative to the JS file, and the check verifies those targets exist in `dist/`.
+- **Sub-path check** is a plain `.mjs` script with a `.d.mts` typing file, not TypeScript, so `node scripts/checkDist.mjs` runs on any supported Node (>= 20.19) without a loader. Its pure functions are tested from `src/build/checkDist.test.ts` (the existing unit project includes `src/**/*.test.ts`). Dynamic chunks and fonts: Vite emits them as `new URL("file", import.meta.url)` relative to the JS file, and the check verifies those targets exist in `dist/`.
 - **YAML verification** uses `npx --yes js-yaml` (network is available) plus a Node assertion on the parsed structure. `actionlint` is not available offline.
 - **`.claude/launch.json`** (dev server config for the Claude Code preview, port 5199) is committed in Task 4 and mentioned in `CLAUDE.md`.
 - **README language:** Polish, written for a non-programmer. Mentions that the repo may be public or private, and that Pages on private repos needs a paid GitHub plan.
@@ -305,10 +306,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - name: Install Chromium for the browser tests
@@ -327,16 +328,16 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
       - run: npm run build
       - run: npm run check:dist
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
@@ -348,7 +349,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 ```
 
 - [ ] **Step 2: Verify the YAML parses**
