@@ -13,6 +13,10 @@ import {
   registerZineFonts,
 } from './fontLoader';
 
+function loadedFaces(family: string): FontFace[] {
+  return [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === family && f.status === 'loaded');
+}
+
 test('font names', () => {
   expect(cssFontFamily('abc')).toBe('zf-abc');
   expect(konvaFontFamily('abc')).toBe('zf-abc, sans-serif');
@@ -26,7 +30,7 @@ test('registers a font file and makes it available', async () => {
   const zine = createZine('t', 1);
   zine.spreads[1].elements.push(createTextElement({ fontFamilyId: 'inter', text: 'A' }));
   await ensureFontsReady(zine);
-  expect(document.fonts.check('16px "zf-inter"')).toBe(true);
+  expect(loadedFaces('zf-inter').length).toBeGreaterThan(0);
 });
 
 test('rejects data that is not a font', async () => {
@@ -44,5 +48,18 @@ test('registerZineFonts loads the zine font families from the database', async (
   const zine = createZine('t', 1);
   zine.fonts = ['inter2'];
   await registerZineFonts(db, zine);
-  expect(document.fonts.check('16px "zf-inter2"')).toBe(true);
+  expect(loadedFaces('zf-inter2').length).toBeGreaterThan(0);
+});
+
+test('registerZineFonts skips a corrupt font file and still loads the others', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const data = await (await fetch(interUrl)).arrayBuffer();
+  const bad = new TextEncoder().encode('not a font').buffer as ArrayBuffer;
+  await putFontFamily(db, { id: 'mixed', name: 'Mixed' });
+  await putFontFile(db, { id: 'mixed-bad', familyId: 'mixed', bold: true, italic: false, mime: 'font/ttf', data: bad });
+  await putFontFile(db, { id: 'mixed-ok', familyId: 'mixed', bold: false, italic: false, mime: 'font/woff2', data });
+  const zine = createZine('t', 1);
+  zine.fonts = ['mixed'];
+  await expect(registerZineFonts(db, zine)).resolves.toBeUndefined();
+  expect(loadedFaces('zf-mixed').length).toBe(1);
 });

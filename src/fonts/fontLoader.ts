@@ -50,9 +50,15 @@ export async function ensureFontsReady(zine: Zine): Promise<void> {
   await Promise.all([...specs].map((spec) => document.fonts.load(spec)));
 }
 
-/** Registers every file of the zine's custom font families from the database. Call before rendering. */
+/** Registers every file of the zine's custom font families from the database, skipping corrupt files. Call before rendering. */
 export async function registerZineFonts(db: ZiniarzDb, zine: Zine): Promise<void> {
   for (const familyId of zine.fonts) {
-    for (const file of await fontFilesOfFamily(db, familyId)) await registerFontFile(file);
+    for (const file of await fontFilesOfFamily(db, familyId)) {
+      try {
+        await registerFontFile(file);
+      } catch {
+        // One corrupt stored font file must not stop the others (or the zine) from loading.
+      }
+    }
   }
 }

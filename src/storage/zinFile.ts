@@ -32,6 +32,7 @@ export interface ZinBundle {
   fontFiles: FontFile[];
 }
 
+const CORRUPT = 'Plik zina jest uszkodzony.';
 const MANIFEST = { kind: 'ziniarz', version: 1 };
 const withoutData = <T extends { data: ArrayBuffer }>({ data: _data, ...rest }: T) => rest;
 
@@ -52,14 +53,25 @@ async function readJson(zip: JSZip, path: string): Promise<unknown> {
   try {
     return JSON.parse(await entry.async('string'));
   } catch {
-    throw new ZinFileError('Plik zina jest uszkodzony.');
+    throw new ZinFileError(CORRUPT);
   }
 }
 
 async function readBinary(zip: JSZip, path: string, missing: string): Promise<ArrayBuffer> {
   const entry = zip.file(path);
   if (!entry) throw new ZinFileError(missing);
-  return entry.async('arraybuffer');
+  try {
+    return await entry.async('arraybuffer');
+  } catch {
+    throw new ZinFileError(CORRUPT);
+  }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+function assertShape(valid: boolean): void {
+  if (!valid) throw new ZinFileError(CORRUPT);
 }
 
 /** Reads a .zin file. The zine gets a new id, so importing never overwrites an existing zine. */
@@ -82,10 +94,12 @@ export async function readZin(data: Uint8Array | ArrayBuffer): Promise<ZinBundle
   }
 
   const imageMeta = (await readJson(zip, 'images/index.json')) as Omit<StoredImage, 'data'>[];
-  const fontMeta = (await readJson(zip, 'fonts/index.json')) as {
-    families: FontFamily[];
-    files: Omit<FontFile, 'data'>[];
-  };
+  const fontIndex = await readJson(zip, 'fonts/index.json');
+  assertShape(Array.isArray(imageMeta) && imageMeta.every((m) => isRecord(m) && typeof m.id === 'string'));
+  assertShape(isRecord(fontIndex) && Array.isArray(fontIndex.families) && Array.isArray(fontIndex.files));
+  const fontMeta = fontIndex as { families: FontFamily[]; files: Omit<FontFile, 'data'>[] };
+  assertShape(fontMeta.families.every((f) => isRecord(f) && typeof f.id === 'string'));
+  assertShape(fontMeta.files.every((f) => isRecord(f) && typeof f.id === 'string'));
   const listedImages = new Set(imageMeta.map((m) => m.id));
   for (const id of imageIdsOfZine(zine)) {
     if (!listedImages.has(id)) throw new ZinFileError('Plik zina jest niekompletny (brakuje zdjęć).');
@@ -98,7 +112,9 @@ export async function readZin(data: Uint8Array | ArrayBuffer): Promise<ZinBundle
   const fontFiles = await Promise.all(
     fontMeta.files.map(async (m) => ({ ...m, data: await readBinary(zip, `fonts/${m.id}`, missing) })),
   );
-  return { zine: { ...zine, id: newId() }, images, fontFamilies: fontMeta.families, fontFiles };
+  const knownFamilies = new Set(fontMeta.families.map((f) => f.id));
+  const fonts = zine.fonts.filter((id) => knownFamilies.has(id));
+  return { zine: { ...zine, id: newId(), fonts }, images, fontFamilies: fontMeta.families, fontFiles };
 }
 
 export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<ZinBundle> {
@@ -107,7 +123,8 @@ export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<ZinBu
   const images: StoredImage[] = [];
   for (const id of imageIdsOfZine(zine)) {
     const image = await getImage(db, id);
-    if (image) images.push(image);
+    if (!image) throw new ZinFileError('Brakuje zdjęć tego zina w przeglądarce. Nie da się zapisać pliku.');
+    images.push(image);
   }
   const fontFamilies: FontFamily[] = [];
   const fontFiles: FontFile[] = [];

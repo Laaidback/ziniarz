@@ -45,6 +45,44 @@ describe('writeZin / readZin', () => {
     const bundle = { ...sampleBundle(), images: [] };
     await expect(readZin(await writeZin(bundle))).rejects.toThrow('brakuje zdjęć');
   });
+
+  async function zipWith(overrides: Record<string, string | null>): Promise<Uint8Array> {
+    const zip = await JSZip.loadAsync(await writeZin(sampleBundle()));
+    for (const [path, content] of Object.entries(overrides)) {
+      if (content === null) zip.remove(path);
+      else zip.file(path, content);
+    }
+    return zip.generateAsync({ type: 'uint8array' });
+  }
+
+  test.each([
+    ['null images index', { 'images/index.json': 'null' }],
+    ['object images index', { 'images/index.json': '{}' }],
+    ['null fonts index', { 'fonts/index.json': 'null' }],
+    ['fonts index without files', { 'fonts/index.json': '{"families":[]}' }],
+    ['fonts index without families', { 'fonts/index.json': '{"files":[]}' }],
+    ['malformed image entry', { 'images/index.json': '[null]' }],
+  ])('%s gives a ZinFileError', async (_name, overrides) => {
+    await expect(readZin(await zipWith(overrides))).rejects.toThrow(ZinFileError);
+  });
+
+  test('a corrupt binary entry gives a ZinFileError', async () => {
+    const bytes = await writeZin(sampleBundle());
+    const zip = await JSZip.loadAsync(bytes);
+    zip.file('images/img', new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]), { compression: 'DEFLATE' });
+    const corrupt = await zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+    // Flip bytes inside the deflate stream of the last entry data so that inflating fails.
+    const text = new TextDecoder('latin1').decode(corrupt);
+    const at = text.indexOf('images/img') + 'images/img'.length;
+    for (let i = 0; i < 6; i++) corrupt[at + i] = 0xff;
+    await expect(readZin(corrupt)).rejects.toThrow(ZinFileError);
+  });
+
+  test('drops zine.fonts entries without a family in the file', async () => {
+    const bundle = sampleBundle();
+    bundle.zine.fonts = ['fam', 'ghost'];
+    expect((await readZin(await writeZin(bundle))).zine.fonts).toEqual(['fam']);
+  });
 });
 
 describe('database bundles', () => {
@@ -62,5 +100,13 @@ describe('database bundles', () => {
 
     expect(await loadZine(target, imported.id)).toEqual(imported);
     expect(await getImage(target, 'img')).toBeDefined();
+  });
+
+  test('export fails with a Polish error when images are missing from the database', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    const bundle = sampleBundle();
+    await saveZine(db, bundle.zine);
+    await expect(bundleFromDb(db, bundle.zine.id)).rejects.toThrow(ZinFileError);
+    await expect(bundleFromDb(db, bundle.zine.id)).rejects.toThrow('Brakuje zdjęć');
   });
 });
