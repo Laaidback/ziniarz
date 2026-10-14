@@ -6,6 +6,7 @@ import type { Zine } from '../model/types';
 import {
   fontFilesOfFamily,
   getFontFamily,
+  getFontFile,
   getImage,
   loadZine,
   putFontFamily,
@@ -137,7 +138,39 @@ export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<ZinBu
   return { zine, images, fontFamilies, fontFiles };
 }
 
-export async function importBundle(db: ZiniarzDb, bundle: ZinBundle): Promise<Zine> {
+/**
+ * Font families are shared between zines by id, so an imported family whose id is already taken
+ * (maybe changed since the file was saved) gets new ids for itself and its files instead of
+ * overwriting it; the zine's font list and texts follow. Files of families not in the bundle are dropped.
+ */
+async function withFreeFontIds(db: ZiniarzDb, bundle: ZinBundle): Promise<ZinBundle> {
+  const familyIds = new Map<string, string>();
+  for (const family of bundle.fontFamilies) {
+    familyIds.set(family.id, (await getFontFamily(db, family.id)) ? newId() : family.id);
+  }
+  const fontFiles: FontFile[] = [];
+  for (const file of bundle.fontFiles) {
+    const familyId = familyIds.get(file.familyId);
+    if (familyId === undefined) continue;
+    const renamed = familyId !== file.familyId || (await getFontFile(db, file.id)) !== undefined;
+    fontFiles.push({ ...file, id: renamed ? newId() : file.id, familyId });
+  }
+  const remap = (id: string) => familyIds.get(id) ?? id;
+  const zine: Zine = {
+    ...bundle.zine,
+    fonts: bundle.zine.fonts.map(remap),
+    spreads: bundle.zine.spreads.map((spread) => ({
+      ...spread,
+      elements: spread.elements.map((e) => (e.kind === 'text' ? { ...e, fontFamilyId: remap(e.fontFamilyId) } : e)),
+    })),
+  };
+  const fontFamilies = bundle.fontFamilies.map((family) => ({ ...family, id: remap(family.id) }));
+  return { ...bundle, zine, fontFamilies, fontFiles };
+}
+
+/** Stores an imported bundle without changing anything already in the database. */
+export async function importBundle(db: ZiniarzDb, imported: ZinBundle): Promise<Zine> {
+  const bundle = await withFreeFontIds(db, imported);
   for (const image of bundle.images) await putImage(db, image);
   for (const family of bundle.fontFamilies) await putFontFamily(db, family);
   for (const file of bundle.fontFiles) await putFontFile(db, file);

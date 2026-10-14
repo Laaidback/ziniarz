@@ -104,6 +104,10 @@ export async function putFontFile(db: ZiniarzDb, file: FontFile): Promise<void> 
   await guarded(() => db.put('fontFiles', file));
 }
 
+export function getFontFile(db: ZiniarzDb, id: string): Promise<FontFile | undefined> {
+  return db.get('fontFiles', id);
+}
+
 export function fontFilesOfFamily(db: ZiniarzDb, familyId: string): Promise<FontFile[]> {
   return db.getAllFromIndex('fontFiles', 'byFamily', familyId);
 }

@@ -1,9 +1,20 @@
 import 'fake-indexeddb/auto';
 import JSZip from 'jszip';
 import { describe, expect, test } from 'vitest';
-import { createPhotoElement, createZine } from '../model/factory';
+import { createPhotoElement, createTextElement, createZine } from '../model/factory';
+import type { TextElement } from '../model/types';
 import { newId } from '../model/ids';
-import { getImage, loadZine, openZiniarzDb, putFontFamily, putFontFile, putImage, saveZine } from './db';
+import {
+  fontFilesOfFamily,
+  getFontFamily,
+  getImage,
+  loadZine,
+  openZiniarzDb,
+  putFontFamily,
+  putFontFile,
+  putImage,
+  saveZine,
+} from './db';
 import { bundleFromDb, importBundle, readZin, writeZin, ZinFileError, type ZinBundle } from './zinFile';
 
 function sampleBundle(): ZinBundle {
@@ -110,6 +121,45 @@ describe('database bundles', () => {
 
     expect(await loadZine(target, imported.id)).toEqual(imported);
     expect(await getImage(target, 'img')).toBeDefined();
+  });
+
+  test('importing into an empty database keeps the font ids', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    const imported = await importBundle(db, sampleBundle());
+    expect(imported.fonts).toEqual(['fam']);
+    expect((await fontFilesOfFamily(db, 'fam')).map((f) => f.id)).toEqual(['ff']);
+  });
+
+  test('importing never changes a font family that is already there; the imported one gets new ids', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    // The family as it is now in the browser: its bold file was replaced by a regular one.
+    await putFontFamily(db, { id: 'fam', name: 'Grotesk' });
+    const current = { id: 'ff-now', familyId: 'fam', bold: false, italic: false, mime: 'font/ttf', data: new Uint8Array([1]).buffer };
+    await putFontFile(db, current);
+    // An unrelated family whose file id clashes with the imported one.
+    await putFontFamily(db, { id: 'other', name: 'Inna' });
+    await putFontFile(db, { ...current, id: 'ff', familyId: 'other', data: new Uint8Array([2]).buffer });
+
+    const bundle = sampleBundle();
+    const custom = createTextElement({ text: 'a', fontFamilyId: 'fam' });
+    const builtin = createTextElement({ text: 'b', fontFamilyId: 'inter' });
+    bundle.zine.spreads[1].elements.push(custom, builtin);
+    const imported = await importBundle(db, bundle);
+
+    expect(await getFontFamily(db, 'fam')).toEqual({ id: 'fam', name: 'Grotesk' });
+    expect((await fontFilesOfFamily(db, 'fam')).map((f) => f.id)).toEqual(['ff-now']);
+    expect((await fontFilesOfFamily(db, 'other')).map((f) => new Uint8Array(f.data))).toEqual([new Uint8Array([2])]);
+
+    const [familyId] = imported.fonts;
+    expect(imported.fonts).toHaveLength(1);
+    expect(familyId).not.toBe('fam');
+    expect(await getFontFamily(db, familyId)).toEqual({ id: familyId, name: 'Grotesk' });
+    const files = await fontFilesOfFamily(db, familyId);
+    expect(files.map((f) => [f.bold, f.italic, new Uint8Array(f.data)])).toEqual([[true, false, new Uint8Array([5])]]);
+    expect(files[0].id).not.toBe('ff');
+    const texts = imported.spreads[1].elements.filter((e): e is TextElement => e.kind === 'text');
+    expect(texts.map((t) => t.fontFamilyId)).toEqual([familyId, 'inter']);
+    expect(await loadZine(db, imported.id)).toEqual(imported);
   });
 
   test('export fails with a Polish error when images are missing from the database', async () => {
