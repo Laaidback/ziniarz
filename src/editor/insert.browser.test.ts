@@ -1,6 +1,6 @@
 import { beforeEach, expect, test } from 'vitest';
 import { noticeStore } from '../app/notices';
-import { createZine } from '../model/factory';
+import { createTextElement, createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import type { PhotoElement } from '../model/types';
 import { measureTextHeight } from '../render/buildSpread';
@@ -58,4 +58,27 @@ test('"+ Napis" adds a frame across the margins of the clicked page, ready for t
   expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: 178, y: 30, width: 88 });
   expect(selectedElement(store.getState())!.height).toBeGreaterThan(0);
   expect(store.getState().mode).toBe('text');
+});
+
+test('after selecting an element, "+ Napis" and photos go to the page under its centre', async () => {
+  const env = await setup();
+  const { store } = env;
+  const onRight = createTextElement({ text: 'b', x: 160, y: 40, width: 100 });
+  store.getState().addElement(createTextElement({ text: 'a', x: 20, y: 40, width: 50 }));
+  store.getState().addElement(onRight);
+  store.getState().clickPage(2);
+  store.getState().select(onRight.id);
+  insertText(store);
+  expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: 178 });
+  await insertPhotos(env, [await pngFile(200, 100)], null);
+  expect(selectedElement(store.getState())).toMatchObject({ kind: 'photo', x: 178 });
+});
+
+test('an element whose centre is off the page falls back to the first page of the spread', async () => {
+  const { store } = await setup();
+  const outside = createTextElement({ text: 'b', x: 300, y: 40, width: 40 });
+  store.getState().addElement(outside);
+  store.getState().select(outside.id);
+  insertText(store);
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: 30 });
 });

@@ -5,15 +5,23 @@ import type { StoredImage } from '../storage/db';
 import { putImage } from '../storage/db';
 import { bitmapOf } from '../render/assets';
 import type { EditorEnv } from './EditorContext';
-import { cascade, defaultPage, fitPhotoFrame, insertArea, newTextFrame } from './geometry/placement';
-import { selectZine, type EditorStore } from './state/store';
+import { cascade, defaultPage, fitPhotoFrame, insertArea, newTextFrame, pageAtPoint } from './geometry/placement';
+import { selectedElement, selectZine, type EditorStore } from './state/store';
 
 export const NEW_TEXT = 'Napis';
 
-/** The page new elements go to: the given one, else the last clicked page, else the first page of the spread. */
+/**
+ * The page new elements go to: the given one, else the last clicked page, else the existing page under
+ * the centre of the selected element, else the first page of the spread.
+ */
 function targetPage(store: EditorStore, page: number | null): number {
   const state = store.getState();
-  return page ?? state.activePage ?? defaultPage(state.spread, selectZine(state).sheets);
+  const { sheets } = selectZine(state);
+  const selected = selectedElement(state);
+  const selectedPage = selected
+    ? pageAtPoint(state.spread, sheets, selected.x + selected.width / 2, selected.y + selected.height / 2)
+    : null;
+  return page ?? state.activePage ?? selectedPage ?? defaultPage(state.spread, sheets);
 }
 
 /**
