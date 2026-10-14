@@ -7,7 +7,8 @@ import { pageAtPoint } from '../geometry/placement';
 import { insertPhotos } from '../insert';
 import { findElement } from '../state/commands';
 import { selectZine } from '../state/store';
-import { EditorStage } from './EditorStage';
+import { EditorStage, type Viewport } from './EditorStage';
+import { TextEditor } from './TextEditor';
 
 /** React wrapper around EditorStage: passes store changes in, store actions out, and takes file drops. */
 export function SpreadCanvas() {
@@ -22,6 +23,7 @@ export function SpreadCanvas() {
   const fontsVersion = useFontsVersion();
   const host = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<EditorStage | null>(null);
+  const [viewport, setViewport] = useState<Viewport | null>(null);
 
   useEffect(() => {
     const element = host.current!;
@@ -40,9 +42,13 @@ export function SpreadCanvas() {
       endCrop: () => store.getState().setMode('idle'),
       endGesture: () => store.getState().endMerge(),
     });
-    const observer = new ResizeObserver(() => stage.resize(element.clientWidth, element.clientHeight));
+    const fit = () => {
+      stage.resize(element.clientWidth, element.clientHeight);
+      setViewport(stage.viewport());
+    };
+    const observer = new ResizeObserver(fit);
     observer.observe(element);
-    stage.resize(element.clientWidth, element.clientHeight);
+    fit();
     setEditor(stage);
     return () => {
       observer.disconnect();
@@ -79,6 +85,7 @@ export function SpreadCanvas() {
       }}
     >
       <div ref={host} className="spread-stage" />
+      {mode === 'text' && viewport && <TextEditor viewport={viewport} />}
     </div>
   );
 }

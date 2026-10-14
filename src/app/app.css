@@ -276,3 +276,17 @@ select {
   position: absolute;
   inset: 0;
 }
+
+.text-editor {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: none;
+  outline: 1px dashed var(--accent);
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  transform-origin: center center;
+}
