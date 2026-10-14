@@ -4,6 +4,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: './',
+  // Pre-bundle so the first browser test run is not reloaded mid-run.
+  optimizeDeps: { include: ['konva'] },
   test: {
     projects: [
       {
