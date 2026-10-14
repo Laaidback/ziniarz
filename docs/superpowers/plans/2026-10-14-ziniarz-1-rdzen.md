@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-14-ziniarz-design.md`. Later plans: 2 = editor, 3 = print screen and 3D preview, 4 = hosting.
 
+**Left for later plans on purpose:** turning uploaded font files into a `FontFamily` + `FontFile[]` (family name and bold/italic from the file) and built-in fonts (plan 2); editor guides on `renderSpread` (plan 2); `navigator.storage.persist()` and storage usage (plan 2); printer margin remembered in the browser vs `Zine.print.printerMargin` (plan 3). Render tests probe pixels instead of comparing stored reference PNGs; `test-output/` holds samples to inspect by eye.
+
 **Conventions for every task:**
 - Repo root: `~/projects/ziniarz` (git repo already exists with the spec).
 - UI strings and user-facing error messages in Polish; code, comments and commit messages in English.
@@ -92,6 +94,7 @@ Expected: `v20.19` or newer (Vite 7 needs ≥ 20.19 / 22.12).
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
+    "@types/node": "^22.18.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.2",
@@ -1268,7 +1271,8 @@ describe('printLayout', () => {
           const eps = 1e-9;
           expect(l.spread.x - l.bleed - l.markBand).toBeGreaterThanOrEqual(printerMargin - eps);
           expect(l.spread.y - l.bleed - l.markBand).toBeGreaterThanOrEqual(printerMargin - eps);
-          for (const s of [...cropMarks(l), ...foldMarks(l)]) {
+          const segments = marks ? [...cropMarks(l), ...foldMarks(l)] : [];
+          for (const s of segments) {
             for (const [x, y] of [
               [s.x1, s.y1],
               [s.x2, s.y2],
@@ -2323,7 +2327,37 @@ export async function ensureFontsReady(zine: Zine): Promise<void> {
   }
   await Promise.all([...specs].map((spec) => document.fonts.load(spec)));
 }
+
+/** Registers every file of the zine's custom font families from the database. Call before rendering. */
+export async function registerZineFonts(db: ZiniarzDb, zine: Zine): Promise<void> {
+  for (const familyId of zine.fonts) {
+    for (const file of await fontFilesOfFamily(db, familyId)) await registerFontFile(file);
+  }
+}
 ```
+
+Also change the second import line of the file to:
+
+```ts
+import { fontFilesOfFamily, type FontFile, type ZiniarzDb } from '../storage/db';
+```
+
+And append this test to `src/fonts/fontLoader.browser.test.ts` (add `import { newId } from '../model/ids';` and `import { openZiniarzDb, putFontFamily, putFontFile } from '../storage/db';` to its imports; the browser has a real IndexedDB):
+
+```ts
+test('registerZineFonts loads the zine font families from the database', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const data = await (await fetch(interUrl)).arrayBuffer();
+  await putFontFamily(db, { id: 'inter2', name: 'Inter' });
+  await putFontFile(db, { id: 'inter2-r', familyId: 'inter2', bold: false, italic: false, mime: 'font/woff2', data });
+  const zine = createZine('t', 1);
+  zine.fonts = ['inter2'];
+  await registerZineFonts(db, zine);
+  expect(document.fonts.check('16px "zf-inter2"')).toBe(true);
+});
+```
+
+and add `registerZineFonts` to the import from `./fontLoader`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -2844,7 +2878,7 @@ export function fileSlug(title: string): string {
     .replace(/ł/g, 'l')
     .replace(/Ł/g, 'L')
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
@@ -3108,7 +3142,7 @@ async function gradientBitmap(): Promise<ImageBitmap> {
   return createImageBitmap(canvas);
 }
 
-test('write sample sheets and PDFs to test-output/', async () => {
+test('write sample sheets and PDFs to test-output/', { timeout: 120_000 }, async () => {
   const zine = createZine('Próbka', 5);
   zine.pages[1] = { background: '#e8e2ff' };
   zine.spreads[0].elements.push(
