@@ -6,6 +6,7 @@ import { newId } from '../model/ids';
 import type { Zine } from '../model/types';
 import { openZiniarzDb } from '../storage/db';
 import { openInEditor } from '../test/editorHarness';
+import { openZineLockHeld } from '../test/locks';
 import { EditorScreen } from './EditorScreen';
 
 test('opens a zine with its title, links to print and 3D, and nothing to undo yet', async () => {
@@ -60,4 +61,11 @@ test('files dropped outside the canvas do not make the browser leave the editor'
   expect(fire('drop', heading)).toBe(true);
   screen.unmount();
   expect(fire('drop', document.body)).toBe(false);
+});
+
+test('while the editor is open it holds the open-zine lock, so no tab prunes its photos', async () => {
+  const { db, screen } = await openInEditor(createZine('Lato', 1));
+  await expect.poll(() => openZineLockHeld(db.name)).toBe(true);
+  screen.unmount();
+  await expect.poll(() => openZineLockHeld(db.name)).toBe(false);
 });

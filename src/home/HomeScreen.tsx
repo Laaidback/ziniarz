@@ -9,6 +9,7 @@ import { MAX_SHEETS, MIN_SHEETS } from '../model/geometry';
 import type { Zine } from '../model/types';
 import { pruneUnusedAssets } from '../storage/cleanup';
 import { StorageFullError } from '../storage/db';
+import { holdOpenZineLock, whenNoZineIsOpen } from '../storage/zineLock';
 import { isNearlyFull, storageUsage, usageText, type StorageUsage } from '../storage/quota';
 import { createNewZine, DEFAULT_SHEETS, importZinFile, listZinesForHome } from './homeActions';
 import { ZineCard } from './ZineCard';
@@ -40,9 +41,10 @@ export function HomeScreen() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      // Never prune while the editor may still be saving: a new photo would look unused.
+      // Never prune while the editor may still be saving (a new photo would look unused),
+      // nor while any tab has a zine open: it may need photos and fonts its saved copy does not list yet.
       await whenSavesSettled();
-      await pruneUnusedAssets(db).catch(() => {});
+      await whenNoZineIsOpen(db.name, () => pruneUnusedAssets(db)).catch(() => {});
       if (!cancelled) await reload();
     })();
     return () => {
@@ -61,11 +63,15 @@ export function HomeScreen() {
   };
 
   const load = async (file: File) => {
+    // Until the imported zine is saved its photos belong to no zine: keep other tabs from pruning them.
+    const release = holdOpenZineLock(db.name);
     try {
       await importZinFile(db, file);
       await reload();
     } catch (error) {
       notify(`Nie da się otworzyć tego pliku. ${errorMessage(error)}`);
+    } finally {
+      release();
     }
   };
 

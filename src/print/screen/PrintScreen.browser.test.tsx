@@ -2,6 +2,7 @@ import { PDFDocument } from 'pdf-lib';
 import { beforeEach, expect, test, vi } from 'vitest';
 import { createZine } from '../../model/factory';
 import type { Zine } from '../../model/types';
+import { openZineLockHeld } from '../../test/locks';
 import { openScreen } from '../../test/screenHarness';
 import type { PdfExporter } from '../exporter';
 import { EXPORT_FAILED } from '../exportRunner';
@@ -172,4 +173,11 @@ test('leaving the screen cancels a running export, which never downloads later',
   finish();
   await new Promise((resolve) => setTimeout(resolve, 500));
   expect(saved).toEqual([]);
+});
+
+test('while the print screen is open it holds the open-zine lock', async () => {
+  const { db, screen } = await openPrint(createZine('Lato', 1), testExporter().exporter);
+  await expect.poll(() => openZineLockHeld(db.name)).toBe(true);
+  screen.unmount();
+  await expect.poll(() => openZineLockHeld(db.name)).toBe(false);
 });

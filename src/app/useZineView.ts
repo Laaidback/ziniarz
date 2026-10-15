@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { openZineView, type ZineView } from '../editor/session';
 import { releaseRenderAssets } from '../render/assets';
+import { holdOpenZineLock } from '../storage/zineLock';
 import { useDb } from './dbContext';
 import { errorMessage } from './notices';
 
@@ -13,6 +14,8 @@ export type ZineViewState =
 export function useZineView(zineId: string): ZineViewState {
   const db = useDb();
   const [state, setState] = useState<ZineViewState>({ status: 'loading' });
+  // Other tabs must not prune this zine's photos and fonts while it is shown.
+  useEffect(() => holdOpenZineLock(db.name), [db]);
   useEffect(() => {
     let cancelled = false;
     let opened: ZineView | null = null;

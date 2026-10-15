@@ -6,6 +6,7 @@ import { DbContext } from '../app/dbContext';
 import { createPhotoElement, createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import { listImageIds, listZines, openZiniarzDb, putImage, saveZine, type ZiniarzDb } from '../storage/db';
+import { holdOpenZineLock } from '../storage/zineLock';
 import { HomeScreen } from './HomeScreen';
 
 async function setup(prepare?: (db: ZiniarzDb) => Promise<void>) {
@@ -90,4 +91,19 @@ test('opening the list removes photos no zine uses', async () => {
   });
   await expect.element(screen.getByRole('heading', { name: 'Ze zdjęciem' })).toBeVisible();
   await expect.poll(() => listImageIds(db)).toEqual(['used']);
+});
+
+test('while a zine is open in another tab, the list deletes nothing', async () => {
+  let release = () => {};
+  try {
+    const { db, screen } = await setup(async (db) => {
+      release = holdOpenZineLock(db.name);
+      await saveZine(db, createZine('Inny', 1));
+      await putImage(db, { id: 'needed-elsewhere', mime: 'image/jpeg', width: 1, height: 1, data: new ArrayBuffer(1) });
+    });
+    await expect.element(screen.getByRole('heading', { name: 'Inny' })).toBeVisible();
+    expect(await listImageIds(db)).toEqual(['needed-elsewhere']);
+  } finally {
+    release();
+  }
 });

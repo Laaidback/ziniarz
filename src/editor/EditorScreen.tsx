@@ -6,6 +6,7 @@ import type { FontChoice } from '../fonts/fontChoices';
 import { releaseRenderAssets, type RenderAssets } from '../render/assets';
 import { measureTextHeight } from '../render/buildSpread';
 import { saveZine } from '../storage/db';
+import { holdOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { PropertiesPanel } from './panels/PropertiesPanel';
@@ -79,6 +80,9 @@ export function EditorScreen({ zineId }: { zineId: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [fonts, setFonts] = useState<FontChoice[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Other tabs must not prune this zine's photos and fonts while it is open.
+  useEffect(() => holdOpenZineLock(db.name), [db]);
 
   useEffect(() => {
     let cancelled = false;

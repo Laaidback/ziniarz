@@ -39,7 +39,9 @@ export class StorageFullError extends Error {
   }
 }
 
-export function openZiniarzDb(name = 'ziniarz'): Promise<ZiniarzDb> {
+export const DB_NAME = 'ziniarz';
+
+export function openZiniarzDb(name = DB_NAME): Promise<ZiniarzDb> {
   return openDB<ZiniarzSchema>(name, 1, {
     upgrade(db) {
       db.createObjectStore('zines', { keyPath: 'id' });
