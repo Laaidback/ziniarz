@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { lazy, useEffect, useState } from 'react';
 import { ConfirmHost } from './app/ConfirmHost';
 import { DbContext } from './app/dbContext';
 import { NoticeList } from './app/NoticeList';
-import type { Route } from './app/route';
+import { routeHash, type Route } from './app/route';
+import { ScreenBoundary } from './app/ScreenBoundary';
 import { useRoute } from './app/useRoute';
-import { EditorScreen } from './editor/EditorScreen';
 import { HomeScreen } from './home/HomeScreen';
 import { Preview3dScreen } from './preview3d/Preview3dScreen';
-import { PrintScreen } from './print/screen/PrintScreen';
 import { openZiniarzDb, type ZiniarzDb } from './storage/db';
 import { persistentStorage } from './storage/quota';
+
+// The editor and the print screen (with pdf-lib) download on first use, keeping the first load small.
+const EditorScreen = lazy(() => import('./editor/EditorScreen').then((m) => ({ default: m.EditorScreen })));
+const PrintScreen = lazy(() => import('./print/screen/PrintScreen').then((m) => ({ default: m.PrintScreen })));
 
 function Screen({ route }: { route: Route }) {
   switch (route.name) {
@@ -44,7 +47,9 @@ export function App() {
   if (!db) return <main className="screen-message">Wczytywanie…</main>;
   return (
     <DbContext.Provider value={db}>
-      <Screen route={route} />
+      <ScreenBoundary key={routeHash(route)}>
+        <Screen route={route} />
+      </ScreenBoundary>
       <NoticeList />
       <ConfirmHost />
     </DbContext.Provider>
