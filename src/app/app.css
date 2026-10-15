@@ -419,3 +419,119 @@ select {
   padding: 0;
   list-style: none;
 }
+
+.print {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'top top'
+    'side preview';
+  height: 100vh;
+}
+
+/* Top bar of the print and 3D screens. */
+.screen-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.print > .screen-top {
+  grid-area: top;
+}
+
+.screen-top > :last-child {
+  margin-left: auto;
+}
+
+.print-side {
+  grid-area: side;
+  overflow-y: auto;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.print-side fieldset {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.print-size {
+  font-weight: 600;
+}
+
+.reminders,
+.test-page-help {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.export-status {
+  display: grid;
+  gap: 6px;
+}
+
+.export-status progress {
+  width: 100%;
+}
+
+.export-error {
+  padding: 8px;
+  border-radius: 6px;
+  background: #ffe5e7;
+  color: var(--danger);
+}
+
+.print-preview {
+  grid-area: preview;
+  overflow-y: auto;
+  padding: 16px 24px;
+  background: var(--canvas);
+}
+
+.sheet-preview {
+  display: grid;
+  gap: 20px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheet-preview h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.sheet-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.sheet-side {
+  margin: 0;
+}
+
+.sheet-side img,
+.sheet-placeholder {
+  display: block;
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  background: var(--paper);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.sheet-side figcaption {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}

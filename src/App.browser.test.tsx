@@ -10,11 +10,11 @@ afterEach(() => {
   window.location.hash = '';
 });
 
-test('the print route shows a placeholder with a way back to the editor', async () => {
+test('the print route opens the print screen, which reports a missing zine', async () => {
   window.location.hash = '#/zin/abc/druk';
   const screen = render(<App />);
-  await expect.element(screen.getByRole('heading', { name: 'Druk' })).toBeVisible();
-  await expect.element(screen.getByRole('link', { name: 'Wróć do edytora' })).toHaveAttribute('href', '#/zin/abc');
+  await expect.element(screen.getByText('Nie znaleziono tego zina. Może został usunięty.')).toBeVisible();
+  await expect.element(screen.getByRole('link', { name: 'Wróć do listy zinów' })).toHaveAttribute('href', '#/');
 });
 
 test('askConfirm resolves with the button the user clicks', async () => {
