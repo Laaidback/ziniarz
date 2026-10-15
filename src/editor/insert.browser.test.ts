@@ -126,3 +126,14 @@ test('HEIC photos the browser cannot read get their own message', async () => {
   ]);
   expect(HEIC_SKIPPED).toBe("Zdjęć HEIC (z iPhone'a) przeglądarka nie odczyta. Zapisz je jako JPG i dodaj jeszcze raz.");
 });
+
+test('after clicking the right half of a photo across the spread, "+ Napis" goes to the right page', async () => {
+  const { store } = await setup();
+  const wide = createTextElement({ text: 'szeroki', x: 0, y: 40, width: 296 });
+  store.getState().addElement(wide);
+  store.getState().clickPage(2);
+  store.getState().select(wide.id, 3);
+  expect(store.getState().activePage).toBe(3);
+  insertText(store);
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: 178 });
+});

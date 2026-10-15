@@ -41,7 +41,8 @@ export interface StageView {
 
 /** What the canvas asks the store to do. */
 export interface StageCallbacks {
-  select(id: string): void;
+  /** `page`: the existing page under the pointer (an element may lie across both pages). */
+  select(id: string, page: number | null): void;
   clickPage(page: number | null): void;
   /** After a drag, resize or rotation, in spread mm. */
   change(id: string, patch: Partial<Omit<Frame, 'id'>>): void;
@@ -277,11 +278,16 @@ export class EditorStage {
     if (!view || event.target.getLayer() === this.tools) return;
     const node = elementNodeOf(event.target);
     if (node) {
-      this.callbacks.select(node.id());
+      this.callbacks.select(node.id(), this.pageUnderPointer());
       return;
     }
+    this.callbacks.clickPage(this.pageUnderPointer());
+  }
+
+  /** The existing page under the pointer, or null (outside the spread, or the missing page beside a cover). */
+  private pageUnderPointer(): number | null {
     const point = this.pointerMm();
-    this.callbacks.clickPage(point ? pageAtPoint(view.spread, view.zine.sheets, point.x, point.y) : null);
+    return point && this.view ? pageAtPoint(this.view.spread, this.view.zine.sheets, point.x, point.y) : null;
   }
 
   private handleDoubleClick(event: Konva.KonvaEventObject<MouseEvent>): void {
@@ -298,7 +304,7 @@ export class EditorStage {
     this.dragTargets = snapTargets(this.view.zine, this.view.spread, node.id());
     if (node.id() !== this.view.selectedId) {
       this.transformer.nodes([]);
-      this.callbacks.select(node.id());
+      this.callbacks.select(node.id(), this.pageUnderPointer());
     }
   }
 

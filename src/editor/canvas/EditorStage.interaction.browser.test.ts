@@ -28,7 +28,7 @@ test('dragging a frame near a margin snaps it there and reports the new position
   const { zine, photo } = photoZine();
   const { callbacks, surface, at } = mount(zine);
   await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(61, 70) });
-  expect(callbacks.select).toHaveBeenCalledWith(photo.id);
+  expect(callbacks.select).toHaveBeenCalledWith(photo.id, 2);
   const [id, patch] = callbacks.change.mock.calls.at(-1)!;
   expect(id).toBe(photo.id);
   expect(patch.x).toBeCloseTo(30, 5); // the left margin, 1 mm away

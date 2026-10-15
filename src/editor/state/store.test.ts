@@ -138,6 +138,23 @@ describe('modes and selection', () => {
     s().clickPage(1);
     expect(s()).toMatchObject({ selectedId: null, activePage: 1 });
   });
+
+  test('selecting by a click on the canvas remembers the page clicked; selecting otherwise forgets it', () => {
+    const { s } = setup();
+    const a = createPhotoElement('img');
+    s().addElement(a);
+    s().select(null);
+    s().setMode('crop');
+    s().select(a.id, 3);
+    expect(s()).toMatchObject({ selectedId: a.id, activePage: 3, mode: 'idle' });
+    s().setMode('crop');
+    s().select(a.id, 2); // the same element clicked on its other page: only the page changes
+    expect(s()).toMatchObject({ selectedId: a.id, activePage: 2, mode: 'crop' });
+    s().select(a.id); // e.g. a double click opening it: the page stays
+    expect(s().activePage).toBe(2);
+    s().select(null);
+    expect(s()).toMatchObject({ selectedId: null, activePage: null });
+  });
 });
 
 test('refreshTextHeights updates heights without an undo step', () => {

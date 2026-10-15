@@ -36,11 +36,18 @@ test('the spread with its bleed fits the box, centred', () => {
   expect(point.y).toBeCloseTo(20, 5);
 });
 
-test('clicking an element selects it', async () => {
+test('clicking an element selects it and reports the page under the pointer', async () => {
   const { zine, photo } = sample();
+  const wide = createPhotoElement('missing', { x: -3, y: 100, width: 302, height: 60 });
+  zine.spreads[1].elements.push(wide);
   const { callbacks, surface, at } = mount(zine);
   await userEvent.click(surface, { position: at(50, 70) });
-  expect(callbacks.select).toHaveBeenCalledWith(photo.id);
+  expect(callbacks.select).toHaveBeenLastCalledWith(photo.id, 2);
+  // A photo across both pages: the page is where it was clicked, not where its centre is.
+  await userEvent.click(surface, { position: at(250, 130) });
+  expect(callbacks.select).toHaveBeenLastCalledWith(wide.id, 3);
+  await userEvent.click(surface, { position: at(40, 130) });
+  expect(callbacks.select).toHaveBeenLastCalledWith(wide.id, 2);
 });
 
 test('clicking an empty page reports the page; clicking outside reports null', async () => {

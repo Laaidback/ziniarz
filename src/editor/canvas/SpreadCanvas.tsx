@@ -27,7 +27,7 @@ export function SpreadCanvas() {
   useEffect(() => {
     const element = host.current!;
     const stage = new EditorStage(element, {
-      select: (id) => store.getState().select(id),
+      select: (id, page) => store.getState().select(id, page),
       clickPage: (page) => store.getState().clickPage(page),
       change: (id, patch) => store.getState().updateElement(id, patch),
       crop: (id, crop) => store.getState().updateElement(id, { crop }, `crop:${id}`),

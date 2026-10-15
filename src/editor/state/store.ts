@@ -33,7 +33,10 @@ export interface EditorState {
   history: History<Zine>;
   spread: number;
   selectedId: string | null;
-  /** Page last clicked on the current spread: its settings are shown and new elements go there. */
+  /**
+   * Page last clicked on the current spread (on the page itself or on an element there): new
+   * elements go there, and its settings are shown when nothing is selected.
+   */
   activePage: number | null;
   mode: EditorMode;
   showGuides: boolean;
@@ -43,7 +46,8 @@ export interface EditorState {
   assetsVersion: number;
 
   setSpread(index: number): void;
-  select(id: string | null): void;
+  /** `page`: the existing page under the pointer when selecting by a click on the canvas (becomes `activePage`). */
+  select(id: string | null, page?: number | null): void;
   clickPage(page: number | null): void;
   setMode(mode: EditorMode): void;
   setShowGuides(show: boolean): void;
@@ -171,9 +175,13 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
         const spread = Math.max(0, Math.min(spreadCount(zineOf().sheets) - 1, index));
         set({ spread, selectedId: null, activePage: null, mode: 'idle', history: unmerged() });
       },
-      select: (id) => {
-        if (id === get().selectedId) return;
-        set({ selectedId: id, mode: 'idle', activePage: null, history: unmerged() });
+      select: (id, page = null) => {
+        if (id === get().selectedId) {
+          // The selected element clicked again, maybe on its other page: only the page follows.
+          if (id !== null && page !== null && page !== get().activePage) set({ activePage: page });
+          return;
+        }
+        set({ selectedId: id, mode: 'idle', activePage: id === null ? null : page, history: unmerged() });
       },
       clickPage: (page) => set({ selectedId: null, activePage: page, mode: 'idle', history: unmerged() }),
       setMode: (mode) => set({ mode, history: unmerged() }),
