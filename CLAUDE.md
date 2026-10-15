@@ -10,10 +10,12 @@ Użytkowniczka nie jest programistką: pisze po polsku i opisuje efekt, a nie im
 npm install
 npx playwright install chromium
 npm test
+npm run test:e2e
 npm run dev
 ```
 
-- `npm run test:unit`: czysta logika w Node. `npm run test:browser`: render, fonty, PDF i komponenty React w Chromium (Vitest browser mode, okno 1280×900).
+- `npm run test:unit`: czysta logika w Node. `npm run test:browser`: render, fonty, PDF, WebGL i komponenty React w Chromium (Vitest browser mode, okno 1280×900).
+- `npm run test:e2e`: Playwright (`e2e/`, `playwright.config.ts`) na zbudowanej apce (`vite build` + `vite preview` na porcie 4173): nowy zin 5 kartek, zdjęcie, napis, PDF do druku ma 10 stron A4 poziomo; podgląd 3D. Nie wchodzi do `npm test`.
 - `test-output/`: próbne arkusze PNG i PDF z `src/print/samples.browser.test.ts` do obejrzenia.
 - `vite.config.ts` wymienia biblioteki w `optimizeDeps.include`, żeby testy w przeglądarce nie przeładowywały się w trakcie przebiegu. Każdą nową bibliotekę używaną w testach przeglądarkowych dopisz tam też.
 
@@ -21,21 +23,25 @@ npm run dev
 
 | Ścieżka | Odpowiedzialność |
 |---|---|
-| `src/App.tsx`, `src/app/` | Ekrany według adresu (`route.ts`: `#/`, `#/zin/<id>`, `#/zin/<id>/druk`, `#/zin/<id>/3d`), baza w kontekście (`dbContext.ts`), komunikaty (`notices.ts`, `NoticeList.tsx`), pytania „na pewno?” (`confirm.ts`, `ConfirmHost.tsx`), odmiana liczebników (`plural.ts`), style (`app.css`). |
-| `src/home/` | Lista zinów: nowy, powiel, usuń, pliki `.zin` (`homeActions.ts`), miniatura okładki (`coverThumbnail.ts`), ekran (`HomeScreen.tsx`, `ZineCard.tsx`). |
+| `src/App.tsx`, `src/app/` | Ekrany według adresu (`route.ts`, `useRoute.ts`: `#/`, `#/zin/<id>`, `#/zin/<id>/druk`, `#/zin/<id>/3d`), baza w kontekście (`dbContext.ts`), zin do oglądania na ekranach druku i 3D (`useZineView.ts`, błąd otwarcia `LoadFailed.tsx`), komunikaty (`notices.ts`, `NoticeList.tsx`), pytania „na pewno?” (`confirm.ts`, `ConfirmHost.tsx`), odmiana liczebników (`plural.ts`), style (`app.css`). |
+| `src/home/` | Lista zinów: nowy, powiel, usuń, pliki `.zin` (`homeActions.ts`, pobieranie pliku `download.ts`), miniatura okładki (`coverThumbnail.ts`), ekran (`HomeScreen.tsx`, `ZineCard.tsx`). |
 | `src/editor/state/` | Stan edytora w Zustand (`store.ts`), historia cofania (`history.ts`), zmiany zina (`commands.ts`), warstwy (`layers.ts`), schowek (`clipboard.ts`), autozapis (`autosave.ts`). Czysta logika, testy w Node. |
 | `src/editor/geometry/` | Gdzie wstawić zdjęcie i napis (`placement.ts`), przyciąganie (`snapping.ts`). Czysta matematyka. |
 | `src/editor/canvas/` | Płótno edytora w Konvie (`EditorStage.ts`), jego opakowanie w React (`SpreadCanvas.tsx`), edycja tekstu na miejscu (`TextEditor.tsx`). |
 | `src/editor/panels/` | Prawa kolumna: ustawienia zdjęcia (`PhotoPanel.tsx`), napisu (`TextPanel.tsx`), strony (`PagePanel.tsx`), zina (`ZinePanel.tsx`), a do tego pola `ColorField`, `FontField`, `NumberField` i przyciski warstw (`LayerButtons.tsx`); `PropertiesPanel.tsx` wybiera właściwy panel. |
-| `src/editor/` (reszta) | Ekran edytora (`EditorScreen.tsx`, `EditorContext.ts`, `session.ts`), pasek u góry (`TopBar.tsx`, `InsertButtons.tsx`), miniatury rozkładówek i „± kartka” (`SpreadList.tsx`, `useSpreadThumbnails.ts`, `spreadLabels.ts`), wstawianie (`insert.ts`), skróty (`keyboard.ts`, `useEditorKeyboard.ts`), kolory (`colors.ts`). |
-| `src/model/` | Typy zina (`types.ts`), numeracja stron i rozkładówek, marginesy (`geometry.ts`), wartości domyślne (`factory.ts`), wczytywanie z wartościami domyślnymi i wersją (`parse.ts`), dodawanie i usuwanie kartek (`sheets.ts`). |
+| `src/editor/` (reszta) | Ekran edytora (`EditorScreen.tsx`, `EditorContext.ts`), otwieranie zina do rysowania (`session.ts`: `openZineView`, `openEditorSession`), pasek u góry (`TopBar.tsx`, `InsertButtons.tsx`), miniatury rozkładówek i „± kartka” (`SpreadList.tsx`, `useSpreadThumbnails.ts`, `spreadLabels.ts`), wstawianie (`insert.ts`), skróty (`keyboard.ts`, `useEditorKeyboard.ts`), kolory (`colors.ts`). |
+| `src/model/` | Typy zina (`types.ts`), numeracja stron i rozkładówek, marginesy (`geometry.ts`), wartości domyślne (`factory.ts`), wczytywanie z wartościami domyślnymi i wersją (`parse.ts`), nowe id (`ids.ts`), odczyty z zina (`queries.ts`), dodawanie i usuwanie kartek (`sheets.ts`). |
 | `src/imposition/` | Kolejność stron na arkuszach (`imposition.ts`), skala pod margines drukarki (`layout.ts`), znaczniki cięcia i zgięcia (`marks.ts`). Czysta matematyka. |
 | `src/storage/` | IndexedDB (`db.ts`), sprzątanie nieużywanych zdjęć i fontów (`cleanup.ts`), pliki `.zin` (`zinFile.ts`), trwały magazyn i zajęte miejsce (`quota.ts`). |
-| `src/images/` | Wczytywanie zdjęć: zmniejszanie do 3600 px, JPEG albo PNG z przezroczystością. |
+| `src/images/` | Wczytywanie zdjęć (`prepareImage.ts`): zmniejszanie do 3600 px, JPEG albo PNG z przezroczystością. |
 | `src/fonts/` | Wbudowane fonty (`fontChoices.ts`, pliki w `builtinFontFiles.ts`), rejestracja fontów i czekanie na nie (`fontLoader.ts`), nazwa rodziny z pliku (`fontNames.ts`), wgrywanie (`fontImport.ts`), lista fontów zina i fonty innych zinów (`catalogue.ts`), odświeżanie po załadowaniu fontów (`useFontsVersion.ts`). |
-| `src/render/` | Jedyny rysownik (Konva): rozkładówka w mm (`buildSpread.ts`), prowadnice i wyszarzenie brakującej strony (`guides.ts`), wczytywanie zdjęć do rysowania (`assets.ts`, pomija uszkodzone), geometria zdjęcia (`photoGeometry.ts`), strona i rozkładówka do canvasu (`renderPage.ts`). |
-| `src/print/` | Strona arkusza (`sheetSide.ts`), PDF arkuszy i stron (`pdf.ts`), grupowanie stron do druku (`printGroups.ts`), nazwy plików (`fileName.ts`), strona próbna (`testPage.ts`). |
-| `src/test/` | Pomocniki testów: piksele, sztuczny plik TTF (`sfnt.ts`), płótno edytora (`stageHarness.ts`), cały edytor (`editorHarness.tsx`), panel (`panelHarness.tsx`), wybór plików (`files.ts`). |
+| `src/render/` | Jedyny rysownik (Konva): rozkładówka w mm (`buildSpread.ts`), prowadnice i wyszarzenie brakującej strony (`guides.ts`), wczytywanie zdjęć do rysowania (`assets.ts`, pomija uszkodzone), geometria zdjęcia (`photoGeometry.ts`), strona i rozkładówka do canvasu (`renderPage.ts`), kolejka rysowania w tle (`renderQueue.ts`), canvas do Konvy i do bajtów (`konvaCanvas.ts`, `canvasBytes.ts`). |
+| `src/print/` | Strona arkusza (`sheetSide.ts`), PDF arkuszy i stron (`pdf.ts`), grupowanie stron do druku (`printGroups.ts`), nazwy plików (`fileName.ts`), strona próbna i jej instrukcja (`testPage.ts`), margines drukarki zapamiętany w przeglądarce (`printerMargin.ts`), teksty ekranu druku (`printTexts.ts`), pobieranie PDF z postępem i błędem (`exportRunner.ts`, `exporter.ts`). |
+| `src/print/screen/` | Ekran druku: `PrintScreen.tsx` (układ, zapis ustawień, pobieranie), `PrintOptions.tsx` (opcje), `SheetPreview.tsx` (podgląd arkuszy), `ExportStatusView.tsx` (pasek postępu, błąd z ponowieniem, przyciski pobierania kilku plików). |
+| `src/preview3d/` | Podgląd 3D: kartkowanie i ułożenie kartek (`book.ts`), klik, klawisze, kamera, rozdzielczość tekstur (`view.ts`) — czysta logika z testami w Node; scena three.js (`scene.ts`) i ekran (`Preview3dScreen.tsx`). |
+| `src/test/` | Pomocniki testów: piksele, sztuczny plik TTF (`sfnt.ts`), płótno edytora (`stageHarness.ts`), cały edytor (`editorHarness.tsx`), ekrany druku i 3D (`screenHarness.tsx`), panel (`panelHarness.tsx`), wybór plików (`files.ts`), sprawdzenie WebGL (`webgl.browser.test.ts`). |
+| `e2e/` | Test end-to-end Playwright (`print.spec.ts`). |
+| `scripts/` | `checkDist.mjs` (`npm run check:dist`): czy zbudowana apka działa spod dowolnej podścieżki, jak na GitHub Pages (`base: './'`, adresy tylko względne); CI w `.github/workflows/deploy.yml` robi testy, build i to sprawdzenie. |
 
 ## Zasady i niezmienniki
 
@@ -56,5 +62,11 @@ npm run dev
 - **Fonty:** wbudowane rodziny mają id jak `fontFamilyId` (`inter`, `lora`…), domyślna `inter`. Każdy styl to dwa pliki (latin i latin-ext z polskimi literami), przeglądarka pobiera je dopiero, gdy tekst ich potrzebuje; `ensureFontsReady` i `loadSpreadFonts` podają tekst, żeby pobrała właściwe. Nowy wbudowany font = wpis w `BUILTIN_FONTS` i pliki w `builtinFontFiles.ts` (test pilnuje zgodności). Własne fonty: rodzina z tabeli `name` (ID 1) i bitów OS/2 dla TTF/OTF, z nazwy pliku dla WOFF2. Poza pogrubieniem i kursywą waga (Light, SemiBold…) zostaje w nazwie rodziny („Lato Light”), żeby komplet wag nie nadpisywał Regular i Bold.
 - **Wczytanie `.zin` tworzy nowy zin** (nowe id), nigdy nie nadpisuje istniejącego. Rodzina fontów, której id już jest w bazie, dostaje nowe id razem z plikami, a zin i napisy idą za nią.
 - **Eksport rysuje arkusze po jednym** i zwalnia canvas (`releaseCanvas`); `drawToCanvas` wymusza `Konva.pixelRatio = 1`.
+- **Margines drukarki** należy do drukarki, nie do zina: `localStorage` (`ziniarz.printerMargin`), 0–20 mm co 0,5 mm (`clampPrinterMargin`, przy 20 mm skala nadal > 0,5). Druk i 3D biorą ustawienia z `printSettingsFor(zine.print, loadPrinterMargin())`: zapamiętany margines wygrywa, `Zine.print.printerMargin` to zapas (np. plik `.zin` z innego komputera) i też się aktualizuje. Pozostałe opcje druku zapisuje do `Zine.print` ekran druku (autozapis jak w edytorze), poza sklepem edytora i historią cofania.
+- **Ekrany druku i 3D tylko oglądają zina:** otwierają go przez `openZineView` (czeka na `whenSavesSettled()`, potem `parseZine`, fonty, zdjęcia) i nie zmieniają jego treści.
+- **Pobieranie PDF:** `runExport` buduje wszystkie pliki, zanim cokolwiek pobierze; błąd = komunikat `EXPORT_FAILED` z „Spróbuj jeszcze raz”, nic nie zostaje pobrane. Ekran druku dostaje `PdfExporter` (testy podają szybszy albo psujący się). Budowniczowie PDF (`buildSheetsPdf`, `buildPagesPdf`) biorą `AbortSignal` i przerywają przed kolejną stroną arkusza albo stroną zina; ekran druku przerywa eksport przy odmontowaniu (wyjście z ekranu), a przerwany eksport niczego już nie pobiera ani nie zgłasza. Eksport z kilkoma plikami (ręczny druk dwustronny) pokazuje po jednym przycisku pobierania na plik i nie pobiera nic sam, bo przeglądarka przepuszcza tylko pobranie wywołane kliknięciem.
+- **Podgląd arkuszy** rysuje stronę arkusza dopiero, gdy wjedzie w widok (`IntersectionObserver`), po jednej (`createRenderQueue`), w 48 dpi. Tyły pokazuje zawsze nieobrócone (tak wychodzą z drukarki).
+- **3D:** three.js ładuje się tylko przez `import('./scene')` w `Preview3dScreen`; nie importuj `three` nigdzie poza `src/preview3d/scene.ts`, bo trafi do głównego pakietu. Kartkowanie, kąty, grubość papieru, klik i klawisze liczą `book.ts` i `view.ts` (testy w Node); `ZineScene` tylko rysuje i rysuje klatkę na żądanie (`invalidate`), nie w pętli. Tekstury stron z `renderPage` bez spadu, 1024 px wysokości, liczone w tle po otwarciu; canvas zwalniany po wysłaniu do GPU. **`scene.dispose()` woła `renderer.forceContextLoss()`**, żeby wyjście z ekranu zwalniało kontekst WebGL (przeglądarka ma ich ograniczoną liczbę). **Po przywróceniu kontekstu** (`webglcontextrestored`, opcja `onContextRestored`) ekran rysuje tekstury stron od nowa, bo GPU je zgubił.
+- **WebGL w testach:** Chromium bez ekranu rysuje przez SwiftShader; flagi `--use-angle=swiftshader --enable-unsafe-swiftshader` są w `vite.config.ts` i `playwright.config.ts`. Obraz WebGL czytaj zaraz po `renderFrame` (później bufor jest pusty).
 - **Nazwy plików** nie mogą różnić się tylko wielkością liter (macOS jej nie rozróżnia): stąd `notices.ts` i `NoticeList.tsx`, `spreadLabels.ts` i `SpreadList.tsx`.
 - **Testy komponentów:** `*.browser.test.tsx` z `vitest-browser-react`. Pliki do `<input type="file">` podawaj przez `chooseFiles` (`src/test/files.ts`), bo `userEvent.upload` psuje pliki binarne.
