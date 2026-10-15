@@ -4,7 +4,7 @@ Data: 2026-10-14
 
 ## Cel
 
-Aplikacja webowa do robienia zinów od pustej strony do pliku PDF gotowego do druku w domu. Zin to broszura zszywana w grzbiecie: kartki A4 złożone na pół, każda kartka daje 4 strony A5. Użytkownicy zrobili już dwa ziny: z 5 kartek (20 stron) i z 6 kartek (24 strony).
+Aplikacja webowa do robienia zinów od pustej strony do pliku PDF gotowego do druku w domu. Zin to broszura zszywana w grzbiecie: kartki A5 złożone na pół, każda kartka daje 4 strony A6. Każdą kartkę drukuje się w domu na środku arkusza A4, a potem wycina po liniach cięcia. Użytkownicy zrobili już dwa ziny: z 5 kartek (20 stron) i z 6 kartek (24 strony).
 
 Decyzje użytkowniczki:
 
@@ -13,7 +13,7 @@ Decyzje użytkowniczki:
 - Jedna osoba pracuje nad zinem naraz. Przekazanie zina drugiej osobie: plik `.zin`.
 - Praca na komputerze (myszka, gładzik, klawiatura).
 - Strony powstają w edytorze w apce. Elementy: zdjęcia i napisy, także przez dwie strony rozkładówki.
-- Druk na domowej drukarce na A4, dwustronnie, ze spadami, potem przycinanie.
+- Druk na domowej drukarce na A4, dwustronnie, ze spadami, potem wycinanie kartki A5 po liniach cięcia i składanie.
 - Podejście A: jeden rysownik (canvas) dla edytora, miniatur, PDF i podglądu 3D. PDF z arkuszy jako obrazów 300 dpi.
 - Podgląd 3D złożonego zina do kartkowania.
 
@@ -21,23 +21,24 @@ Poza pierwszą wersją: efekty ksero/riso, rysowanie i kształty, szablony stron
 
 ## Pojęcia
 
-- **Kartka (arkusz):** jedna kartka A4 drukowana z obu stron. Liczba kartek `sheets` = 1…20.
-- **Strona:** połowa kartki po złożeniu, format A5 148×210 mm. Liczba stron `P = 4 · sheets`. Strony numerujemy od 1 (przednia okładka) do `P` (tylna okładka).
+- **Kartka:** jedna kartka A5 zina, drukowana z obu stron na środku arkusza A4 i wycinana z niego. Liczba kartek `sheets` = 1…20.
+- **Arkusz:** kartka A4 z drukarki, na której stoi jedna kartka zina; reszta papieru to odpad.
+- **Strona:** połowa kartki po złożeniu, format A6 105×148 mm. Liczba stron `P = 4 · sheets`. Strony numerujemy od 1 (przednia okładka) do `P` (tylna okładka).
 - **Rozkładówka:** to, co czytelnik widzi po otwarciu zina. Rozkładówka `i` (0…`P/2`) ma lewą stronę `2i` i prawą `2i + 1`. Strony 0 i `P + 1` nie istnieją, więc rozkładówka 0 to sama przednia okładka (po prawej), a rozkładówka `P/2` to sama tylna okładka (po lewej).
 - **Spad:** 3 mm tła i zdjęć poza krawędzią strony, odcinane przy przycinaniu. Tylko na zewnętrznych krawędziach strony (góra, dół, krawędź przeciwna do grzbietu). Przy grzbiecie strona kończy się równo.
-- **Margines:** prowadnica w odległości od krawędzi strony, w której trzymamy napisy. Domyślnie 30 mm od każdej krawędzi, także od grzbietu.
+- **Margines:** prowadnica w odległości od krawędzi strony, w której trzymamy napisy. Domyślnie 12 mm od zewnętrznej krawędzi, 7 mm od grzbietu, 14 mm od góry i 11 mm od dołu; każdy zin ma własne.
 
 ## Model danych (`src/model/`)
 
-Wszystkie wymiary w milimetrach, w skali projektu (A5 = 148×210). Rozkładówka ma układ współrzędnych od lewego górnego rogu lewej strony: szerokość 296, wysokość 210, grzbiet na x = 148. Spad wychodzi poza ten prostokąt (x od −3 do 299, y od −3 do 213).
+Wszystkie wymiary w milimetrach na wydrukowanej, przyciętej stronie A6 (105×148): to, co stoi w panelu, wychodzi z drukarki 1:1. Rozkładówka ma układ współrzędnych od lewego górnego rogu lewej strony: szerokość 210, wysokość 148, grzbiet na x = 105. Spad wychodzi poza ten prostokąt (x od −3 do 213, y od −3 do 151). Rozmiary siedzą w stałych `PAGE_WIDTH`, `PAGE_HEIGHT`, `SPREAD_WIDTH` (`src/model/geometry.ts`).
 
 ```ts
 interface Zine {
-  formatVersion: number;        // migracje przy wczytaniu
+  formatVersion: number;        // 2 = strony A6; migracje przy wczytaniu
   id: string;
   title: string;
   sheets: number;               // 1...20, P = 4 * sheets
-  margins: { outer: number; inner: number; top: number; bottom: number }; // domyślnie 30 mm
+  margins: { outer: number; inner: number; top: number; bottom: number }; // domyślnie 12 / 7 / 14 / 11 mm
   spreads: Spread[];            // długość P/2 + 1
   pages: Record<number, PageStyle>; // kolor tła strony, brak = biały
   fonts: string[];              // id własnych rodzin fontów wgranych do tego zina
@@ -62,7 +63,7 @@ interface TextElement extends Frame {
   kind: 'text';                 // height liczona z tekstu, width = szerokość łamania
   text: string;
   fontFamilyId: string;         // rodzina fontu (wbudowana albo własna)
-  size: number;                 // punkty typograficzne w skali A5
+  size: number;                 // punkty typograficzne na wydruku (nowy napis 9 pt)
   bold: boolean; italic: boolean; // wybiera plik z rodziny; tylko gdy rodzina ma taki wariant
   letterSpacing: number;        // kerning, w tysięcznych em
   lineHeight: number;           // mnożnik, domyślnie 1.2
@@ -77,6 +78,7 @@ interface TextElement extends Frame {
 - **„− kartka”** usuwa dwie sąsiednie rozkładówki `j` i `j + 1`, gdzie `j = clamp(bieżąca, 2, P/2 − 3)`, więc okładki i ich wewnętrzne strony zostają. Przy 2 kartkach (P = 8) takiej pary nie ma; wtedy usuwa rozkładówki 2 i 3, a wewnętrzną stroną tylnej okładki staje się strona 3. Zanim usunie, zawsze podświetla, które strony znikną, i pyta, gdy mają elementy albo kolor tła. Minimum 1 kartka.
 - Kolory tła stron przesuwają się razem z numeracją przy dodawaniu i usuwaniu kartek.
 - Nowe pola w modelu zawsze z wartością domyślną przy wczytywaniu. Zmiana znaczenia pola = nowa `formatVersion` i migracja. Test wczytuje zapisane pliki starych wersji.
+- **`formatVersion` 2 = strony A6.** Wersja 1 (albo brak wersji) to dawny zin A5; `parseZine` przelicza go na A6 (`migrateA5ToA6` w `src/model/migrate.ts`): skalowanie liniowe, krawędzie stron trafiają w krawędzie stron, wystawanie w spad (do 3 mm) zostaje, rozmiar napisu idzie za szerokością łamania, kadr zdjęć nadal wypełnia ramkę. Szczegóły w `2026-10-15-ziniarz-a6-design.md`. Zapis zawsze bierze zin z `parseZine`, więc przeliczony zin nigdy nie jest zapisany jako wersja 1.
 
 ## Edytor (`src/editor/`)
 
@@ -101,57 +103,55 @@ Jedyna droga rysowania strony i rozkładówki (Konva). Edytor, miniatury, podgl�
 - `renderSpread(zine, spreadIndex, { pxPerMm, guides })`: cała rozkładówka ze spadem.
 - `renderPage(zine, pageNumber, { pxPerMm, bleed })`: jedna strona. Rysuje rozkładówkę przesuniętą tak, że strona jest w kadrze, i obcina do strony plus spad na zewnętrznych krawędziach. Przy grzbiecie obcina równo, więc zdjęcie przez grzbiet dzieli się na dwie strony bez dubla.
 - Tekst rysuje wyłącznie Konva.Text z tymi samymi ustawieniami w edytorze i eksporcie (łamanie, `letterSpacing`, `lineHeight`), więc pomiar i rysunek zawsze się zgadzają. Rysownik czeka na wczytanie fontów (`document.fonts.load`) przed eksportem.
-- Zdjęcia przy wczytaniu zmniejszamy tak, żeby dłuższy bok miał najwyżej 3600 px (ok. 300 dpi dla całej rozkładówki ze spadem), JPEG jakość 0,92, PNG gdy zdjęcie ma przezroczystość.
+- Zdjęcia przy wczytaniu zmniejszamy tak, żeby dłuższy bok miał najwyżej 3600 px (ponad 300 dpi dla całej rozkładówki A6 ze spadem), JPEG jakość 0,92, PNG gdy zdjęcie ma przezroczystość.
 
 ## Druk (`src/imposition/`, `src/print/`)
 
 ### Impozycja
 
-Kartka `k` (0…`sheets − 1`), arkusz A4 poziomo:
+Kartka `k` (0…`sheets − 1`) na arkuszu A4 poziomo:
 
 - przód: lewa połowa = strona `P − 2k`, prawa = strona `2k + 1`,
 - tył: lewa połowa = strona `2k + 2`, prawa = strona `P − 2k − 1`.
 
 Przykład dla 20 stron: k = 0 (pierwsza kartka) przód 20 | 1, tył 2 | 19; k = 4 (piąta kartka) przód 12 | 9, tył 10 | 11.
 
-Strony parzyste leżą zawsze na lewej połowie arkusza, nieparzyste na prawej, więc grzbiet każdej strony jest na środku arkusza, a zewnętrzna krawędź przy brzegu arkusza.
+Strony parzyste leżą zawsze na lewej połowie kartki, nieparzyste na prawej, więc grzbiet każdej strony jest na środku arkusza, a zewnętrzna krawędź na zewnątrz.
 
 Strony PDF są poziome (MediaBox 842×595 pt), treść nie jest obracana. Tył jest ułożony dla kartki odwracanej w lewo/prawo, czyli dla druku dwustronnego **„odwracanie po krótszej krawędzi”**. Ekran druku mówi, żeby wybrać tę opcję w oknie drukowania.
 
-### Skala pod domową drukarkę
+### Kartka na arkuszu
 
-Drukarka nie drukuje przy samej krawędzi (margines drukarki `m`, domyślnie 4 mm, ustawiany raz i zapamiętany w przeglądarce). Spad musi zmieścić się w obszarze druku, więc dwie strony ze spadem zmniejszamy jedną skalą `s`:
+Kartka zina (dwie strony A6 obok siebie, 210×148 mm) stoi w skali 100% na środku arkusza A4 poziomo, ze spadem 3 mm, gdy spady są włączone. Znaczniki leżą w pasie `c` poza spadem:
 
 ```
-c = (linie cięcia || linia zgięcia) ? 5 : 0       // pas na znaczniki, mm, poza spadem, nie skalowany
-b = spady ? 3 : 0
-s = min(1, (297 − 2m − 2c) / (296 + 2b), (210 − 2m − 2c) / (210 + 2b))
+c = (linie cięcia || linia zgięcia) ? 5 : 0       // pas na znaczniki, mm
 ```
 
-Przy `m = 4`, spadach i bez znaczników: `s ≈ 0,935`, strona po przycięciu ok. 138×196 mm. Ze znacznikami: `s ≈ 0,889`, ok. 132×187 mm. Para stron jest wyśrodkowana na arkuszu. Ekran druku zawsze pokazuje końcowy rozmiar strony po przycięciu.
+Od spadu i znaczników do krawędzi arkusza zostaje ponad 20 mm papieru (pilnuje test), więc wszystko mieści się w obszarze druku każdej domowej drukarki: nie ma marginesu drukarki ani skalowania. Strona po przycięciu ma zawsze 105×148 mm, co pokazuje ekran druku. Po wydruku kartkę wycina się po liniach cięcia i składa na znacznikach zgięcia.
 
 ### Opcje eksportu
 
 - **Spady** wł./wył. (domyślnie wł.).
-- **Linie cięcia** wł./wył.: krótkie kreski 4 mm w przedłużeniu krawędzi przycięcia, zaczynające się 1 mm za spadem, w pasie `c`. Na zewnętrznych rogach pary stron; przy grzbiecie brak (tam się zgina, nie tnie).
-- **Linia zgięcia** wł./wył.: krótkie kreski 4 mm na środku arkusza, u góry i u dołu, w pasie `c`, na obu stronach kartki. Nigdy przez całą wysokość, żeby nie było jej widać w zinie.
+- **Linie cięcia** wł./wył.: krótkie kreski 4 mm w przedłużeniu krawędzi przycięcia, zaczynające się 1 mm za spadem, w pasie `c`. Na czterech zewnętrznych rogach kartki; przy grzbiecie brak (tam się zgina, nie tnie).
+- **Linia zgięcia** wł./wył.: krótkie kreski 4 mm nad i pod grzbietem kartki, w pasie `c`, na obu stronach kartki. Nigdy przez całą wysokość, żeby nie było jej widać w zinie.
 - **Obróć tyły o 180°** dla drukarek, które umieją odwracać kartkę tylko po dłuższej krawędzi (wtedy bez obrotu tył wychodzi do góry nogami).
 - **Tryb dwustronny:** „automatycznie” (jeden PDF: przód 1, tył 1, przód 2, tył 2…) albo „ręcznie” (dwa PDF-y: same przody i same tyły, do włożenia stosu z powrotem). W trybie ręcznym przełącznik „tyły w odwrotnej kolejności” (domyślnie wł.), bo zależy to od tego, jak drukarka odkłada kartki.
-- **Strona próbna:** dwie kartki (strony 1–8), na każdej stronie duży numer, strzałka „↑ góra” i podpis „kartka N · przód/tył”, do sprawdzenia dwustronności i marginesu drukarki (dwie, bo przy jednej kartce złej kolejności tyłów nie widać). Na okładce krótka instrukcja: tył do góry nogami = włącz „Obróć tyły o 180°”; na tyle kartki 1 mają być strony 2 | 7, na tyle kartki 2 strony 4 | 5, a jeśli tyły trafiły na złe kartki = przełącz „tyły w odwrotnej kolejności”; coś ważnego ucięte przy krawędzi = zwiększ margines drukarki.
-- **PDF stronami:** strony A5 po kolei, ze spadami albo bez, do przejrzenia.
+- **Strona próbna:** dwie kartki (strony 1–8), na każdej stronie duży numer, strzałka „↑ góra” i podpis „kartka N · przód/tył”, do sprawdzenia dwustronności (dwie, bo przy jednej kartce złej kolejności tyłów nie widać). Położenia i rozmiary liczone względem rozmiaru strony. Na okładce krótka instrukcja: wytnij obie kartki po liniach cięcia i złóż na pół na znaczniku zgięcia, kartka 2 w środku, strony mają iść od 1 do 8 i stać „↑ góra”; tył do góry nogami = włącz „Obróć tyły o 180°”; na tyle kartki 1 mają być strony 2 | 7, na tyle kartki 2 strony 4 | 5, a jeśli tyły trafiły na złe kartki = przełącz „tyły w odwrotnej kolejności”.
+- **PDF stronami:** strony A6 po kolei, ze spadami albo bez, do przejrzenia.
 
 ### Eksport
 
 - Podgląd druku pokazuje każdy arkusz (przód i tył) tak, jak wyjdzie z drukarki.
 - PDF składa pdf-lib: każdy arkusz rysowany osobno w 300 dpi (3508×2480 px), zapisany do JPEG i wklejony jako cała strona A4. Arkusze rysujemy po jednym, żeby nie trzymać wszystkich w pamięci. Pasek postępu.
-- Rozmiar strony PDF to dokładnie A4; skalowanie przy druku ma być wyłączone („rzeczywisty rozmiar”), o czym przypomina ekran druku.
+- Rozmiar strony PDF to dokładnie A4; skalowanie przy druku ma być wyłączone („rzeczywisty rozmiar”, 100%), o czym przypomina ekran druku. Inaczej strona po przycięciu nie wyjdzie 105×148 mm.
 
 ## Podgląd 3D (`src/preview3d/`)
 
 - three.js: złożony zin ze sztywnymi stronami. Każda kartka to dwie połówki obracające się wokół grzbietu, z drobnym przesunięciem na grubość papieru.
 - Tekstury stron z `renderPage` (bez spadu, ok. 1024 px wysokości), liczone w tle po otwarciu podglądu.
 - Mysz: obracanie i przybliżanie (OrbitControls). Klik w prawą połowę albo strzałka w prawo przewraca stronę dalej, w lewą połowę albo strzałka w lewo wstecz. Animacja przewracania 0,6 s.
-- Podgląd otwiera się na okładce. Rozmiar strony jak po przycięciu w bieżących ustawieniach druku.
+- Podgląd otwiera się na okładce. Rozmiar strony jak po przycięciu: A6, 105×148 mm (`PAGE_WIDTH`, `PAGE_HEIGHT`).
 
 ## Magazyn (`src/storage/`)
 
@@ -179,13 +179,13 @@ Komunikaty po polsku, bez technicznych szczegółów. Nic się nie nadpisuje po 
 
 ## Testy
 
-- **Vitest, czysta logika:** impozycja (5 i 6 kartek dokładnie, każda strona dokładnie raz dla N = 1…20), skala `s` i rozmiar po przycięciu dla różnych opcji, pozycje znaczników, dodawanie i usuwanie kartek przy każdej bieżącej rozkładówce dla 1…6 kartek (okładki i ich wewnętrzne strony zostają na miejscu poza opisanymi wyjątkami, kolory tła idą za stronami), przypisanie fragmentów elementu przez grzbiet do stron, migracje `formatVersion`, zapis i odczyt `.zin`.
+- **Vitest, czysta logika:** impozycja (5 i 6 kartek dokładnie, każda strona dokładnie raz dla N = 1…20), kartka na środku A4 w skali 100% i ponad 20 mm papieru wokół spadu i znaczników dla każdej kombinacji opcji, pozycje znaczników, dodawanie i usuwanie kartek przy każdej bieżącej rozkładówce dla 1…6 kartek (okładki i ich wewnętrzne strony zostają na miejscu poza opisanymi wyjątkami, kolory tła idą za stronami), przypisanie fragmentów elementu przez grzbiet do stron, migracje `formatVersion` (przeliczenie A5→A6), zapis i odczyt `.zin`.
 - **Testy renderu:** arkusze przykładowego zina rysowane do PNG i porównywane z wzorcem (z tolerancją); wzorce w repo, odświeżane świadomie.
 - **Playwright (Chrome):** nowy zin 5 kartek, dodanie zdjęcia i napisu, eksport PDF; sprawdzenie, że PDF ma 10 stron A4.
 
 ## Kolejność budowy
 
-1. Model, impozycja, skala i znaczniki, magazyn i `.zin` (czysta logika z testami, bez UI).
+1. Model, impozycja, położenie kartki na arkuszu i znaczniki, magazyn i `.zin` (czysta logika z testami, bez UI).
 2. Rysownik i eksport PDF (arkusze, strona próbna, PDF stronami) z testami renderu.
 3. Edytor: lista zinów, rozkładówki, zdjęcia, napisy, fonty, prowadnice, przyciąganie, historia.
 4. Ekran druku z podglądem arkuszy.

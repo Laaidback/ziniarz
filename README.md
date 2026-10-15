@@ -1,6 +1,8 @@
 # ZINIARZ
 
-ZINIARZ to aplikacja w przeglądarce do składania zinów: małych broszur zszywanych ze złożonych na pół kartek A4. Każda kartka to 4 strony A5. Układasz zdjęcia i napisy, a program przygotowuje arkusze do druku dwustronnego na zwykłej domowej drukarce (ze spadami i znacznikami cięcia i zgięcia).
+ZINIARZ to aplikacja w przeglądarce do składania zinów: małych broszur A6 zszywanych ze złożonych na pół kartek A5. Każda kartka to 4 strony A6 (105 × 148 mm). Układasz zdjęcia i napisy, a program przygotowuje arkusze A4 do druku dwustronnego na zwykłej domowej drukarce: na środku każdego arkusza jest jedna kartka zina ze spadami i znacznikami cięcia i zgięcia. Po wydruku wycinasz ją po liniach cięcia.
+
+Milimetry w programie to prawdziwe milimetry na wydrukowanej stronie, a rozmiar napisu to punkty na wydruku. Ziny zrobione wcześniej w formacie A5 same przeliczają się na A6 przy otwarciu.
 
 Wszystko dzieje się w Twojej przeglądarce. Nie ma konta ani serwera: zdjęcia i ziny zostają na Twoim komputerze.
 
@@ -9,8 +11,8 @@ Wszystko dzieje się w Twojej przeglądarce. Nie ma konta ani serwera: zdjęcia 
 - **Lista zinów.** Ekran główny pokazuje Twoje ziny z okładkami. Przy każdym są przyciski „Otwórz”, „Powiel”, „Zapisz plik .zin” i „Usuń”.
 - **Edytor.** Po lewej są rozkładówki. Przyciski „+ kartka” i „− kartka” zmieniają liczbę stron. „+ Zdjęcie” i „+ Napis” dodają elementy na stronę. Przeciągasz je myszką, a w prawej kolumnie ustawiasz resztę: kadr zdjęcia („Kadruj”), font, rozmiar, kolor, wyrównanie, tło strony i marginesy. Są też „Cofnij” i „Ponów”.
 - **Fonty.** Do wyboru jest kilka gotowych fontów. Własny dodasz przyciskiem „Wgraj font…” (pliki `.ttf`, `.otf` albo `.woff2`). Font wgrany do innego zina wybierzesz przyciskiem „Użyj fontu z innego zina”.
-- **Druk.** Przycisk „Druk” otwiera ekran druku. Ustawiasz tam margines drukarki, spady, linie cięcia, linię zgięcia, „Obróć tyły o 180°” i sposób druku dwustronnego. Obok widać podgląd arkuszy. „Pobierz PDF do druku” daje arkusze A4 do druku dwustronnego. „Pobierz PDF stronami” daje zwykłe strony A5 po kolei, na przykład do wysłania komuś.
-- **Strona próbna.** Dwie kartki do sprawdzenia, czy drukarka dobrze drukuje dwustronnie i ile wynosi jej margines. Pod przyciskiem „Pobierz stronę próbną” jest krótka instrukcja, co sprawdzić.
+- **Druk.** Przycisk „Druk” otwiera ekran druku. Ustawiasz tam spady, linie cięcia, linię zgięcia, „Obróć tyły o 180°” i sposób druku dwustronnego. Obok widać podgląd arkuszy. „Pobierz PDF do druku” daje arkusze A4 do druku dwustronnego, z kartką zina w rzeczywistym rozmiarze (100%). „Pobierz PDF stronami” daje zwykłe strony A6 po kolei, na przykład do wysłania komuś. Po wydruku wytnij kartkę po liniach cięcia w rogach i złóż na pół na znacznikach zgięcia.
+- **Strona próbna.** Dwie kartki do sprawdzenia, czy drukarka dobrze drukuje dwustronnie. Pod przyciskiem „Pobierz stronę próbną” jest krótka instrukcja, co sprawdzić.
 - **Ręczny druk dwustronny.** Gdy drukarka nie drukuje sama na obu stronach, wybierz „ręcznie (osobno przody i tyły)”. Po kliknięciu „Przygotuj PDF-y do druku (przody i tyły)” pojawią się dwa przyciski: „Pobierz przody” i „Pobierz tyły”. Najpierw wydrukuj przody. Potem włóż wydrukowane kartki z powrotem do podajnika i wydrukuj tyły.
 - **Podgląd 3D.** „Podgląd 3D” pokazuje złożony zin. Przeciągnij, żeby go obrócić, kółkiem myszy przybliż. Strony przewracasz kliknięciem, strzałkami na klawiaturze albo przyciskami „← Wstecz” i „Dalej →”.
 
@@ -20,7 +22,7 @@ Wszystko dzieje się w Twojej przeglądarce. Nie ma konta ani serwera: zdjęcia 
 2. W edytorze dodaj zdjęcia i napisy i ułóż je na stronach. Zmiany zapisują się same.
 3. Kliknij „Druk”. Za pierwszym razem wydrukuj stronę próbną i popraw ustawienia, jeśli coś się nie zgadza.
 4. Pobierz PDF do druku i wydrukuj go. Ekran druku podpowiada, co wybrać w oknie drukowania (skala „Rzeczywisty rozmiar” i odwracanie po krótszej albo dłuższej krawędzi).
-5. Złóż kartki na pół, włóż jedną w drugą i zszyj w grzbiecie.
+5. Wytnij kartki po liniach cięcia, złóż je na pół na znacznikach zgięcia, włóż jedną w drugą i zszyj w grzbiecie.
 6. Zrób kopię zina: „Zapisz plik .zin” przy zinie na ekranie głównym. „Wczytaj plik .zin” wczytuje go z powrotem. Warto to robić, bo ziny leżą tylko w tej przeglądarce, na tym komputerze i pod tym adresem strony.
 
 ## Uruchomienie na swoim komputerze
