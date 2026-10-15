@@ -38,6 +38,8 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.{ts,tsx}'],
+          // UPDATE_REFERENCES=1 (npm run test:update-references) rewrites the render references.
+          provide: { updateReferences: process.env.UPDATE_REFERENCES === '1' },
           browser: {
             enabled: true,
             provider: 'playwright',

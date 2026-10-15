@@ -41,6 +41,7 @@ npx playwright install chromium   # tylko za pierwszym razem
 npm test                          # wszystkie testy
 npm run typecheck                 # kontrola typów
 npm run test:e2e                  # test całej aplikacji w przeglądarce: nowy zin, druk, podgląd 3D (trwa dłużej)
+npm run test:update-references    # nowe wzorce arkuszy (src/print/__reference__/), tylko po zamierzonej zmianie wyglądu
 npm run build                     # budowa wersji do publikacji (folder dist/)
 npm run check:dist                # sprawdza, czy zbudowana strona zadziała pod podadresem
 ```
