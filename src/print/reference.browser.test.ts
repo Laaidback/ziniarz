@@ -67,7 +67,7 @@ const sides = sheetSides(SAMPLE_SHEETS).map((side) => ({
 for (const side of sides) {
   test.skipIf(skip)(`${side.label} matches its reference`, { timeout: 30_000 }, async () => {
     const { zine, assets } = sample;
-    const layout = printLayout({ printerMargin: 4, bleed: true, cropMarks: true, foldMarks: true });
+    const layout = printLayout({ bleed: true, cropMarks: true, foldMarks: true });
     const canvas = renderSheetSide(zine, side, assets, layout, { dpi: DPI, cropMarks: true, foldMarks: true, rotate180: false });
     const actual = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
     const referencePath = `${REFERENCES}/${side.file}`;

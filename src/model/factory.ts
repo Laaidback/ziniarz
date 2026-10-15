@@ -5,7 +5,6 @@ import type { Margins, PhotoElement, PrintSettings, Spread, TextElement, Zine } 
 export const FORMAT_VERSION = 2;
 export const DEFAULT_MARGINS: Margins = { outer: 12, inner: 7, top: 14, bottom: 11 };
 export const DEFAULT_PRINT: PrintSettings = {
-  printerMargin: 4,
   bleed: true,
   cropMarks: true,
   foldMarks: true,

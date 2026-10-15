@@ -19,7 +19,7 @@ export interface SheetSideOptions {
   rotate180: boolean;
 }
 
-/** One side of an A4 landscape sheet: two pages from the imposition, scaled by the layout, plus marks. */
+/** One side of an A4 landscape sheet: two pages from the imposition at 100%, plus marks. */
 export function renderSheetSide(
   zine: Zine,
   side: SheetSide,
@@ -51,7 +51,7 @@ export function renderSheetSide(
   ];
   for (const [page, left, width] of placements) {
     const pageCanvas = renderPage(zine, page, assets, {
-      pxPerMm: k * layout.scale,
+      pxPerMm: k,
       bleed: bleed > 0,
       sizePx: { width, height: y1 - y0 },
     });

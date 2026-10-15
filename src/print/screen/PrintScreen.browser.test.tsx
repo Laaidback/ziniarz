@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { createZine } from '../../model/factory';
 import type { Zine } from '../../model/types';
 import { openZineLockHeld } from '../../test/locks';
@@ -7,10 +7,7 @@ import { openScreen } from '../../test/screenHarness';
 import type { PdfExporter } from '../exporter';
 import { EXPORT_FAILED } from '../exportRunner';
 import { buildPagesPdf, buildSheetsPdf, type PdfFile, type SheetsPdfJob } from '../pdf';
-import { PRINTER_MARGIN_KEY } from '../printerMargin';
 import { PrintScreen } from './PrintScreen';
-
-beforeEach(() => localStorage.removeItem(PRINTER_MARGIN_KEY));
 
 /** Real PDFs at low resolution (fast); saved files are collected instead of downloaded. */
 function testExporter(overrides: Partial<PdfExporter> = {}) {
@@ -37,27 +34,21 @@ test('shows the sheets, the trimmed size, the reminders and a way back', async (
   await expect.element(screen.getByRole('link', { name: '← Wróć do edytora' })).toHaveAttribute('href', `#/zin/${zine.id}`);
   await expect.element(screen.getByRole('img', { name: 'Kartka 1, przód: strony 20 i 1' })).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Kartka 5' })).toBeInTheDocument();
-  await expect.element(screen.getByText('Strona po przycięciu: 132 × 187 mm (89% projektu)')).toBeVisible();
+  await expect.element(screen.getByText('Strona po przycięciu: 105 × 148 mm')).toBeVisible();
   await expect.element(screen.getByText(/„Rzeczywisty rozmiar”/)).toBeVisible();
   await expect.element(screen.getByText(/„odwracanie po krótszej krawędzi”/)).toBeVisible();
 });
 
-test('options change the size and are saved in the zine; the printer margin is remembered in the browser', async () => {
+test('options are saved in the zine; there is no printer margin field', async () => {
   const zine = createZine('Lato', 2);
   const { screen, stored } = await openPrint(zine, testExporter().exporter);
+  await expect.element(screen.getByRole('checkbox', { name: 'Spady' })).toBeChecked();
+  expect(screen.getByRole('spinbutton', { name: 'Margines drukarki' }).query()).toBeNull();
   await screen.getByRole('checkbox', { name: 'Linie cięcia' }).click();
   await screen.getByRole('checkbox', { name: 'Linia zgięcia' }).click();
-  await expect.element(screen.getByText('Strona po przycięciu: 138 × 196 mm (94% projektu)')).toBeVisible();
-  await screen.getByRole('spinbutton', { name: 'Margines drukarki' }).fill('35');
-  await expect.element(screen.getByText('Strona po przycięciu: 116 × 165 mm (79% projektu)')).toBeVisible();
-  expect(localStorage.getItem(PRINTER_MARGIN_KEY)).toBe('20');
-  await expect.poll(async () => (await stored()).print).toMatchObject({ cropMarks: false, foldMarks: false, printerMargin: 20 });
-
-  // Another zine opened in this browser starts with the remembered margin.
-  screen.unmount();
-  const other = createZine('Zima', 1);
-  const second = await openPrint(other, testExporter().exporter);
-  await expect.element(second.screen.getByRole('spinbutton', { name: 'Margines drukarki' })).toHaveValue(20);
+  await expect.element(screen.getByText('Strona po przycięciu: 105 × 148 mm')).toBeVisible();
+  await expect.poll(async () => (await stored()).print).toMatchObject({ cropMarks: false, foldMarks: false });
+  expect((await stored()).print).not.toHaveProperty('printerMargin');
 });
 
 test('automatic duplex downloads one PDF with every sheet side', async () => {

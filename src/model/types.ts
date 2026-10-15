@@ -14,7 +14,6 @@ export interface PageStyle {
 export type DuplexMode = 'auto' | 'manual';
 
 export interface PrintSettings {
-  printerMargin: number;
   bleed: boolean;
   cropMarks: boolean;
   foldMarks: boolean;

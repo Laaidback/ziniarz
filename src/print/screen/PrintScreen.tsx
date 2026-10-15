@@ -13,7 +13,6 @@ import { saveZine } from '../../storage/db';
 import { browserPdfExporter, type PdfExporter } from '../exporter';
 import { runExport, saveReadyFile, type ExportStatus, type ExportTask } from '../exportRunner';
 import type { PdfFile } from '../pdf';
-import { loadPrinterMargin, printSettingsFor, savePrinterMargin } from '../printerMargin';
 import { printReminders, trimSizeText } from '../printTexts';
 import { testPageInstructions, testPageZine } from '../testPage';
 import { ExportStatusView } from './ExportStatusView';
@@ -37,7 +36,7 @@ interface WorkspaceProps {
 
 function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
   const db = useDb();
-  const [settings, setSettings] = useState(() => printSettingsFor(zine.print, loadPrinterMargin()));
+  const [settings, setSettings] = useState(() => zine.print);
   const [status, setStatus] = useState<ExportStatus>({ kind: 'idle' });
   const lastTask = useRef<ExportTask | null>(null);
   const layout = useMemo(() => printLayout(settings), [settings]);
@@ -68,7 +67,6 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
   const change = (patch: Partial<PrintSettings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
-    if (patch.printerMargin !== undefined) savePrinterMargin(patch.printerMargin);
     saver.schedule({ ...zine, print: next });
   };
 
@@ -133,7 +131,7 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
           >
             Pobierz PDF stronami
           </button>
-          <span className="muted">Strony A5 po kolei, do przejrzenia albo wysłania.</span>
+          <span className="muted">Strony A6 po kolei, do przejrzenia albo wysłania.</span>
           <ExportStatusView
             status={status}
             onRetry={() => lastTask.current && run(lastTask.current)}
@@ -143,9 +141,7 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
 
         <section className="panel">
           <h2>Strona próbna</h2>
-          <span className="muted">
-            Dwie kartki do sprawdzenia druku dwustronnego i marginesu drukarki, z bieżącymi ustawieniami.
-          </span>
+          <span className="muted">Dwie kartki do sprawdzenia druku dwustronnego, z bieżącymi ustawieniami.</span>
           <button
             type="button"
             disabled={busy}

@@ -71,7 +71,7 @@ export interface PagesPdfJob {
   signal?: AbortSignal;
 }
 
-/** A5 pages in reading order, unscaled, for review or sending. */
+/** A6 pages in reading order, for review or sending. */
 export async function buildPagesPdf(job: PagesPdfJob): Promise<PdfFile> {
   const { zine, assets } = job;
   const dpi = job.dpi ?? PRINT_DPI;

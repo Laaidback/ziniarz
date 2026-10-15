@@ -23,9 +23,7 @@ export function sideCaption(side: SheetSide): string {
 }
 
 export function trimSizeText(layout: PrintLayout): string {
-  const width = Math.round(layout.trimPage.width);
-  const height = Math.round(layout.trimPage.height);
-  return `Strona po przycięciu: ${width} × ${height} mm (${Math.round(layout.scale * 100)}% projektu)`;
+  return `Strona po przycięciu: ${layout.trimPage.width} × ${layout.trimPage.height} mm`;
 }
 
 /** What to choose in the browser's print dialog for these settings. */

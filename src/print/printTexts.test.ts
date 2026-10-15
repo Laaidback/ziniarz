@@ -13,11 +13,12 @@ test('the preview lists every sheet with its front and back', () => {
   expect(sideCaption(sheets[0].front)).toBe('przód: strony 20 i 1');
 });
 
-test('the trimmed page size matches the spec examples', () => {
-  const plain = printLayout({ printerMargin: 4, bleed: true, cropMarks: false, foldMarks: false });
-  expect(trimSizeText(plain)).toBe('Strona po przycięciu: 138 × 196 mm (94% projektu)');
-  const marked = printLayout({ printerMargin: 4, bleed: true, cropMarks: true, foldMarks: false });
-  expect(trimSizeText(marked)).toBe('Strona po przycięciu: 132 × 187 mm (89% projektu)');
+test('the trimmed page is always the A6 page', () => {
+  for (const bleed of [false, true]) {
+    for (const cropMarks of [false, true]) {
+      expect(trimSizeText(printLayout({ bleed, cropMarks, foldMarks: false }))).toBe('Strona po przycięciu: 105 × 148 mm');
+    }
+  }
 });
 
 test('reminders: actual size always, the duplex flip that fits the settings', () => {

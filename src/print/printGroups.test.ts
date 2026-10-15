@@ -3,7 +3,6 @@ import type { PrintSettings } from '../model/types';
 import { printGroups } from './printGroups';
 
 const base: PrintSettings = {
-  printerMargin: 4,
   bleed: true,
   cropMarks: true,
   foldMarks: true,

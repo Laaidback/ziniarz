@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { sheetSides } from '../imposition/imposition';
 import { printLayout } from '../imposition/layout';
 import { createPhotoElement, createZine } from '../model/factory';
+import { PAGE_HEIGHT, PAGE_WIDTH, SPREAD_WIDTH } from '../model/geometry';
 import { expectColor, pixel, solidBitmap } from '../test/pixels';
 import { mmToPx, renderSheetSide } from './sheetSide';
 
@@ -12,8 +13,11 @@ zine.pages[3] = { background: '#0000ff' };
 zine.pages[4] = { background: '#ffff00' };
 const assets = { images: new Map() };
 const [front, back] = sheetSides(1);
-const layout = printLayout({ printerMargin: 4, bleed: true, cropMarks: true, foldMarks: true });
+const layout = printLayout({ bleed: true, cropMarks: true, foldMarks: true });
 const marksOn = { cropMarks: true, foldMarks: true, rotate180: false };
+/** Centres of the left and right page on the sheet, mm (the sheet's middle row is y = 105). */
+const leftX = layout.spread.x + PAGE_WIDTH / 2;
+const rightX = layout.spread.x + layout.spread.width - PAGE_WIDTH / 2;
 
 describe('renderSheetSide', () => {
   test('front holds pages 4 | 1 on a white A4 sheet', () => {
@@ -21,8 +25,8 @@ describe('renderSheetSide', () => {
     const k = mmToPx(dpi);
     const canvas = renderSheetSide(zine, front, assets, layout, { dpi, ...marksOn });
     expect([canvas.width, canvas.height]).toEqual([Math.round(297 * k), Math.round(210 * k)]);
-    expectColor(pixel(canvas, 74 * k, 105 * k), [255, 255, 0]);
-    expectColor(pixel(canvas, 223 * k, 105 * k), [255, 0, 0]);
+    expectColor(pixel(canvas, leftX * k, 105 * k), [255, 255, 0]);
+    expectColor(pixel(canvas, rightX * k, 105 * k), [255, 0, 0]);
     expectColor(pixel(canvas, 1, 1), [255, 255, 255]);
   });
 
@@ -30,11 +34,11 @@ describe('renderSheetSide', () => {
     const dpi = 50;
     const k = mmToPx(dpi);
     const plain = renderSheetSide(zine, back, assets, layout, { dpi, ...marksOn });
-    expectColor(pixel(plain, 74 * k, 105 * k), [0, 255, 0]);
-    expectColor(pixel(plain, 223 * k, 105 * k), [0, 0, 255]);
+    expectColor(pixel(plain, leftX * k, 105 * k), [0, 255, 0]);
+    expectColor(pixel(plain, rightX * k, 105 * k), [0, 0, 255]);
     const rotated = renderSheetSide(zine, back, assets, layout, { dpi, ...marksOn, rotate180: true });
-    expectColor(pixel(rotated, 74 * k, 105 * k), [0, 0, 255]);
-    expectColor(pixel(rotated, 223 * k, 105 * k), [0, 255, 0]);
+    expectColor(pixel(rotated, leftX * k, 105 * k), [0, 0, 255]);
+    expectColor(pixel(rotated, rightX * k, 105 * k), [0, 255, 0]);
   });
 
   test('draws crop and fold marks only when enabled', () => {
@@ -53,15 +57,14 @@ describe('renderSheetSide', () => {
 
 describe('renderSheetSide at the fold', () => {
   const layouts = [
-    printLayout({ printerMargin: 4, bleed: true, cropMarks: true, foldMarks: true }),
-    printLayout({ printerMargin: 4, bleed: false, cropMarks: false, foldMarks: false }),
-    printLayout({ printerMargin: 0, bleed: true, cropMarks: false, foldMarks: false }),
-    printLayout({ printerMargin: 3.3, bleed: false, cropMarks: true, foldMarks: false }),
+    printLayout({ bleed: true, cropMarks: true, foldMarks: true }),
+    printLayout({ bleed: false, cropMarks: false, foldMarks: false }),
+    printLayout({ bleed: true, cropMarks: false, foldMarks: false }),
   ];
 
   test.each([100, 150, 300])('a photo across the spine has no light seam at %i dpi', async (dpi) => {
     const dark = createZine('t', 1);
-    dark.spreads[1].elements.push(createPhotoElement('dark', { x: -3, y: -3, width: 302, height: 216 }));
+    dark.spreads[1].elements.push(createPhotoElement('dark', { x: -3, y: -3, width: SPREAD_WIDTH + 6, height: PAGE_HEIGHT + 6 }));
     const darkAssets = { images: new Map([['dark', await solidBitmap(64, 64, '#202020')]]) };
     const k = mmToPx(dpi);
     for (const l of layouts) {
@@ -73,7 +76,7 @@ describe('renderSheetSide at the fold', () => {
           const row = canvas.getContext('2d')!.getImageData(spine - 2, y, 5, 1).data;
           for (let i = 0; i < 5; i++) {
             const [r, g, b, a] = row.slice(i * 4, i * 4 + 4);
-            const where = `dpi ${dpi}, scale ${l.scale.toFixed(4)}, bleed ${l.bleed > 0}, rotated ${rotate180}, x ${spine - 2 + i}, y ${y}`;
+            const where = `dpi ${dpi}, bleed ${l.bleed > 0}, rotated ${rotate180}, x ${spine - 2 + i}, y ${y}`;
             expect(Math.max(r, g, b), `light pixel rgba(${r},${g},${b},${a}) at ${where}`).toBeLessThan(64);
             expect(a).toBe(255);
           }

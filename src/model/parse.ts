@@ -125,7 +125,6 @@ export function parseZine(input: unknown): Zine {
     pages,
     fonts: Array.isArray(data.fonts) ? data.fonts.filter((f): f is string => typeof f === 'string') : [],
     print: {
-      printerMargin: num(print.printerMargin, DEFAULT_PRINT.printerMargin),
       bleed: bool(print.bleed, DEFAULT_PRINT.bleed),
       cropMarks: bool(print.cropMarks, DEFAULT_PRINT.cropMarks),
       foldMarks: bool(print.foldMarks, DEFAULT_PRINT.foldMarks),

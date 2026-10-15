@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { LoadFailed } from '../app/LoadFailed';
 import { routeHash } from '../app/route';
 import { useZineView } from '../app/useZineView';
-import { printLayout } from '../imposition/layout';
-import { pageCount } from '../model/geometry';
+import { PAGE_HEIGHT, PAGE_WIDTH, pageCount } from '../model/geometry';
 import type { Zine } from '../model/types';
-import { loadPrinterMargin, printSettingsFor } from '../print/printerMargin';
 import type { RenderAssets } from '../render/assets';
 import { renderPage } from '../render/renderPage';
 import { createRenderQueue } from '../render/renderQueue';
@@ -22,6 +20,9 @@ const drawPageTexture: DrawPage = (zine, page, assets) =>
   renderPage(zine, page, assets, { pxPerMm: texturePxPerMm(), bleed: false });
 // three.js is loaded only when the preview opens, so the rest of the app stays small.
 const loadSceneModule: LoadScene = () => import('./scene');
+
+/** The 3D book has the size of the trimmed A6 page. */
+const TRIM_PAGE = { width: PAGE_WIDTH, height: PAGE_HEIGHT };
 
 const LOAD_FAILED = 'Nie udało się wczytać podglądu 3D. Sprawdź połączenie z internetem i odśwież stronę.';
 const WEBGL_FAILED =
@@ -54,8 +55,6 @@ function PreviewWorkspace({
   // 'load': the three.js code did not download; 'webgl': the browser cannot draw 3D.
   const [failed, setFailed] = useState<'load' | 'webgl' | null>(null);
   const pages = pageCount(zine.sheets);
-  // Page size as trimmed with the current print settings (printer margin remembered in this browser).
-  const trimPage = useMemo(() => printLayout(printSettingsFor(zine.print, loadPrinterMargin())).trimPage, [zine]);
 
   useEffect(() => {
     let disposed = false;
@@ -87,8 +86,8 @@ function PreviewWorkspace({
         let view: ZineScene;
         try {
           view = new ZineScene(container.current!, {
-            pageWidth: trimPage.width,
-            pageHeight: trimPage.height,
+            pageWidth: TRIM_PAGE.width,
+            pageHeight: TRIM_PAGE.height,
             book: book.current,
             // Page images are not kept, so after a lost GPU context they are drawn again.
             onContextRestored: () => !disposed && drawPages(view),
@@ -113,7 +112,7 @@ function PreviewWorkspace({
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [zine, assets, pages, trimPage, drawPage, loadScene]);
+  }, [zine, assets, pages, drawPage, loadScene]);
 
   const turn = useCallback((forward: boolean) => {
     const next = turnPage(book.current, forward, performance.now());

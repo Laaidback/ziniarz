@@ -25,11 +25,8 @@ interface Props {
 export function SheetPreview({ zine, assets, settings }: Props) {
   const queue = useMemo(() => createRenderQueue(), []);
   useEffect(() => () => queue.clear(), [queue]);
-  const { printerMargin, bleed, cropMarks, foldMarks } = settings;
-  const layout = useMemo(
-    () => printLayout({ printerMargin, bleed, cropMarks, foldMarks }),
-    [printerMargin, bleed, cropMarks, foldMarks],
-  );
+  const { bleed, cropMarks, foldMarks } = settings;
+  const layout = useMemo(() => printLayout({ bleed, cropMarks, foldMarks }), [bleed, cropMarks, foldMarks]);
   const sheets = useMemo(() => previewSheets(zine.sheets), [zine.sheets]);
   const common = { zine, assets, layout, cropMarks, foldMarks, queue };
   return (

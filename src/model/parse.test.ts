@@ -35,6 +35,12 @@ describe('parseZine', () => {
     expect(zine.formatVersion).toBe(FORMAT_VERSION);
   });
 
+  test('the old printer margin is not kept', () => {
+    const raw = roundTrip(createZine('Lato', 1));
+    raw.print = { ...raw.print, printerMargin: 7 };
+    expect(parseZine(raw).print).toEqual(DEFAULT_PRINT);
+  });
+
   test('fills missing element fields and drops unknown elements', () => {
     const raw = roundTrip(createZine('Lato', 1));
     raw.spreads[1].elements = [

@@ -1,68 +1,47 @@
 import { describe, expect, test } from 'vitest';
+import { BLEED, PAGE_HEIGHT, PAGE_WIDTH, SPREAD_WIDTH } from '../model/geometry';
 import { A4_LANDSCAPE, printLayout, type PrintLayoutOptions } from './layout';
 import { cropMarks, foldMarks, MARK_LENGTH, MARK_OFFSET } from './marks';
 
 const options = (o: Partial<PrintLayoutOptions> = {}): PrintLayoutOptions => ({
-  printerMargin: 4,
   bleed: true,
   cropMarks: false,
   foldMarks: false,
   ...o,
 });
 
+const ALL = [false, true].flatMap((bleed) =>
+  [false, true].flatMap((cropMarks) => [false, true].map((foldMarks) => options({ bleed, cropMarks, foldMarks }))),
+);
+
 describe('printLayout', () => {
-  test('bleed without marks, 4 mm printer margin', () => {
-    const l = printLayout(options());
-    expect(l.scale).toBeCloseTo(202 / 216, 6);
-    expect(l.trimPage.width).toBeCloseTo(138.4, 1);
-    expect(l.trimPage.height).toBeCloseTo(196.4, 1);
-    expect(l.bleed).toBeCloseTo(3 * l.scale, 6);
-    expect(l.markBand).toBe(0);
+  test('the A5 leaf is printed at 100%, centred on A4 landscape', () => {
+    for (const o of ALL) {
+      const l = printLayout(o);
+      expect(l.trimPage).toEqual({ width: PAGE_WIDTH, height: PAGE_HEIGHT });
+      expect(l.spread.width).toBe(SPREAD_WIDTH);
+      expect(l.spread.height).toBe(PAGE_HEIGHT);
+      expect(l.spread.x * 2 + l.spread.width).toBeCloseTo(A4_LANDSCAPE.width, 9);
+      expect(l.spread.y * 2 + l.spread.height).toBeCloseTo(A4_LANDSCAPE.height, 9);
+      expect(l.bleed).toBe(o.bleed ? BLEED : 0);
+      expect(l.markBand).toBe(o.cropMarks || o.foldMarks ? 5 : 0);
+    }
   });
 
-  test('bleed with marks', () => {
-    const l = printLayout(options({ cropMarks: true }));
-    expect(l.scale).toBeCloseTo(192 / 216, 6);
-    expect(l.trimPage.width).toBeCloseTo(131.6, 1);
-    expect(l.trimPage.height).toBeCloseTo(186.7, 1);
-    expect(l.markBand).toBe(5);
-    expect(printLayout(options({ foldMarks: true })).scale).toBeCloseTo(l.scale, 6);
-  });
-
-  test('never enlarges', () => {
-    const l = printLayout(options({ printerMargin: 0, bleed: false }));
-    expect(l.scale).toBe(1);
-    expect(l.bleed).toBe(0);
-  });
-
-  test('centres the trimmed pair on the sheet', () => {
-    const l = printLayout(options());
-    expect(l.spread.x * 2 + l.spread.width).toBeCloseTo(A4_LANDSCAPE.width, 6);
-    expect(l.spread.y * 2 + l.spread.height).toBeCloseTo(A4_LANDSCAPE.height, 6);
-    expect(l.spread.width).toBeCloseTo(l.trimPage.width * 2, 6);
-  });
-
-  test('bleed and marks stay inside the printable area', () => {
-    for (const printerMargin of [0, 3, 4, 5, 6]) {
-      for (const bleed of [false, true]) {
-        for (const marks of [false, true]) {
-          const l = printLayout(options({ printerMargin, bleed, cropMarks: marks, foldMarks: marks }));
-          const eps = 1e-9;
-          expect(l.spread.x - l.bleed - l.markBand).toBeGreaterThanOrEqual(printerMargin - eps);
-          expect(l.spread.y - l.bleed - l.markBand).toBeGreaterThanOrEqual(printerMargin - eps);
-          const segments = marks ? [...cropMarks(l), ...foldMarks(l)] : [];
-          for (const s of segments) {
-            for (const [x, y] of [
-              [s.x1, s.y1],
-              [s.x2, s.y2],
-            ]) {
-              expect(x).toBeGreaterThanOrEqual(printerMargin - eps);
-              expect(x).toBeLessThanOrEqual(A4_LANDSCAPE.width - printerMargin + eps);
-              expect(y).toBeGreaterThanOrEqual(printerMargin - eps);
-              expect(y).toBeLessThanOrEqual(A4_LANDSCAPE.height - printerMargin + eps);
-            }
-          }
-        }
+  test('bleed and marks keep more than 20 mm of paper to the sheet edge', () => {
+    for (const o of ALL) {
+      const l = printLayout(o);
+      const segments = [...(o.cropMarks ? cropMarks(l) : []), ...(o.foldMarks ? foldMarks(l) : [])];
+      const points = segments.flatMap((s) => [
+        [s.x1, s.y1],
+        [s.x2, s.y2],
+      ]);
+      points.push([l.spread.x - l.bleed, l.spread.y - l.bleed], [l.spread.x + l.spread.width + l.bleed, l.spread.y + l.spread.height + l.bleed]);
+      for (const [x, y] of points) {
+        expect(x).toBeGreaterThan(20);
+        expect(x).toBeLessThan(A4_LANDSCAPE.width - 20);
+        expect(y).toBeGreaterThan(20);
+        expect(y).toBeLessThan(A4_LANDSCAPE.height - 20);
       }
     }
   });
