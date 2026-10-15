@@ -14,6 +14,11 @@ export interface SceneOptions {
   pageWidth: number;
   pageHeight: number;
   book: BookState;
+  /**
+   * Called when a lost WebGL context comes back. Page images are not kept (they would take
+   * a lot of memory), so the pages are blank until they are set again.
+   */
+  onContextRestored?: () => void;
 }
 
 /**
@@ -56,9 +61,26 @@ export class ZineScene {
     this.buildLeaves();
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(container);
+    // three.js listens first: it keeps the context restorable and rebuilds its state on restore.
+    this.canvas.addEventListener('webglcontextlost', this.onContextLost);
+    this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
     this.resize();
     this.resetCamera();
   }
+
+  /** The uploaded page canvases are gone (freed after upload), so the pages turn blank. */
+  private readonly onContextLost = () => {
+    for (const material of this.materials.values()) {
+      material.map?.dispose();
+      material.map = null;
+      material.needsUpdate = true;
+    }
+  };
+
+  private readonly onContextRestored = () => {
+    this.invalidate();
+    this.options.onContextRestored?.();
+  };
 
   private material(page: number): THREE.MeshBasicMaterial {
     let material = this.materials.get(page);
@@ -163,6 +185,8 @@ export class ZineScene {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.frame);
+    this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
+    this.canvas.removeEventListener('webglcontextrestored', this.onContextRestored);
     this.resizeObserver.disconnect();
     this.controls.dispose();
     for (const material of this.materials.values()) {
@@ -172,6 +196,8 @@ export class ZineScene {
     this.edgeMaterial.dispose();
     for (const geometry of this.geometries) geometry.dispose();
     this.renderer.dispose();
+    // dispose() alone keeps the context alive; browsers allow only about 16 at a time.
+    this.renderer.forceContextLoss();
     this.canvas.remove();
   }
 }

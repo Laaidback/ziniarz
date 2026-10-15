@@ -34,13 +34,16 @@ function snapshot(target: ZineScene, now: number): HTMLCanvasElement {
   return copy;
 }
 
-function open(sheets: number): ZineScene {
+function open(sheets: number, onContextRestored?: () => void): ZineScene {
   container = document.createElement('div');
   container.style.cssText = 'width: 600px; height: 400px';
   document.body.append(container);
-  scene = new ZineScene(container, { pageWidth: 138, pageHeight: 196, book: closedBook(sheets) });
+  scene = new ZineScene(container, { pageWidth: 138, pageHeight: 196, book: closedBook(sheets), onContextRestored });
   return scene;
 }
+
+const nextEvent = (target: EventTarget, type: string) =>
+  new Promise<void>((resolve) => target.addEventListener(type, () => resolve(), { once: true }));
 
 test('the closed zine shows the cover on the right of the spine, the right way round', () => {
   const view = open(1);
@@ -62,4 +65,35 @@ test('after a turn, pages 2 and 3 lie open, page 2 the right way round', () => {
   expectColor(pixel(shot, width * 0.2, height / 2), [0, 255, 0]);
   expectColor(pixel(shot, width * 0.4, height / 2), [255, 0, 255]);
   expectColor(pixel(shot, width * 0.7, height / 2), [255, 255, 0]);
+});
+
+test('dispose gives the WebGL context back, so repeated visits do not pile up contexts', () => {
+  const view = open(1);
+  const gl = view.canvas.getContext('webgl2')!;
+  expect(gl.isContextLost()).toBe(false);
+  view.dispose();
+  scene = null;
+  expect(gl.isContextLost()).toBe(true);
+});
+
+test('after a lost WebGL context comes back, pages are blank until the screen draws them again', async () => {
+  let restored = 0;
+  const view = open(1, () => restored++);
+  view.setPageImage(1, pageImage('#ff0000', '#ff0000'));
+  snapshot(view, 0);
+  const lose = view.canvas.getContext('webgl2')!.getExtension('WEBGL_lose_context')!;
+  const lost = nextEvent(view.canvas, 'webglcontextlost');
+  lose.loseContext();
+  await lost;
+  await new Promise((resolve) => setTimeout(resolve)); // restorable only once the lost event is fully handled
+  const back = nextEvent(view.canvas, 'webglcontextrestored');
+  lose.restoreContext();
+  await back;
+  expect(restored).toBe(1);
+
+  let shot = snapshot(view, 0);
+  expectColor(pixel(shot, shot.width * 0.7, shot.height / 2), [255, 255, 255]);
+  view.setPageImage(1, pageImage('#ff0000', '#ff0000'));
+  shot = snapshot(view, 0);
+  expectColor(pixel(shot, shot.width * 0.7, shot.height / 2), [255, 0, 0]);
 });
