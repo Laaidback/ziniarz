@@ -5,6 +5,20 @@ import type { Zine } from '../model/types';
 
 const SHEETS = 2;
 
+/** How to read the printed test page; printed on its cover and shown under its download button. */
+export function testPageInstructions(): string[] {
+  const backs = sheetSides(SHEETS)
+    .filter((s) => s.face === 'back')
+    .map((s) => `${s.left} | ${s.right}`);
+  return [
+    'Złóż obie kartki na pół, kartka 2 w środku: strony mają iść od 1 do 8 i stać „↑ góra”.',
+    '• Tył do góry nogami? Włącz „Obróć tyły o 180°”.',
+    `• Na tyle kartki 1 mają być strony ${backs[0]}, na tyle kartki 2: ${backs[1]}. ` +
+      'Przód i tył kartki pokazują różne numery kartki? Przełącz „tyły w odwrotnej kolejności”.',
+    '• Coś ważnego ucięte przy krawędzi kartki? Zwiększ margines drukarki.',
+  ];
+}
+
 /**
  * Two sheets (pages 1–8) with big page numbers, "↑ góra" and the sheet side, on light
  * grey pages so the bleed is visible. Two sheets, because with one a wrong back order
@@ -25,16 +39,9 @@ export function testPageZine(): Zine {
       );
     }
   }
-  const backs = sides.filter((s) => s.face === 'back').map((s) => `${s.left} | ${s.right}`);
   zine.spreads[0].elements.push(
     createTextElement({
-      text: [
-        'Złóż obie kartki na pół, kartka 2 w środku: strony mają iść od 1 do 8 i stać „↑ góra”.',
-        '• Tył do góry nogami? Włącz „Obróć tyły o 180°”.',
-        `• Na tyle kartki 1 mają być strony ${backs[0]}, na tyle kartki 2: ${backs[1]}. ` +
-          'Przód i tył kartki pokazują różne numery kartki? Przełącz „tyły w odwrotnej kolejności”.',
-        '• Coś ważnego ucięte przy krawędzi kartki? Zwiększ margines drukarki.',
-      ].join('\n'),
+      text: testPageInstructions().join('\n'),
       size: 9,
       align: 'left',
       x: PAGE_WIDTH + 10,

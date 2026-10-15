@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { sheetSides } from '../imposition/imposition';
 import { pageCount, slotOfPage } from '../model/geometry';
 import type { TextElement } from '../model/types';
-import { testPageZine } from './testPage';
+import { testPageInstructions, testPageZine } from './testPage';
 
 const texts = (zine: ReturnType<typeof testPageZine>) =>
   zine.spreads.flatMap((s) => s.elements).filter((e): e is TextElement => e.kind === 'text');
@@ -34,4 +34,10 @@ test('instructions name the backs that come from the imposition', () => {
   expect(all).toContain('„Obróć tyły o 180°”');
   expect(all).toContain('„tyły w odwrotnej kolejności”');
   expect(all).toContain('margines drukarki');
+});
+
+test('the cover prints the same instructions the print screen shows', () => {
+  const lines = testPageInstructions();
+  expect(lines).toHaveLength(4);
+  expect(texts(testPageZine()).map((e) => e.text)).toContain(lines.join('\n'));
 });
