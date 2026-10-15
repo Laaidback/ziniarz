@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { ConfirmHost } from './app/ConfirmHost';
 import { DbContext } from './app/dbContext';
 import { NoticeList } from './app/NoticeList';
-import { PlaceholderScreen } from './app/PlaceholderScreen';
 import type { Route } from './app/route';
 import { useRoute } from './app/useRoute';
 import { EditorScreen } from './editor/EditorScreen';
 import { HomeScreen } from './home/HomeScreen';
+import { Preview3dScreen } from './preview3d/Preview3dScreen';
 import { PrintScreen } from './print/screen/PrintScreen';
 import { openZiniarzDb, type ZiniarzDb } from './storage/db';
 import { requestPersistentStorage } from './storage/quota';
@@ -20,7 +20,7 @@ function Screen({ route }: { route: Route }) {
     case 'print':
       return <PrintScreen key={route.zineId} zineId={route.zineId} />;
     case 'preview3d':
-      return <PlaceholderScreen title="Podgląd 3D" zineId={route.zineId} />;
+      return <Preview3dScreen key={route.zineId} zineId={route.zineId} />;
   }
 }
 

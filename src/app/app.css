@@ -535,3 +535,36 @@ select {
   color: var(--muted);
   font-size: 12px;
 }
+
+.preview3d {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100vh;
+}
+
+.preview3d-view {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--canvas);
+  cursor: grab;
+}
+
+.preview3d-view canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.preview-caption {
+  min-width: 96px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.preview3d-help {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
