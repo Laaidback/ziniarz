@@ -47,6 +47,14 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
   );
   useEffect(() => () => void saver.flush(), [saver]);
 
+  // Leaving the screen cancels a running export, so it never downloads later in another screen.
+  const alive = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    alive.current = controller;
+    return () => controller.abort();
+  }, []);
+
   const change = (patch: Partial<PrintSettings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
@@ -56,7 +64,8 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
 
   const run = (task: ExportTask) => {
     lastTask.current = task;
-    void runExport(task, setStatus, (file) => exporter.save(file));
+    if (!alive.current || alive.current.signal.aborted) return;
+    void runExport(task, setStatus, (file) => exporter.save(file), alive.current.signal);
   };
   const busy = status.kind === 'running';
   const manual = settings.duplex === 'manual';
@@ -88,7 +97,10 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
             className="primary"
             disabled={busy}
             onClick={() =>
-              run({ label: 'PDF do druku', build: (onProgress) => exporter.sheets({ zine, assets, settings, onProgress }) })
+              run({
+                label: 'PDF do druku',
+                build: (onProgress, signal) => exporter.sheets({ zine, assets, settings, onProgress, signal }),
+              })
             }
           >
             {manual ? 'Pobierz PDF-y do druku (przody i tyły)' : 'Pobierz PDF do druku'}
@@ -99,7 +111,9 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
             onClick={() =>
               run({
                 label: 'PDF stronami',
-                build: async (onProgress) => [await exporter.pages({ zine, assets, bleed: settings.bleed, onProgress })],
+                build: async (onProgress, signal) => [
+                  await exporter.pages({ zine, assets, bleed: settings.bleed, onProgress, signal }),
+                ],
               })
             }
           >
@@ -120,7 +134,8 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
             onClick={() =>
               run({
                 label: 'Strona próbna',
-                build: (onProgress) => exporter.sheets({ zine: testPageZine(), assets: NO_ASSETS, settings, onProgress }),
+                build: (onProgress, signal) =>
+                  exporter.sheets({ zine: testPageZine(), assets: NO_ASSETS, settings, onProgress, signal }),
               })
             }
           >

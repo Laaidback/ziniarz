@@ -57,6 +57,48 @@ test('a save that throws reports failure instead of staying running', async () =
   error.mockRestore();
 });
 
+test('an export cancelled while building saves nothing and reports nothing more', async () => {
+  const controller = new AbortController();
+  const statuses: ExportStatus[] = [];
+  const saved: string[] = [];
+  const task: ExportTask = {
+    label: 'PDF do druku',
+    async build(onProgress, signal) {
+      expect(signal).toBe(controller.signal);
+      onProgress(1, 2);
+      controller.abort(); // the screen was left
+      onProgress(2, 2);
+      return [file('a.pdf')];
+    },
+  };
+  const ok = await runExport(task, (s) => statuses.push(s), (f) => saved.push(f.name), controller.signal);
+  expect(ok).toBe(false);
+  expect(saved).toEqual([]);
+  expect(statuses).toEqual([
+    { kind: 'running', label: 'PDF do druku', done: 0, total: 0 },
+    { kind: 'running', label: 'PDF do druku', done: 1, total: 2 },
+  ]);
+});
+
+test('a build stopped by the cancel is not reported or logged as a failure', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const controller = new AbortController();
+  const statuses: ExportStatus[] = [];
+  const task: ExportTask = {
+    label: 'PDF do druku',
+    async build(_onProgress, signal) {
+      controller.abort();
+      signal.throwIfAborted();
+      return [];
+    },
+  };
+  const ok = await runExport(task, (s) => statuses.push(s), () => {}, controller.signal);
+  expect(ok).toBe(false);
+  expect(statuses.map((s) => s.kind)).toEqual(['running']);
+  expect(error).not.toHaveBeenCalled();
+  error.mockRestore();
+});
+
 test('progress text', () => {
   expect(exportProgressText({ kind: 'running', label: 'PDF do druku', done: 3, total: 10 })).toBe('PDF do druku: 3 z 10');
   expect(exportProgressText({ kind: 'running', label: 'PDF do druku', done: 0, total: 0 })).toBe('PDF do druku: przygotowanie…');

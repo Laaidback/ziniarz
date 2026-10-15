@@ -24,6 +24,8 @@ export interface SheetsPdfJob {
   settings: PrintSettings;
   dpi?: number;
   onProgress?: (done: number, total: number) => void;
+  /** Stops the build (it rejects) before the next sheet side or page. */
+  signal?: AbortSignal;
 }
 
 /** Imposed sheets for home duplex printing. Sheets are rendered one at a time to keep memory low. */
@@ -42,6 +44,7 @@ export async function buildSheetsPdf(job: SheetsPdfJob): Promise<PdfFile[]> {
     const pdf = await PDFDocument.create();
     pdf.setTitle(zine.title);
     for (const { side, rotate180 } of group.sides) {
+      job.signal?.throwIfAborted();
       const canvas = renderSheetSide(zine, side, assets, layout, {
         dpi,
         cropMarks: settings.cropMarks,
@@ -64,6 +67,8 @@ export interface PagesPdfJob {
   bleed: boolean;
   dpi?: number;
   onProgress?: (done: number, total: number) => void;
+  /** Stops the build (it rejects) before the next sheet side or page. */
+  signal?: AbortSignal;
 }
 
 /** A5 pages in reading order, unscaled, for review or sending. */
@@ -78,6 +83,7 @@ export async function buildPagesPdf(job: PagesPdfJob): Promise<PdfFile> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(zine.title);
   for (let page = 1; page <= total; page++) {
+    job.signal?.throwIfAborted();
     const canvas = renderPage(zine, page, assets, { pxPerMm: mmToPx(dpi), bleed: job.bleed });
     const image = await pdf.embedJpg(await canvasToBytes(canvas, 'image/jpeg', JPEG_QUALITY));
     releaseCanvas(canvas);

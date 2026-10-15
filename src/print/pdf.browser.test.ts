@@ -47,3 +47,22 @@ test('test page prints as two sheets, front and back', async () => {
   const files = await buildSheetsPdf({ zine, assets, settings: zine.print, dpi });
   expect(await pagesOf(files[0].bytes)).toHaveLength(4);
 });
+
+test('a cancelled build stops before the next sheet side or page', async () => {
+  const zine = createZine('Lato', 3);
+  const cancelAfterFirst = () => {
+    const controller = new AbortController();
+    const progress: number[] = [];
+    const onProgress = (done: number) => {
+      progress.push(done);
+      controller.abort();
+    };
+    return { signal: controller.signal, onProgress, progress };
+  };
+  const sheets = cancelAfterFirst();
+  await expect(buildSheetsPdf({ zine, assets, settings: zine.print, dpi, ...sheets })).rejects.toThrow();
+  expect(sheets.progress).toEqual([1]);
+  const pages = cancelAfterFirst();
+  await expect(buildPagesPdf({ zine, assets, bleed: true, dpi, ...pages })).rejects.toThrow();
+  expect(pages.progress).toEqual([1]);
+});

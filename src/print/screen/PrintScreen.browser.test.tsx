@@ -5,7 +5,7 @@ import type { Zine } from '../../model/types';
 import { openScreen } from '../../test/screenHarness';
 import type { PdfExporter } from '../exporter';
 import { EXPORT_FAILED } from '../exportRunner';
-import { buildPagesPdf, buildSheetsPdf, type PdfFile } from '../pdf';
+import { buildPagesPdf, buildSheetsPdf, type PdfFile, type SheetsPdfJob } from '../pdf';
 import { PRINTER_MARGIN_KEY } from '../printerMargin';
 import { PrintScreen } from './PrintScreen';
 
@@ -117,4 +117,25 @@ test('the test page and the pages PDF', async () => {
   await screen.getByRole('button', { name: 'Pobierz PDF stronami' }).click();
   await expect.element(screen.getByText('Pobrano: lato-strony.pdf')).toBeVisible();
   expect(await pageCountOf(saved[1])).toBe(8);
+});
+
+test('leaving the screen cancels a running export, which never downloads later', async () => {
+  const zine = createZine('Lato', 1);
+  let job: SheetsPdfJob | undefined;
+  let finish = () => {};
+  const { exporter, saved } = testExporter({
+    sheets: (started) => {
+      job = started;
+      return new Promise((resolve) => (finish = () => resolve(buildSheetsPdf({ ...started, signal: undefined, dpi: 20 }))));
+    },
+  });
+  const { screen } = await openPrint(zine, exporter);
+  await screen.getByRole('button', { name: 'Pobierz PDF do druku' }).click();
+  await expect.poll(() => job).toBeDefined();
+  expect(job!.signal?.aborted).toBe(false);
+  screen.unmount();
+  expect(job!.signal?.aborted).toBe(true);
+  finish();
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  expect(saved).toEqual([]);
 });
