@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDb } from '../../app/dbContext';
 import { LoadFailed } from '../../app/LoadFailed';
 import { errorMessage, notify } from '../../app/notices';
+import { onPageHide } from '../../app/onPageHide';
 import { routeHash } from '../../app/route';
 import { useZineView } from '../../app/useZineView';
 import { createAutosaver } from '../../editor/state/autosave';
@@ -41,12 +42,20 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
   const lastTask = useRef<ExportTask | null>(null);
   const layout = useMemo(() => printLayout(settings), [settings]);
 
-  // The zine's content never changes here; only its print settings are saved (500 ms after a change, at once on leaving).
+  // The zine's content never changes here; only its print settings are saved
+  // (500 ms after a change, at once on leaving the screen or hiding the tab).
   const saver = useMemo(
     () => createAutosaver((next) => saveZine(db, next), { onError: (error) => notify(errorMessage(error)) }),
     [db],
   );
-  useEffect(() => () => void saver.flush(), [saver]);
+  useEffect(() => {
+    const saveNow = () => void saver.flush();
+    const stopListening = onPageHide(saveNow);
+    return () => {
+      stopListening();
+      saveNow();
+    };
+  }, [saver]);
 
   // Leaving the screen cancels a running export, so it never downloads later in another screen.
   const alive = useRef<AbortController | null>(null);

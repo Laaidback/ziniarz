@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
+import { onPageHide } from '../app/onPageHide';
 import { routeHash } from '../app/route';
 import type { FontChoice } from '../fonts/fontChoices';
 import { releaseRenderAssets, type RenderAssets } from '../render/assets';
@@ -34,13 +35,10 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
       if (state.history.present !== previous.history.present) saver.schedule(state.history.present);
     });
     const saveNow = () => void saver.flush();
-    const saveWhenHidden = () => document.visibilityState === 'hidden' && saveNow();
-    window.addEventListener('pagehide', saveNow);
-    document.addEventListener('visibilitychange', saveWhenHidden);
+    const stopListening = onPageHide(saveNow);
     return () => {
       unsubscribe();
-      window.removeEventListener('pagehide', saveNow);
-      document.removeEventListener('visibilitychange', saveWhenHidden);
+      stopListening();
       saveNow();
     };
   }, [env.db, env.store]);

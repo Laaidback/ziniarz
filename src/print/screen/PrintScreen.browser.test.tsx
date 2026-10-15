@@ -181,3 +181,20 @@ test('while the print screen is open it holds the open-zine lock', async () => {
   screen.unmount();
   await expect.poll(() => openZineLockHeld(db.name)).toBe(false);
 });
+
+test('hiding the page saves the print options at once, without waiting for autosave', async () => {
+  const zine = createZine('Lato', 1);
+  const { screen, stored } = await openPrint(zine, testExporter().exporter);
+  await screen.getByRole('checkbox', { name: 'Linie cięcia' }).click();
+  window.dispatchEvent(new Event('pagehide'));
+  await expect.poll(async () => (await stored()).print.cropMarks, { timeout: 250, interval: 20 }).toBe(false);
+
+  await screen.getByRole('checkbox', { name: 'Linia zgięcia' }).click();
+  const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  try {
+    document.dispatchEvent(new Event('visibilitychange'));
+    await expect.poll(async () => (await stored()).print.foldMarks, { timeout: 250, interval: 20 }).toBe(false);
+  } finally {
+    visibility.mockRestore();
+  }
+});
