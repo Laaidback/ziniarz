@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { printLayout } from '../imposition/layout';
 import { DEFAULT_PRINT } from '../model/factory';
-import { previewSheets, printReminders, sideCaption, trimSizeText } from './printTexts';
+import { fileDownloadText, previewSheets, printReminders, sideCaption, trimSizeText } from './printTexts';
 
 test('the preview lists every sheet with its front and back', () => {
   const sheets = previewSheets(5);
@@ -28,4 +28,10 @@ test('reminders: actual size always, the duplex flip that fits the settings', ()
   const manual = printReminders({ ...DEFAULT_PRINT, duplex: 'manual' });
   expect(manual[1]).toContain('z przodami');
   expect(manual[1]).toContain('z tyłami');
+});
+
+test('download buttons of ready files name the part and the file', () => {
+  expect(fileDownloadText('lato-przody.pdf')).toBe('Pobierz przody (lato-przody.pdf)');
+  expect(fileDownloadText('lato-tyly.pdf')).toBe('Pobierz tyły (lato-tyly.pdf)');
+  expect(fileDownloadText('lato-druk.pdf')).toBe('Pobierz lato-druk.pdf');
 });

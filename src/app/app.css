@@ -484,6 +484,12 @@ select {
   width: 100%;
 }
 
+.export-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .export-error {
   padding: 8px;
   border-radius: 6px;

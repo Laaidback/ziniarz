@@ -40,3 +40,10 @@ export function printReminders(settings: PrintSettings): string[] {
   const edge = settings.rotateBacks ? 'dłuższej' : 'krótszej';
   return [actualSize, `Druk dwustronny: wybierz „odwracanie po ${edge} krawędzi”.`];
 }
+
+/** Button text for one of several ready files (manual duplex: fronts and backs). */
+export function fileDownloadText(name: string): string {
+  if (name.endsWith('-przody.pdf')) return `Pobierz przody (${name})`;
+  if (name.endsWith('-tyly.pdf')) return `Pobierz tyły (${name})`;
+  return `Pobierz ${name}`;
+}

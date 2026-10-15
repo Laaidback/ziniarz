@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { createZine } from '../../model/factory';
 import type { Zine } from '../../model/types';
 import { openScreen } from '../../test/screenHarness';
@@ -69,17 +69,51 @@ test('automatic duplex downloads one PDF with every sheet side', async () => {
   expect(await pageCountOf(saved[0])).toBe(10);
 });
 
-test('manual duplex: backs reversed by default, two PDFs, a different reminder', async () => {
+test('manual duplex: backs reversed by default, a different reminder, two PDFs downloaded by a click each', async () => {
   const zine = createZine('Lato', 3);
   const { exporter, saved } = testExporter();
   const { screen, stored } = await openPrint(zine, exporter);
   await screen.getByRole('radio', { name: /ręcznie/ }).click();
   await expect.element(screen.getByRole('checkbox', { name: 'Tyły w odwrotnej kolejności' })).toBeChecked();
   await expect.element(screen.getByText(/wydrukuj plik z tyłami/)).toBeVisible();
-  await screen.getByRole('button', { name: 'Pobierz PDF-y do druku (przody i tyły)' }).click();
-  await expect.element(screen.getByText('Pobrano: lato-przody.pdf, lato-tyly.pdf')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Przygotuj stronę próbną (przody i tyły)' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Przygotuj PDF-y do druku (przody i tyły)' }).click();
+  await expect.element(screen.getByText('PDF do druku: gotowe. Pobierz każdy plik osobno.')).toBeVisible();
+  expect(saved).toEqual([]); // both files are built, nothing is downloaded without a click
+
+  await screen.getByRole('button', { name: 'Pobierz przody (lato-przody.pdf)' }).click();
+  expect(saved.map((f) => f.name)).toEqual(['lato-przody.pdf']);
+  await screen.getByRole('button', { name: 'Pobierz tyły (lato-tyly.pdf)' }).click();
+  expect(saved.map((f) => f.name)).toEqual(['lato-przody.pdf', 'lato-tyly.pdf']);
+  await expect.element(screen.getByText('Pobrano').nth(1)).toBeVisible();
   expect(await Promise.all(saved.map(pageCountOf))).toEqual([3, 3]);
   await expect.poll(async () => (await stored()).print.duplex).toBe('manual');
+});
+
+test('manual duplex: a download that fails names its file and can be clicked again', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const zine = createZine('Lato', 1);
+  const saved: string[] = [];
+  let blocked = true;
+  const { exporter } = testExporter({
+    save: (file) => {
+      if (blocked && file.name === 'lato-tyly.pdf') throw new Error('download blocked');
+      saved.push(file.name);
+    },
+  });
+  const { screen } = await openPrint(zine, exporter);
+  await screen.getByRole('radio', { name: /ręcznie/ }).click();
+  await screen.getByRole('button', { name: 'Przygotuj PDF-y do druku (przody i tyły)' }).click();
+  await screen.getByRole('button', { name: 'Pobierz przody (lato-przody.pdf)' }).click();
+  await screen.getByRole('button', { name: 'Pobierz tyły (lato-tyly.pdf)' }).click();
+  await expect
+    .element(screen.getByRole('alert'))
+    .toHaveTextContent('Nie udało się pobrać pliku lato-tyly.pdf. Spróbuj jeszcze raz.');
+  blocked = false;
+  await screen.getByRole('button', { name: 'Pobierz tyły (lato-tyly.pdf)' }).click();
+  await expect.element(screen.getByRole('alert')).not.toBeInTheDocument();
+  expect(saved).toEqual(['lato-przody.pdf', 'lato-tyly.pdf']);
+  error.mockRestore();
 });
 
 test('a failed export downloads nothing, says so and can be retried', async () => {

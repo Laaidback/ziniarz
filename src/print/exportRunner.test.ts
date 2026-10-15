@@ -1,10 +1,17 @@
 import { expect, test, vi } from 'vitest';
-import { EXPORT_FAILED, exportProgressText, runExport, type ExportStatus, type ExportTask } from './exportRunner';
+import {
+  EXPORT_FAILED,
+  exportProgressText,
+  runExport,
+  saveReadyFile,
+  type ExportStatus,
+  type ExportTask,
+} from './exportRunner';
 import type { PdfFile } from './pdf';
 
 const file = (name: string): PdfFile => ({ name, bytes: new Uint8Array([1]) });
 
-test('reports progress, then hands over every file at the end', async () => {
+test('reports progress, then saves a single file at once', async () => {
   const statuses: ExportStatus[] = [];
   const saved: string[] = [];
   const task: ExportTask = {
@@ -13,18 +20,53 @@ test('reports progress, then hands over every file at the end', async () => {
       onProgress(1, 2);
       expect(saved).toEqual([]); // nothing is downloaded while building
       onProgress(2, 2);
-      return [file('a-przody.pdf'), file('a-tyly.pdf')];
+      return [file('a-druk.pdf')];
     },
   };
   const ok = await runExport(task, (s) => statuses.push(s), (f) => saved.push(f.name));
   expect(ok).toBe(true);
-  expect(saved).toEqual(['a-przody.pdf', 'a-tyly.pdf']);
+  expect(saved).toEqual(['a-druk.pdf']);
   expect(statuses).toEqual([
     { kind: 'running', label: 'PDF do druku', done: 0, total: 0 },
     { kind: 'running', label: 'PDF do druku', done: 1, total: 2 },
     { kind: 'running', label: 'PDF do druku', done: 2, total: 2 },
-    { kind: 'finished', label: 'PDF do druku', files: ['a-przody.pdf', 'a-tyly.pdf'] },
+    { kind: 'finished', label: 'PDF do druku', files: ['a-druk.pdf'] },
   ]);
+});
+
+test('several files are only offered once all are built; each one is downloaded by its own click', async () => {
+  const statuses: ExportStatus[] = [];
+  const saved: string[] = [];
+  const files = [file('a-przody.pdf'), file('a-tyly.pdf')];
+  const task: ExportTask = { label: 'PDF do druku', build: async () => files };
+  const ok = await runExport(task, (s) => statuses.push(s), (f) => saved.push(f.name));
+  expect(ok).toBe(true);
+  expect(saved).toEqual([]);
+  const ready = statuses.at(-1)!;
+  expect(ready).toEqual({ kind: 'ready', label: 'PDF do druku', files, saved: [], saveFailed: null });
+  if (ready.kind !== 'ready') throw new Error('not ready');
+
+  const afterBacks = saveReadyFile(ready, files[1], (f) => saved.push(f.name));
+  expect(afterBacks).toMatchObject({ saved: ['a-tyly.pdf'], saveFailed: null });
+  const again = saveReadyFile(afterBacks, files[1], (f) => saved.push(f.name));
+  expect(again.saved).toEqual(['a-tyly.pdf']); // a second click downloads again, listed once
+  expect(saved).toEqual(['a-tyly.pdf', 'a-tyly.pdf']);
+});
+
+test('a ready file whose download throws says which one, and a later click can retry', () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const files = [file('a-przody.pdf'), file('a-tyly.pdf')];
+  const ready = { kind: 'ready', label: 'PDF do druku', files, saved: ['a-przody.pdf'], saveFailed: null } as const;
+  const failed = saveReadyFile({ ...ready, saved: [...ready.saved] }, files[1], () => {
+    throw new Error('download blocked');
+  });
+  expect(failed).toMatchObject({ saved: ['a-przody.pdf'], saveFailed: 'a-tyly.pdf' });
+  expect(error).toHaveBeenCalled();
+  expect(saveReadyFile(failed, files[1], () => {})).toMatchObject({
+    saved: ['a-przody.pdf', 'a-tyly.pdf'],
+    saveFailed: null,
+  });
+  error.mockRestore();
 });
 
 test('a failure part way saves nothing and says so', async () => {
@@ -47,7 +89,7 @@ test('a failure part way saves nothing and says so', async () => {
 test('a save that throws reports failure instead of staying running', async () => {
   const error = vi.spyOn(console, 'error').mockImplementation(() => {});
   const statuses: ExportStatus[] = [];
-  const task: ExportTask = { label: 'PDF do druku', build: async () => [file('a.pdf'), file('b.pdf')] };
+  const task: ExportTask = { label: 'PDF do druku', build: async () => [file('a.pdf')] };
   const ok = await runExport(task, (s) => statuses.push(s), () => {
     throw new Error('download blocked');
   });

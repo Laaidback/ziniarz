@@ -1,6 +1,15 @@
-import { EXPORT_FAILED, exportProgressText, type ExportStatus } from '../exportRunner';
+import { EXPORT_FAILED, exportProgressText, readyFailedText, type ExportStatus } from '../exportRunner';
+import type { PdfFile } from '../pdf';
+import { fileDownloadText } from '../printTexts';
 
-export function ExportStatusView({ status, onRetry }: { status: ExportStatus; onRetry(): void }) {
+interface Props {
+  status: ExportStatus;
+  onRetry(): void;
+  /** Downloads one of several ready files. */
+  onSave(file: PdfFile): void;
+}
+
+export function ExportStatusView({ status, onRetry, onSave }: Props) {
   switch (status.kind) {
     case 'idle':
       return null;
@@ -18,6 +27,25 @@ export function ExportStatusView({ status, onRetry }: { status: ExportStatus; on
           <button type="button" onClick={onRetry}>
             Spróbuj jeszcze raz
           </button>
+        </div>
+      );
+    case 'ready':
+      return (
+        <div className="export-status export-ready">
+          <span>{status.label}: gotowe. Pobierz każdy plik osobno.</span>
+          {status.files.map((file) => (
+            <span key={file.name} className="export-file">
+              <button type="button" onClick={() => onSave(file)}>
+                {fileDownloadText(file.name)}
+              </button>
+              {status.saved.includes(file.name) && <span className="muted">Pobrano</span>}
+            </span>
+          ))}
+          {status.saveFailed && (
+            <span className="export-error" role="alert">
+              {readyFailedText(status.saveFailed)}
+            </span>
+          )}
         </div>
       );
     case 'finished':

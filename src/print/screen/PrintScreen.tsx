@@ -10,7 +10,8 @@ import type { PrintSettings, Zine } from '../../model/types';
 import type { RenderAssets } from '../../render/assets';
 import { saveZine } from '../../storage/db';
 import { browserPdfExporter, type PdfExporter } from '../exporter';
-import { runExport, type ExportStatus, type ExportTask } from '../exportRunner';
+import { runExport, saveReadyFile, type ExportStatus, type ExportTask } from '../exportRunner';
+import type { PdfFile } from '../pdf';
 import { loadPrinterMargin, printSettingsFor, savePrinterMargin } from '../printerMargin';
 import { printReminders, trimSizeText } from '../printTexts';
 import { testPageInstructions, testPageZine } from '../testPage';
@@ -67,6 +68,10 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
     if (!alive.current || alive.current.signal.aborted) return;
     void runExport(task, setStatus, (file) => exporter.save(file), alive.current.signal);
   };
+  // Each of several ready files is downloaded by its own click.
+  const saveReady = (file: PdfFile) => {
+    if (status.kind === 'ready') setStatus(saveReadyFile(status, file, (f) => exporter.save(f)));
+  };
   const busy = status.kind === 'running';
   const manual = settings.duplex === 'manual';
 
@@ -103,7 +108,7 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
               })
             }
           >
-            {manual ? 'Pobierz PDF-y do druku (przody i tyły)' : 'Pobierz PDF do druku'}
+            {manual ? 'Przygotuj PDF-y do druku (przody i tyły)' : 'Pobierz PDF do druku'}
           </button>
           <button
             type="button"
@@ -120,7 +125,11 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
             Pobierz PDF stronami
           </button>
           <span className="muted">Strony A5 po kolei, do przejrzenia albo wysłania.</span>
-          <ExportStatusView status={status} onRetry={() => lastTask.current && run(lastTask.current)} />
+          <ExportStatusView
+            status={status}
+            onRetry={() => lastTask.current && run(lastTask.current)}
+            onSave={saveReady}
+          />
         </section>
 
         <section className="panel">
@@ -139,7 +148,7 @@ function PrintWorkspace({ zine, assets, exporter }: WorkspaceProps) {
               })
             }
           >
-            Pobierz stronę próbną
+            {manual ? 'Przygotuj stronę próbną (przody i tyły)' : 'Pobierz stronę próbną'}
           </button>
           <ul className="test-page-help" aria-label="Jak sprawdzić stronę próbną">
             {testPageInstructions().map((line) => (
