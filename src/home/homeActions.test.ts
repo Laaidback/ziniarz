@@ -11,6 +11,7 @@ import {
   exportZinFile,
   importZinFile,
   listZinesForHome,
+  missingPhotosText,
   removeZine,
 } from './homeActions';
 
@@ -70,9 +71,23 @@ test('a saved .zin file reads back as a new zine with its photos', async () => {
   await putImage(db, { id: 'img', mime: 'image/png', width: 1, height: 1, data: new Uint8Array([1, 2]).buffer });
   const file = await exportZinFile(db, zine);
   expect(file.name).toBe('moj-zin.zin');
+  expect(file.missingImages).toBe(0);
   const other = await freshDb();
   const imported = await importZinFile(other, file.blob);
   expect(imported.id).not.toBe(zine.id);
   expect(imported.title).toBe('Mój zin');
   expect(await loadZine(other, imported.id)).toBeDefined();
+});
+
+test('a zine with a photo missing from the browser still saves to a .zin, and says how many are missing', async () => {
+  const db = await freshDb();
+  const zine = createZine('Dziurawy', 1);
+  zine.spreads[1].elements.push(createPhotoElement('gone'));
+  await saveZine(db, zine);
+  const file = await exportZinFile(db, zine);
+  expect(file.missingImages).toBe(1);
+  expect(missingPhotosText(file.missingImages)).toBe('Brakuje 1 zdjęcia — w pliku będą puste ramki.');
+  expect(missingPhotosText(3)).toBe('Brakuje 3 zdjęć — w pliku będą puste ramki.');
+  const imported = await importZinFile(await freshDb(), file.blob);
+  expect(imported.spreads[1].elements).toHaveLength(1);
 });

@@ -7,7 +7,7 @@ import { routeHash } from '../app/route';
 import type { Zine } from '../model/types';
 import { renderCoverThumbnail } from './coverThumbnail';
 import { downloadBlob } from './download';
-import { duplicateZine, exportZinFile, removeZine } from './homeActions';
+import { duplicateZine, exportZinFile, missingPhotosText, removeZine } from './homeActions';
 
 export function ZineCard({ zine, onChanged }: { zine: Zine; onChanged(): void }) {
   const db = useDb();
@@ -34,6 +34,7 @@ export function ZineCard({ zine, onChanged }: { zine: Zine; onChanged(): void })
   const save = async () => {
     const file = await exportZinFile(db, zine);
     downloadBlob(file.name, file.blob);
+    if (file.missingImages > 0) notify(missingPhotosText(file.missingImages));
   };
 
   const pages = 4 * zine.sheets;

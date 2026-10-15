@@ -1,3 +1,4 @@
+import { countOf } from '../app/plural';
 import { createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import { parseZine } from '../model/parse';
@@ -56,10 +57,18 @@ export async function removeZine(db: ZiniarzDb, id: string): Promise<void> {
   await deleteZine(db, id);
 }
 
-export async function exportZinFile(db: ZiniarzDb, zine: Zine): Promise<{ name: string; blob: Blob }> {
-  const bytes = await writeZin(await bundleFromDb(db, zine.id));
+/** The .zin file of a zine; `missingImages` counts photos missing from the browser, left out as empty frames. */
+export async function exportZinFile(db: ZiniarzDb, zine: Zine): Promise<{ name: string; blob: Blob; missingImages: number }> {
+  const { bundle, missingImages } = await bundleFromDb(db, zine.id);
+  const bytes = await writeZin(bundle);
   // JSZip returns a Uint8Array over a plain ArrayBuffer.
-  return { name: `${fileSlug(zine.title)}.zin`, blob: new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' }) };
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/zip' });
+  return { name: `${fileSlug(zine.title)}.zin`, blob, missingImages };
+}
+
+/** "Brakuje 1 zdjęcia — w pliku będą puste ramki." */
+export function missingPhotosText(count: number): string {
+  return `Brakuje ${countOf(count, 'zdjęcia', 'zdjęć', 'zdjęć')} — w pliku będą puste ramki.`;
 }
 
 /** Reading a .zin always creates a new zine (new id); it never overwrites one. */

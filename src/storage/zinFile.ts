@@ -101,10 +101,7 @@ export async function readZin(data: Uint8Array | ArrayBuffer): Promise<ZinBundle
   const fontMeta = fontIndex as { families: FontFamily[]; files: Omit<FontFile, 'data'>[] };
   assertShape(fontMeta.families.every((f) => isRecord(f) && typeof f.id === 'string'));
   assertShape(fontMeta.files.every((f) => isRecord(f) && typeof f.id === 'string' && typeof f.familyId === 'string'));
-  const listedImages = new Set(imageMeta.map((m) => m.id));
-  for (const id of imageIdsOfZine(zine)) {
-    if (!listedImages.has(id)) throw new ZinFileError('Plik zina jest niekompletny (brakuje zdjęć).');
-  }
+  // Photos of the zine that the file does not list were missing when it was saved: they draw as empty frames.
 
   const missing = 'Plik zina jest niekompletny.';
   const images = await Promise.all(
@@ -118,14 +115,19 @@ export async function readZin(data: Uint8Array | ArrayBuffer): Promise<ZinBundle
   return { zine: { ...zine, id: newId(), fonts }, images, fontFamilies: fontMeta.families, fontFiles };
 }
 
-export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<ZinBundle> {
+/**
+ * The zine with its photos and fonts, ready for writeZin. Photos missing from the browser are left
+ * out (counted in `missingImages`), so one lost photo never blocks the backup; they draw as empty frames.
+ */
+export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<{ bundle: ZinBundle; missingImages: number }> {
   const zine = await loadZine(db, zineId);
   if (!zine) throw new ZinFileError('Nie znaleziono zina.');
   const images: StoredImage[] = [];
+  let missingImages = 0;
   for (const id of imageIdsOfZine(zine)) {
     const image = await getImage(db, id);
-    if (!image) throw new ZinFileError('Brakuje zdjęć tego zina w przeglądarce. Nie da się zapisać pliku.');
-    images.push(image);
+    if (image) images.push(image);
+    else missingImages++;
   }
   const fontFamilies: FontFamily[] = [];
   const fontFiles: FontFile[] = [];
@@ -135,7 +137,7 @@ export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<ZinBu
     fontFamilies.push(family);
     fontFiles.push(...(await fontFilesOfFamily(db, familyId)));
   }
-  return { zine, images, fontFamilies, fontFiles };
+  return { bundle: { zine, images, fontFamilies, fontFiles }, missingImages };
 }
 
 /**

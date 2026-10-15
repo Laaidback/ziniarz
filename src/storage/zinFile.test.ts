@@ -52,9 +52,15 @@ describe('writeZin / readZin', () => {
     await expect(readZin(await zip.generateAsync({ type: 'uint8array' }))).rejects.toThrow(ZinFileError);
   });
 
-  test('rejects a file with missing images', async () => {
+  test('accepts a file without some photos of its zine: those frames stay empty', async () => {
     const bundle = { ...sampleBundle(), images: [] };
-    await expect(readZin(await writeZin(bundle))).rejects.toThrow('brakuje zdjęć');
+    const read = await readZin(await writeZin(bundle));
+    expect(read.images).toEqual([]);
+    expect(read.zine.spreads[1].elements).toEqual(bundle.zine.spreads[1].elements);
+  });
+
+  test('a photo listed in the index but missing from the file is still corrupt', async () => {
+    await expect(readZin(await zipWith({ 'images/img': null }))).rejects.toThrow(ZinFileError);
   });
 
   async function zipWith(overrides: Record<string, string | null>): Promise<Uint8Array> {
@@ -116,8 +122,9 @@ describe('database bundles', () => {
     await putFontFile(source, bundle.fontFiles[0]);
 
     const exported = await bundleFromDb(source, bundle.zine.id);
+    expect(exported.missingImages).toBe(0);
     const target = await openZiniarzDb(`test-${newId()}`);
-    const imported = await importBundle(target, await readZin(await writeZin(exported)));
+    const imported = await importBundle(target, await readZin(await writeZin(exported.bundle)));
 
     expect(await loadZine(target, imported.id)).toEqual(imported);
     expect(await getImage(target, 'img')).toBeDefined();
@@ -162,11 +169,16 @@ describe('database bundles', () => {
     expect(await loadZine(db, imported.id)).toEqual(imported);
   });
 
-  test('export fails with a Polish error when images are missing from the database', async () => {
+  test('export leaves out photos missing from the database and counts them', async () => {
     const db = await openZiniarzDb(`test-${newId()}`);
     const bundle = sampleBundle();
+    bundle.zine.spreads[1].elements.push(createPhotoElement('kept'), createPhotoElement('gone-too'));
     await saveZine(db, bundle.zine);
-    await expect(bundleFromDb(db, bundle.zine.id)).rejects.toThrow(ZinFileError);
-    await expect(bundleFromDb(db, bundle.zine.id)).rejects.toThrow('Brakuje zdjęć');
+    await putImage(db, { ...bundle.images[0], id: 'kept' });
+    const exported = await bundleFromDb(db, bundle.zine.id);
+    expect(exported.missingImages).toBe(2);
+    expect(exported.bundle.images.map((i) => i.id)).toEqual(['kept']);
+    const read = await readZin(await writeZin(exported.bundle));
+    expect(read.images.map((i) => i.id)).toEqual(['kept']);
   });
 });
