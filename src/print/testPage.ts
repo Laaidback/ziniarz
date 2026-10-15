@@ -1,6 +1,6 @@
 import { sheetSides } from '../imposition/imposition';
 import { createTextElement, createZine } from '../model/factory';
-import { pageRect, PAGE_WIDTH, slotOfPage } from '../model/geometry';
+import { pageRect, PAGE_HEIGHT, PAGE_WIDTH, slotOfPage } from '../model/geometry';
 import type { Zine } from '../model/types';
 
 const SHEETS = 2;
@@ -11,11 +11,11 @@ export function testPageInstructions(): string[] {
     .filter((s) => s.face === 'back')
     .map((s) => `${s.left} | ${s.right}`);
   return [
-    'Złóż obie kartki na pół, kartka 2 w środku: strony mają iść od 1 do 8 i stać „↑ góra”.',
+    'Wytnij obie kartki po liniach cięcia i złóż na pół na znaczniku zgięcia, kartka 2 w środku: ' +
+      'strony mają iść od 1 do 8 i stać „↑ góra”.',
     '• Tył do góry nogami? Włącz „Obróć tyły o 180°”.',
     `• Na tyle kartki 1 mają być strony ${backs[0]}, na tyle kartki 2: ${backs[1]}. ` +
       'Przód i tył kartki pokazują różne numery kartki? Przełącz „tyły w odwrotnej kolejności”.',
-    '• Coś ważnego ucięte przy krawędzi kartki? Zwiększ margines drukarki.',
   ];
 }
 
@@ -34,19 +34,27 @@ export function testPageZine(): Zine {
       const slot = slotOfPage(page);
       const x = pageRect(slot.side, 0).x;
       zine.spreads[slot.spread].elements.push(
-        createTextElement({ text: `${page}\n↑ góra`, size: 72, align: 'center', x, y: 45, width: PAGE_WIDTH, lineHeight: 1 }),
-        createTextElement({ text: label, size: 16, align: 'center', x, y: 110, width: PAGE_WIDTH }),
+        createTextElement({
+          text: `${page}\n↑ góra`,
+          size: 48,
+          align: 'center',
+          x,
+          y: PAGE_HEIGHT * 0.12,
+          width: PAGE_WIDTH,
+          lineHeight: 1,
+        }),
+        createTextElement({ text: label, size: 11, align: 'center', x, y: PAGE_HEIGHT * 0.45, width: PAGE_WIDTH }),
       );
     }
   }
   zine.spreads[0].elements.push(
     createTextElement({
       text: testPageInstructions().join('\n'),
-      size: 9,
+      size: 7,
       align: 'left',
-      x: PAGE_WIDTH + 10,
-      y: 135,
-      width: PAGE_WIDTH - 20,
+      x: PAGE_WIDTH + 8,
+      y: PAGE_HEIGHT * 0.55,
+      width: PAGE_WIDTH - 16,
     }),
   );
   return zine;

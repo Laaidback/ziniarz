@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { sheetSides } from '../imposition/imposition';
-import { pageCount, slotOfPage } from '../model/geometry';
+import { pageCount, pageRect, PAGE_WIDTH, slotOfPage } from '../model/geometry';
 import type { TextElement } from '../model/types';
 import { testPageInstructions, testPageZine } from './testPage';
 
@@ -33,11 +33,24 @@ test('instructions name the backs that come from the imposition', () => {
   }
   expect(all).toContain('„Obróć tyły o 180°”');
   expect(all).toContain('„tyły w odwrotnej kolejności”');
-  expect(all).toContain('margines drukarki');
+  expect(all).not.toContain('margines drukarki');
+  expect(all).toContain('liniach cięcia');
+  expect(all).toContain('zgięcia');
 });
 
 test('the cover prints the same instructions the print screen shows', () => {
   const lines = testPageInstructions();
-  expect(lines).toHaveLength(4);
+  expect(lines).toHaveLength(3);
   expect(texts(testPageZine()).map((e) => e.text)).toContain(lines.join('\n'));
+});
+
+test('every text frame lies within its page', () => {
+  const zine = testPageZine();
+  zine.spreads.forEach((spread) => {
+    for (const e of spread.elements) {
+      const page = pageRect(e.x < PAGE_WIDTH ? 'left' : 'right', 0);
+      expect(e.x).toBeGreaterThanOrEqual(page.x);
+      expect(e.x + e.width).toBeLessThanOrEqual(page.x + page.width);
+    }
+  });
 });
