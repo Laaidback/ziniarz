@@ -17,6 +17,8 @@ npm run dev
 - `npm run test:unit`: czysta logika w Node. `npm run test:browser`: render, fonty, PDF, WebGL i komponenty React w Chromium (Vitest browser mode, okno 1280×900).
 - `npm run test:e2e`: Playwright (`e2e/`, `playwright.config.ts`) na zbudowanej apce (`vite build` + `vite preview` na porcie 4173): nowy zin 5 kartek, zdjęcie, napis, PDF do druku ma 10 stron A4 poziomo; podgląd 3D. Nie wchodzi do `npm test`.
 - `test-output/`: próbne arkusze PNG i PDF z `src/print/samples.browser.test.ts` do obejrzenia.
+- `npm run check:dist` (po `npm run build`): sprawdza, że zbudowana strona nie ma adresów od korzenia serwera (`/assets/...`) i że wszystkie pliki, do których się odwołuje, są w `dist/`. Bez tego strona pod GitHub Pages (`/<repo>/`) by się nie wczytała. Logika w `scripts/checkDist.mjs`, testy w `src/build/checkDist.test.ts`.
+- `.claude/launch.json`: serwer deweloperski dla podglądu w Claude Code (`ziniarz-dev`, port 5199).
 - `vite.config.ts` wymienia biblioteki w `optimizeDeps.include`, żeby testy w przeglądarce nie przeładowywały się w trakcie przebiegu. Każdą nową bibliotekę używaną w testach przeglądarkowych dopisz tam też.
 
 ## Struktura
@@ -41,7 +43,18 @@ npm run dev
 | `src/preview3d/` | Podgląd 3D: kartkowanie i ułożenie kartek (`book.ts`), klik, klawisze, kamera, rozdzielczość tekstur (`view.ts`) — czysta logika z testami w Node; scena three.js (`scene.ts`) i ekran (`Preview3dScreen.tsx`). |
 | `src/test/` | Pomocniki testów: piksele, sztuczny plik TTF (`sfnt.ts`), płótno edytora (`stageHarness.ts`), cały edytor (`editorHarness.tsx`), ekrany druku i 3D (`screenHarness.tsx`), panel (`panelHarness.tsx`), wybór plików (`files.ts`), sprawdzenie WebGL (`webgl.browser.test.ts`). |
 | `e2e/` | Test end-to-end Playwright (`print.spec.ts`). |
-| `scripts/` | `checkDist.mjs` (`npm run check:dist`): czy zbudowana apka działa spod dowolnej podścieżki, jak na GitHub Pages (`base: './'`, adresy tylko względne); CI w `.github/workflows/deploy.yml` robi testy, build i to sprawdzenie. |
+| `src/build/`, `scripts/` | Sprawdzenie zbudowanej strony pod podadresem: czyste funkcje (`scripts/checkDist.mjs` z typami w `checkDist.d.mts`, uruchamiane przez `npm run check:dist`) i ich testy (`src/build/checkDist.test.ts`). |
+| `.github/workflows/deploy.yml` | Publikacja: po pushu do `main` (albo ręcznie) testy → budowa → GitHub Pages. |
+| `README.md` | Opis dla właścicielki po polsku: użycie, uruchomienie, testy, publikacja. |
+
+## Publikacja
+
+- Hosting: GitHub Pages, adres `https://<user>.github.io/<repo>/`. `.github/workflows/deploy.yml` po każdym pushu do `main` (i ręcznie: Actions → Run workflow) uruchamia po kolei: `npm run typecheck`, `npm test`, `npm run test:e2e` (tylko gdy skrypt istnieje), `npm run build`, `npm run check:dist`, a potem wysyła `dist/` na Pages. Czerwony test blokuje publikację. CI używa Node 24 i akcji `checkout@v7`, `setup-node@v7`, `configure-pages@v6`, `upload-pages-artifact@v5`, `deploy-pages@v5`.
+- Wymaga w ustawieniach repo *Settings → Pages → Source: GitHub Actions*. Chromium do testów instaluje workflow (`npx playwright install --with-deps chromium`).
+- **Repo, `remote` i `push` zostały celowo niewykonane:** to publikacja publiczna i decyzja właścicielki. Instrukcja jest w `README.md`. Nie zakładaj repo ani nie pushuj bez jej polecenia.
+- Strona działa pod podadresem, więc `base` w `vite.config.ts` zostaje `'./'`, a adresy ekranów są po haszu (`#/zin/<id>`), bez routingu po stronie serwera i bez `404.html`. **Nie używaj adresów zaczynających się od `/`** (np. `/fonts/x.woff2`, `fetch('/api')`, `<img src="/logo.png">`). Zasoby importuj w kodzie (`import url from '...?url'`) albo przez `new URL('./x', import.meta.url)`; `npm run check:dist` to wyłapie.
+- Ziny są w IndexedDB przeglądarki, osobno dla każdego adresu (`localhost` i adres na GitHub Pages to dwa różne magazyny): przenosi się je plikami `.zin`.
+- Nowe wersje akcji w workflow podnoś parami (`upload-pages-artifact` razem z `deploy-pages`).
 
 ## Zasady i niezmienniki
 
