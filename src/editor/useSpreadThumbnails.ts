@@ -5,7 +5,7 @@ import { releaseCanvas } from '../render/canvasBytes';
 import { renderSpread } from '../render/renderPage';
 import { thumbnailKey } from './spreadLabels';
 
-export const THUMB_PX_PER_MM = 0.5;
+export const THUMB_PX_PER_MM = 0.7;
 const CACHE_LIMIT = 300;
 const DEBOUNCE_MS = 150;
 

@@ -10,8 +10,8 @@ test('with nothing selected: zine title and margins; typing the title is one und
   const { screen, store, zine } = await renderPanel(createZine('Lato', 1));
   await screen.getByLabelText('Tytuł').fill('Jesień');
   expect(zine().title).toBe('Jesień');
-  await screen.getByLabelText('Zewnętrzny').fill('12');
-  expect(zine().margins.outer).toBe(12);
+  await screen.getByLabelText('Zewnętrzny').fill('20');
+  expect(zine().margins.outer).toBe(20);
   store.getState().undo();
   store.getState().undo();
   expect(zine().title).toBe('Lato');

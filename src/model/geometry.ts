@@ -1,7 +1,7 @@
 import type { Frame, Margins, Side } from './types';
 
-export const PAGE_WIDTH = 148;
-export const PAGE_HEIGHT = 210;
+export const PAGE_WIDTH = 105;
+export const PAGE_HEIGHT = 148;
 export const SPREAD_WIDTH = PAGE_WIDTH * 2;
 export const BLEED = 3;
 export const MIN_SHEETS = 1;

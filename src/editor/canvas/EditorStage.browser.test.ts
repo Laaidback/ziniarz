@@ -2,6 +2,7 @@ import { userEvent } from '@vitest/browser/context';
 import type Konva from 'konva';
 import { afterEach, expect, test } from 'vitest';
 import { createPhotoElement, createTextElement, createZine } from '../../model/factory';
+import { BLEED, PAGE_HEIGHT, SPREAD_WIDTH } from '../../model/geometry';
 import { mountStage } from '../../test/stageHarness';
 import { PHOTO_ANCHORS, TEXT_ANCHORS } from './EditorStage';
 
@@ -17,7 +18,7 @@ function mount(...args: Parameters<typeof mountStage>) {
 function sample() {
   const zine = createZine('t', 1);
   const photo = createPhotoElement('missing', { x: 20, y: 40, width: 60, height: 60 });
-  const text = createTextElement({ text: 'Napis', x: 178, y: 30, width: 88, size: 24 });
+  const text = createTextElement({ text: 'Napis', x: 112, y: 30, width: 86, size: 24 });
   zine.spreads[1].elements.push(photo, text);
   return { zine, photo, text };
 }
@@ -27,9 +28,9 @@ const transformer = (stage: Konva.Stage) => stage.findOne('Transformer') as Konv
 test('the spread with its bleed fits the box, centred', () => {
   const { editor } = mount(sample().zine);
   const { scale, originX, originY } = editor.viewport();
-  expect(scale).toBeCloseTo((500 - 48) / 216, 5);
-  expect(originX).toBeCloseTo((800 - 296 * scale) / 2, 5);
-  expect(originY).toBeCloseTo((500 - 210 * scale) / 2, 5);
+  expect(scale).toBeCloseTo((500 - 48) / (PAGE_HEIGHT + 2 * BLEED), 5);
+  expect(originX).toBeCloseTo((800 - SPREAD_WIDTH * scale) / 2, 5);
+  expect(originY).toBeCloseTo((500 - PAGE_HEIGHT * scale) / 2, 5);
   const box = editor.stage.container().getBoundingClientRect();
   const point = editor.toSpreadMm(box.left + originX + 10 * scale, box.top + originY + 20 * scale);
   expect(point.x).toBeCloseTo(10, 5);
@@ -38,23 +39,23 @@ test('the spread with its bleed fits the box, centred', () => {
 
 test('clicking an element selects it and reports the page under the pointer', async () => {
   const { zine, photo } = sample();
-  const wide = createPhotoElement('missing', { x: -3, y: 100, width: 302, height: 60 });
+  const wide = createPhotoElement('missing', { x: -BLEED, y: 100, width: SPREAD_WIDTH + 2 * BLEED, height: 40 });
   zine.spreads[1].elements.push(wide);
   const { callbacks, surface, at } = mount(zine);
   await userEvent.click(surface, { position: at(50, 70) });
   expect(callbacks.select).toHaveBeenLastCalledWith(photo.id, 2);
   // A photo across both pages: the page is where it was clicked, not where its centre is.
-  await userEvent.click(surface, { position: at(250, 130) });
+  await userEvent.click(surface, { position: at(180, 120) });
   expect(callbacks.select).toHaveBeenLastCalledWith(wide.id, 3);
-  await userEvent.click(surface, { position: at(40, 130) });
+  await userEvent.click(surface, { position: at(40, 120) });
   expect(callbacks.select).toHaveBeenLastCalledWith(wide.id, 2);
 });
 
 test('clicking an empty page reports the page; clicking outside reports null', async () => {
   const { callbacks, surface, at } = mount(sample().zine);
-  await userEvent.click(surface, { position: at(100, 180) });
+  await userEvent.click(surface, { position: at(60, 130) });
   expect(callbacks.clickPage).toHaveBeenLastCalledWith(2);
-  await userEvent.click(surface, { position: at(250, 180) });
+  await userEvent.click(surface, { position: at(180, 130) });
   expect(callbacks.clickPage).toHaveBeenLastCalledWith(3);
   await userEvent.click(surface, { position: at(100, -8) });
   expect(callbacks.clickPage).toHaveBeenLastCalledWith(null);

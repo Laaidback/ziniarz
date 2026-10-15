@@ -1,6 +1,7 @@
 import { beforeEach, expect, test } from 'vitest';
 import { noticeStore } from '../app/notices';
-import { createTextElement, createZine } from '../model/factory';
+import { createTextElement, createZine, DEFAULT_MARGINS } from '../model/factory';
+import { PAGE_WIDTH, SPREAD_WIDTH } from '../model/geometry';
 import { newId } from '../model/ids';
 import type { PhotoElement } from '../model/types';
 import { measureTextHeight } from '../render/buildSpread';
@@ -29,11 +30,16 @@ async function setup() {
 
 beforeEach(() => noticeStore.setState({ notices: [] }));
 
+// Margin areas with the default margins: left page x 12…98, right page x 112…198, y 14…137.
+const LEFT_MARGIN_X = DEFAULT_MARGINS.outer;
+const RIGHT_MARGIN_X = PAGE_WIDTH + DEFAULT_MARGINS.inner;
+const MARGIN_WIDTH = PAGE_WIDTH - DEFAULT_MARGINS.outer - DEFAULT_MARGINS.inner;
+
 test('a dropped photo fills the margin area of its page, keeping proportions', async () => {
   const env = await setup();
   await insertPhotos(env, [await pngFile(200, 100)], 3);
   const photo = selectZine(env.store.getState()).spreads[1].elements[0] as PhotoElement;
-  expect(photo).toMatchObject({ kind: 'photo', x: 178, y: 83, width: 88, height: 44 });
+  expect(photo).toMatchObject({ kind: 'photo', x: RIGHT_MARGIN_X, y: 54, width: MARGIN_WIDTH, height: 43 });
   expect(await getImage(env.db, photo.imageId)).toBeDefined();
   expect(env.assets.images.get(photo.imageId)?.width).toBe(200);
   expect(env.store.getState().selectedId).toBe(photo.id);
@@ -45,8 +51,8 @@ test('several photos step aside; files that are not images are skipped with a me
   await insertPhotos(env, [await pngFile(100, 100), text, await pngFile(100, 100)], null);
   const photos = selectZine(env.store.getState()).spreads[1].elements;
   expect(photos.map((p) => [p.x, p.y])).toEqual([
-    [30, 61],
-    [35, 66],
+    [12, 32.5],
+    [17, 37.5],
   ]);
   expect(noticeStore.getState().notices.map((n) => n.text)).toEqual(['Pominięto plików: 1 (to nie są obrazy).']);
 });
@@ -55,7 +61,7 @@ test('"+ Napis" adds a frame across the margins of the clicked page, ready for t
   const { store } = await setup();
   store.getState().clickPage(3);
   insertText(store);
-  expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: 178, y: 30, width: 88 });
+  expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: RIGHT_MARGIN_X, y: DEFAULT_MARGINS.top, width: MARGIN_WIDTH });
   expect(selectedElement(store.getState())!.height).toBeGreaterThan(0);
   expect(store.getState().mode).toBe('text');
 });
@@ -63,15 +69,15 @@ test('"+ Napis" adds a frame across the margins of the clicked page, ready for t
 test('after selecting an element, "+ Napis" and photos go to the page under its centre', async () => {
   const env = await setup();
   const { store } = env;
-  const onRight = createTextElement({ text: 'b', x: 160, y: 40, width: 100 });
+  const onRight = createTextElement({ text: 'b', x: 120, y: 40, width: 60 });
   store.getState().addElement(createTextElement({ text: 'a', x: 20, y: 40, width: 50 }));
   store.getState().addElement(onRight);
   store.getState().clickPage(2);
   store.getState().select(onRight.id);
   insertText(store);
-  expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: 178 });
+  expect(selectedElement(store.getState())).toMatchObject({ kind: 'text', text: 'Napis', x: RIGHT_MARGIN_X });
   await insertPhotos(env, [await pngFile(200, 100)], null);
-  expect(selectedElement(store.getState())).toMatchObject({ kind: 'photo', x: 178 });
+  expect(selectedElement(store.getState())).toMatchObject({ kind: 'photo', x: RIGHT_MARGIN_X });
 });
 
 test('an element whose centre is off the page falls back to the first page of the spread', async () => {
@@ -80,7 +86,7 @@ test('an element whose centre is off the page falls back to the first page of th
   store.getState().addElement(outside);
   store.getState().select(outside.id);
   insertText(store);
-  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: 30 });
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: LEFT_MARGIN_X });
 });
 
 test('progress is reported per file, and an aborted insert stops before the next file', async () => {
@@ -129,11 +135,11 @@ test('HEIC photos the browser cannot read get their own message', async () => {
 
 test('after clicking the right half of a photo across the spread, "+ Napis" goes to the right page', async () => {
   const { store } = await setup();
-  const wide = createTextElement({ text: 'szeroki', x: 0, y: 40, width: 296 });
+  const wide = createTextElement({ text: 'szeroki', x: 0, y: 40, width: SPREAD_WIDTH });
   store.getState().addElement(wide);
   store.getState().clickPage(2);
   store.getState().select(wide.id, 3);
   expect(store.getState().activePage).toBe(3);
   insertText(store);
-  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: 178 });
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: RIGHT_MARGIN_X });
 });

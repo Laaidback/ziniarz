@@ -36,7 +36,7 @@ test('listZinesForHome parses stored zines, newest first, and counts unreadable 
   await db.put('zines', { ...createZine('Z przyszłości', 1), formatVersion: 99 });
   const { zines, unreadable } = await listZinesForHome(db);
   expect(zines.map((z) => z.title)).toEqual(['Nowy', 'Bez marginesów', 'Stary']);
-  expect(zines[1].margins).toEqual({ outer: 30, inner: 30, top: 30, bottom: 30 });
+  expect(zines[1].margins).toEqual({ outer: 12, inner: 7, top: 14, bottom: 11 });
   expect(unreadable).toBe(1);
 });
 

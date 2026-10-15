@@ -55,7 +55,7 @@ export interface TextElement extends Frame {
   kind: 'text';
   text: string;
   fontFamilyId: string;
-  /** Typographic points at A5 scale. */
+  /** Typographic points on the printed page. */
   size: number;
   bold: boolean;
   italic: boolean;

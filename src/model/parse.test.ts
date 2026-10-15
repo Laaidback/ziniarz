@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import { createPhotoElement, createTextElement, createZine, DEFAULT_MARGINS, DEFAULT_PRINT } from './factory';
+import {
+  createPhotoElement,
+  createTextElement,
+  createZine,
+  DEFAULT_MARGINS,
+  DEFAULT_PRINT,
+  FORMAT_VERSION,
+} from './factory';
 import { parseZine, ZineFormatError } from './parse';
 import { imageIdsOfZine } from './queries';
 
@@ -25,7 +32,7 @@ describe('parseZine', () => {
     expect(zine.print).toEqual(DEFAULT_PRINT);
     expect(zine.fonts).toEqual([]);
     expect(zine.pages).toEqual({});
-    expect(zine.formatVersion).toBe(1);
+    expect(zine.formatVersion).toBe(FORMAT_VERSION);
   });
 
   test('fills missing element fields and drops unknown elements', () => {
@@ -37,7 +44,37 @@ describe('parseZine', () => {
     ];
     const zine = parseZine(raw);
     expect(zine.spreads[1].elements).toHaveLength(1);
-    expect(zine.spreads[1].elements[0]).toMatchObject({ kind: 'text', text: 'A', size: 12, lineHeight: 1.2 });
+    expect(zine.spreads[1].elements[0]).toMatchObject({ kind: 'text', text: 'A', size: 9, lineHeight: 1.2 });
+  });
+
+  test('opens an A5 zine (format 1) converted to A6', () => {
+    const raw = roundTrip(createZine('Stary', 1));
+    raw.formatVersion = 1;
+    raw.margins = { outer: 30, inner: 30, top: 30, bottom: 30 };
+    raw.spreads[1].elements = [
+      { kind: 'text', id: 't', x: 148, y: 210, width: 148, height: 0, rotation: 0, text: 'A', size: 12 },
+    ];
+    const zine = parseZine(raw);
+    expect(zine.formatVersion).toBe(FORMAT_VERSION);
+    expect(zine.margins.outer).toBeCloseTo(30 * (105 / 148), 9);
+    expect(zine.margins.top).toBeCloseTo(30 * (148 / 210), 9);
+    const text = zine.spreads[1].elements[0];
+    expect(text.x).toBeCloseTo(105, 9);
+    expect(text.y).toBeCloseTo(148, 9);
+    expect(parseZine(roundTrip(zine))).toEqual(zine);
+  });
+
+  test('a zine without a version is an A5 zine', () => {
+    const raw = roundTrip(createZine('Stary', 1));
+    delete raw.formatVersion;
+    raw.spreads[1].elements = [{ kind: 'text', id: 't', x: 296, y: 0, width: 0, height: 0, rotation: 0, text: 'A' }];
+    expect(parseZine(raw).spreads[1].elements[0].x).toBeCloseTo(210, 9);
+  });
+
+  test('an A6 zine (format 2) is not converted again', () => {
+    const zine = createZine('Nowy', 1);
+    zine.spreads[1].elements.push(createTextElement({ x: 50, y: 60, width: 40 }));
+    expect(parseZine(roundTrip(zine)).spreads[1].elements[0]).toMatchObject({ x: 50, y: 60, width: 40 });
   });
 
   test('rejects files from a newer version', () => {

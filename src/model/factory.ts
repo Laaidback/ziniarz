@@ -2,8 +2,8 @@ import { MAX_SHEETS, MIN_SHEETS, spreadCount } from './geometry';
 import { newId } from './ids';
 import type { Margins, PhotoElement, PrintSettings, Spread, TextElement, Zine } from './types';
 
-export const FORMAT_VERSION = 1;
-export const DEFAULT_MARGINS: Margins = { outer: 30, inner: 30, top: 30, bottom: 30 };
+export const FORMAT_VERSION = 2;
+export const DEFAULT_MARGINS: Margins = { outer: 12, inner: 7, top: 14, bottom: 11 };
 export const DEFAULT_PRINT: PrintSettings = {
   printerMargin: 4,
   bleed: true,
@@ -47,12 +47,12 @@ export function createTextElement(fields: Partial<Omit<TextElement, 'kind'>> = {
     id: newId(),
     x: 0,
     y: 0,
-    width: 88,
+    width: 60,
     height: 0,
     rotation: 0,
     text: '',
     fontFamilyId: DEFAULT_FONT_FAMILY,
-    size: 12,
+    size: 9,
     bold: false,
     italic: false,
     letterSpacing: 0,
@@ -72,8 +72,8 @@ export function createPhotoElement(
     id: newId(),
     x: 0,
     y: 0,
-    width: 88,
-    height: 150,
+    width: 60,
+    height: 90,
     rotation: 0,
     crop: { offsetX: 0, offsetY: 0, zoom: 1 },
     flipX: false,

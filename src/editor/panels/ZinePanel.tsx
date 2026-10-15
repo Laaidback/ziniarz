@@ -37,7 +37,7 @@ export function ZinePanel() {
           unit="mm"
           value={margins[side]}
           min={0}
-          max={70}
+          max={45}
           onChange={(value) => store.getState().edit((z) => setMargins(z, { ...z.margins, [side]: value }), `margin:${side}`)}
         />
       ))}

@@ -41,7 +41,7 @@ test('a text frame left empty is removed', async () => {
 
 test('double-clicking a text that is not selected yet opens the text box', async () => {
   const zine = createZine('Lato', 1);
-  const text = createTextElement({ text: 'Ala', x: 178, y: 30, width: 88, size: 24 });
+  const text = createTextElement({ text: 'Ala', x: 112, y: 30, width: 86, size: 24 });
   zine.spreads[0].elements.push(text);
   const { screen } = await openInEditor(zine);
   await expect.element(screen.getByRole('heading', { name: 'Lato' })).toBeVisible();

@@ -7,7 +7,10 @@ import {
   pageRect,
   pagesOfFrame,
   pagesOfSpread,
+  PAGE_HEIGHT,
+  PAGE_WIDTH,
   slotOfPage,
+  SPREAD_WIDTH,
   spreadCount,
 } from './geometry';
 
@@ -47,9 +50,9 @@ describe('numbering', () => {
 
 describe('rectangles', () => {
   test('page rect grows by bleed on outer edges only', () => {
-    expect(pageRect('left', 3)).toEqual({ x: -3, y: -3, width: 151, height: 216 });
-    expect(pageRect('right', 3)).toEqual({ x: 148, y: -3, width: 151, height: 216 });
-    expect(pageRect('right', 0)).toEqual({ x: 148, y: 0, width: 148, height: 210 });
+    expect(pageRect('left', 3)).toEqual({ x: -3, y: -3, width: PAGE_WIDTH + 3, height: PAGE_HEIGHT + 6 });
+    expect(pageRect('right', 3)).toEqual({ x: PAGE_WIDTH, y: -3, width: PAGE_WIDTH + 3, height: PAGE_HEIGHT + 6 });
+    expect(pageRect('right', 0)).toEqual({ x: PAGE_WIDTH, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
   });
 
   test('frame bounds include rotation', () => {
@@ -62,8 +65,12 @@ describe('rectangles', () => {
 
   test('assigns a frame to the pages it overlaps', () => {
     expect(pagesOfFrame(3, frame(100, 50, 100, 50), 5)).toEqual([6, 7]);
-    expect(pagesOfFrame(3, frame(10, 50, 100, 50), 5)).toEqual([6]);
-    expect(pagesOfFrame(0, frame(10, 50, 100, 50), 5)).toEqual([]);
+    expect(pagesOfFrame(3, frame(10, 50, 80, 50), 5)).toEqual([6]);
+    expect(pagesOfFrame(0, frame(10, 50, 80, 50), 5)).toEqual([]);
     expect(pagesOfFrame(0, frame(100, 50, 100, 50), 5)).toEqual([1]);
   });
+});
+
+test('pages are A6', () => {
+  expect([PAGE_WIDTH, PAGE_HEIGHT, SPREAD_WIDTH]).toEqual([105, 148, 210]);
 });

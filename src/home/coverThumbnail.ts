@@ -5,7 +5,7 @@ import { releaseCanvas } from '../render/canvasBytes';
 import { renderPage } from '../render/renderPage';
 import { getImage, type ZiniarzDb } from '../storage/db';
 
-export const COVER_PX_PER_MM = 1.5;
+export const COVER_PX_PER_MM = 2;
 
 /** Page 1 as a PNG data URL for the zine list. Loads only the cover's photos. */
 export async function renderCoverThumbnail(db: ZiniarzDb, zine: Zine): Promise<string> {

@@ -8,12 +8,13 @@ test('targets: page edges and centres, margins, spine and other elements', () =>
   const moving = createPhotoElement('i', { x: 0, y: 0, width: 5, height: 5 });
   zine.spreads[1].elements.push(other, moving);
   const targets = snapTargets(zine, 1, moving.id);
-  expect(targets.xs).toEqual([0, 30, 40, 50, 60, 74, 118, 148, 178, 222, 266, 296]);
-  expect(targets.ys).toEqual([0, 30, 50, 55, 60, 105, 180, 210]);
+  // Pages 105 wide, spine at 105; default margins outer 12, inner 7, top 14, bottom 11.
+  expect(targets.xs).toEqual([0, 12, 40, 50, 52.5, 60, 98, 105, 112, 157.5, 198, 210]);
+  expect(targets.ys).toEqual([0, 14, 50, 55, 60, 74, 137, 148]);
 });
 
 test('the cover spread only snaps to the cover page and the spine', () => {
-  expect(snapTargets(createZine('t', 1), 0, null).xs).toEqual([148, 178, 222, 266, 296]);
+  expect(snapTargets(createZine('t', 1), 0, null).xs).toEqual([105, 112, 157.5, 198, 210]);
 });
 
 test('snapBox picks the closest edge or centre within the threshold', () => {

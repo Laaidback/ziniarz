@@ -182,7 +182,7 @@ select {
 
 .zine-cover {
   display: block;
-  aspect-ratio: 148 / 210;
+  aspect-ratio: 105 / 148;
   background: var(--paper);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
@@ -316,7 +316,7 @@ select {
 .spread-thumb img,
 .thumb-empty {
   width: 100%;
-  aspect-ratio: 302 / 216;
+  aspect-ratio: 216 / 154;
   background: var(--canvas);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }

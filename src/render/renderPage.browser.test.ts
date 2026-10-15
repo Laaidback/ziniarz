@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
-import { createPhotoElement, createTextElement, createZine } from '../model/factory';
+import { createPhotoElement, createTextElement, createZine, DEFAULT_MARGINS } from '../model/factory';
+import { PAGE_HEIGHT, PAGE_WIDTH, SPREAD_WIDTH } from '../model/geometry';
 import type { Zine } from '../model/types';
 import { expectColor, hasDarkPixel, pixel, solidBitmap, splitBitmap } from '../test/pixels';
 import type { RenderAssets } from './assets';
@@ -16,7 +17,7 @@ async function spinePhotoZine(): Promise<{ zine: Zine; assets: RenderAssets }> {
   const zine = createZine('t', 1);
   zine.pages[2] = { background: '#ff0000' };
   zine.pages[3] = { background: '#0000ff' };
-  zine.spreads[1].elements.push(createPhotoElement('green', { x: 100, y: 50, width: 96, height: 100 }));
+  zine.spreads[1].elements.push(createPhotoElement('green', { x: PAGE_WIDTH - 48, y: 50, width: 96, height: 90 }));
   return { zine, assets: { images: new Map([['green', await solidBitmap(100, 100, '#00ff00')]]) } };
 }
 
@@ -24,24 +25,24 @@ describe('renderPage', () => {
   test('left page: bleed on the outer edge, photo cut at the spine', async () => {
     const { zine, assets } = await spinePhotoZine();
     const canvas = renderPage(zine, 2, assets, { pxPerMm: PX, bleed: true });
-    expect([canvas.width, canvas.height]).toEqual([151 * PX, 216 * PX]);
+    expect([canvas.width, canvas.height]).toEqual([(PAGE_WIDTH + 3) * PX, (PAGE_HEIGHT + 6) * PX]);
     expectColor(pixel(canvas, 13 * PX, 13 * PX), RED);
     expectColor(pixel(canvas, 1, 1), RED);
-    expectColor(pixel(canvas, 143 * PX, 103 * PX), GREEN);
+    expectColor(pixel(canvas, (PAGE_WIDTH - 5) * PX, 103 * PX), GREEN);
   });
 
   test('right page continues the photo from the spine', async () => {
     const { zine, assets } = await spinePhotoZine();
     const canvas = renderPage(zine, 3, assets, { pxPerMm: PX, bleed: true });
     expectColor(pixel(canvas, 2 * PX, 103 * PX), GREEN);
-    expectColor(pixel(canvas, 142 * PX, 13 * PX), BLUE);
+    expectColor(pixel(canvas, (PAGE_WIDTH - 6) * PX, 13 * PX), BLUE);
     expectColor(pixel(canvas, canvas.width - 1, 13 * PX), BLUE);
   });
 
-  test('without bleed the page is exactly A5', async () => {
+  test('without bleed the page is exactly A6', async () => {
     const { zine, assets } = await spinePhotoZine();
     const canvas = renderPage(zine, 2, assets, { pxPerMm: PX, bleed: false });
-    expect([canvas.width, canvas.height]).toEqual([148 * PX, 210 * PX]);
+    expect([canvas.width, canvas.height]).toEqual([PAGE_WIDTH * PX, PAGE_HEIGHT * PX]);
     expectColor(pixel(canvas, 0, 0), RED);
   });
 
@@ -108,7 +109,7 @@ test('renderSpread leaves the missing half of a cover spread empty', async () =>
   const zine = createZine('t', 1);
   zine.pages[1] = { background: '#ff0000' };
   const canvas = renderSpread(zine, 0, { images: new Map() }, { pxPerMm: PX });
-  expect([canvas.width, canvas.height]).toEqual([302 * PX, 216 * PX]);
+  expect([canvas.width, canvas.height]).toEqual([(SPREAD_WIDTH + 6) * PX, (PAGE_HEIGHT + 6) * PX]);
   expectColor(pixel(canvas, 203 * PX, 103 * PX), RED);
   expect(pixel(canvas, 50 * PX, 103 * PX)[3]).toBe(0);
 });
@@ -122,22 +123,22 @@ describe('renderSpread overlays', () => {
 
   test('guides draw the blue margin line only when asked', () => {
     const zine = createZine('t', 1);
-    // Left page of spread 1: outer margin 30 mm, plus 3 mm bleed at the canvas edge.
-    const column = (30 + 3) * PX - 2;
+    // Left page of spread 1: the outer margin, plus 3 mm bleed at the canvas edge.
+    const column = (DEFAULT_MARGINS.outer + 3) * PX - 2;
     const plain = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX });
     const withGuides = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX, guides: true });
-    expect(bluish(plain, column, 100 * PX, 4, 40 * PX)).toBe(false);
-    expect(bluish(withGuides, column, 100 * PX, 4, 40 * PX)).toBe(true);
+    expect(bluish(plain, column, 50 * PX, 4, 40 * PX)).toBe(false);
+    expect(bluish(withGuides, column, 50 * PX, 4, 40 * PX)).toBe(true);
   });
 
   test('shadeMissing greys out the part of an element on the missing page', async () => {
     const zine = createZine('t', 1);
-    zine.spreads[0].elements.push(createPhotoElement('red', { x: 100, y: 50, width: 100, height: 100 }));
+    zine.spreads[0].elements.push(createPhotoElement('red', { x: PAGE_WIDTH - 48, y: 50, width: 100, height: 90 }));
     const assets = { images: new Map([['red', await solidBitmap(100, 100, '#ff0000')]]) };
-    const at = (canvas: HTMLCanvasElement) => pixel(canvas, (120 + 3) * PX, (100 + 3) * PX);
+    const at = (canvas: HTMLCanvasElement) => pixel(canvas, (PAGE_WIDTH - 28 + 3) * PX, (100 + 3) * PX);
     expectColor(at(renderSpread(zine, 0, assets, { pxPerMm: PX })), RED);
     expect(at(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }))[1]).toBeGreaterThan(150);
-    expectColor(pixel(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }), 170 * PX, 100 * PX), RED);
+    expectColor(pixel(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }), (PAGE_WIDTH + 22) * PX, 100 * PX), RED);
   });
 });
 

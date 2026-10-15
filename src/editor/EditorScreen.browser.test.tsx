@@ -1,7 +1,8 @@
 import { render } from 'vitest-browser-react';
 import { expect, test } from 'vitest';
 import { DbContext } from '../app/dbContext';
-import { createZine } from '../model/factory';
+import { createZine, DEFAULT_MARGINS } from '../model/factory';
+import { PAGE_WIDTH } from '../model/geometry';
 import { newId } from '../model/ids';
 import type { Zine } from '../model/types';
 import { listImageIds, openZiniarzDb } from '../storage/db';
@@ -48,7 +49,7 @@ test('"+ Napis" adds a text on the cover and autosave stores it', async () => {
   await screen.getByRole('button', { name: '+ Napis' }).click();
   await expect
     .poll(async () => (await stored()).spreads[0].elements.map((e) => e.kind === 'text' && [e.text, e.x, e.width]))
-    .toEqual([['Napis', 178, 88]]);
+    .toEqual([['Napis', PAGE_WIDTH + DEFAULT_MARGINS.inner, PAGE_WIDTH - DEFAULT_MARGINS.outer - DEFAULT_MARGINS.inner]]);
   await expect.element(screen.getByRole('button', { name: 'Cofnij' })).toBeEnabled();
 });
 

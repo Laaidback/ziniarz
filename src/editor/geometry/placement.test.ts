@@ -1,12 +1,13 @@
 import { expect, test } from 'vitest';
-import { createZine } from '../../model/factory';
+import { createZine, DEFAULT_MARGINS } from '../../model/factory';
+import { PAGE_HEIGHT, PAGE_WIDTH } from '../../model/geometry';
 import { cascade, defaultPage, fitPhotoFrame, frameFromCentre, insertArea, newTextFrame, pageAtPoint } from './placement';
 
 test('pageAtPoint finds existing pages, bleed included', () => {
   expect(pageAtPoint(1, 1, 10, 100)).toBe(2);
   expect(pageAtPoint(1, 1, 200, 100)).toBe(3);
-  expect(pageAtPoint(1, 1, -2, 212)).toBe(2);
-  expect(pageAtPoint(1, 1, 10, 220)).toBeNull();
+  expect(pageAtPoint(1, 1, -2, PAGE_HEIGHT + 2)).toBe(2);
+  expect(pageAtPoint(1, 1, 10, PAGE_HEIGHT + 10)).toBeNull();
   expect(pageAtPoint(0, 1, 10, 100)).toBeNull(); // left of the front cover
   expect(pageAtPoint(0, 1, 200, 100)).toBe(1);
 });
@@ -19,9 +20,15 @@ test('defaultPage is the first existing page', () => {
 
 test('insertArea is the margin area, or the page when margins leave too little', () => {
   const zine = createZine('t', 1);
-  expect(insertArea(zine, 3)).toEqual({ x: 178, y: 30, width: 88, height: 150 });
+  const { outer, inner, top, bottom } = DEFAULT_MARGINS;
+  expect(insertArea(zine, 3)).toEqual({
+    x: PAGE_WIDTH + inner,
+    y: top,
+    width: PAGE_WIDTH - outer - inner,
+    height: PAGE_HEIGHT - top - bottom,
+  });
   zine.margins = { outer: 70, inner: 70, top: 30, bottom: 30 };
-  expect(insertArea(zine, 2)).toEqual({ x: 0, y: 0, width: 148, height: 210 });
+  expect(insertArea(zine, 2)).toEqual({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT });
 });
 
 test('fitPhotoFrame keeps proportions, centred in the area', () => {
@@ -35,7 +42,8 @@ test('fitPhotoFrame treats an image without a size as square', () => {
 });
 
 test('a new text frame spans the margins of its page', () => {
-  expect(newTextFrame(createZine('t', 1), 1)).toEqual({ x: 178, y: 30, width: 88 });
+  const { outer, inner, top } = DEFAULT_MARGINS;
+  expect(newTextFrame(createZine('t', 1), 1)).toEqual({ x: PAGE_WIDTH + inner, y: top, width: PAGE_WIDTH - outer - inner });
 });
 
 test('cascade and frameFromCentre', () => {

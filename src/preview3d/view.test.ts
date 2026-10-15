@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import { PAGE_HEIGHT } from '../model/geometry';
 import { clickTurnsForward, fitDistance, isClick, TEXTURE_HEIGHT_PX, texturePxPerMm, turnForKey } from './view';
 
 test('a press and release in place is a click; a drag (orbiting) is not', () => {
@@ -36,5 +37,5 @@ test('the camera distance fits the open spread in a wide and in a tall window', 
 
 test('page textures are about 1024 px high', () => {
   expect(TEXTURE_HEIGHT_PX).toBe(1024);
-  expect(210 * texturePxPerMm()).toBeCloseTo(1024);
+  expect(PAGE_HEIGHT * texturePxPerMm()).toBeCloseTo(1024);
 });

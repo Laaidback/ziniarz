@@ -1,6 +1,7 @@
 import { PDFDocument } from 'pdf-lib';
 import { expect, test } from 'vitest';
 import { createZine } from '../model/factory';
+import { PAGE_HEIGHT, PAGE_WIDTH } from '../model/geometry';
 import { buildPagesPdf, buildSheetsPdf, MM_TO_PT } from './pdf';
 import { testPageZine } from './testPage';
 
@@ -32,14 +33,14 @@ test('manual duplex: separate fronts and backs', async () => {
   expect(await pagesOf(files[1].bytes)).toHaveLength(6);
 });
 
-test('pages PDF: A5 pages with outer bleed, in reading order', async () => {
+test('pages PDF: A6 pages with outer bleed, in reading order', async () => {
   const zine = createZine('Lato', 5);
   const file = await buildPagesPdf({ zine, assets, bleed: true, dpi });
   expect(file.name).toBe('lato-strony.pdf');
   const sizes = await pagesOf(file.bytes);
   expect(sizes).toHaveLength(20);
-  expect(sizes[0].width).toBeCloseTo(151 * MM_TO_PT, 1);
-  expect(sizes[0].height).toBeCloseTo(216 * MM_TO_PT, 1);
+  expect(sizes[0].width).toBeCloseTo((PAGE_WIDTH + 3) * MM_TO_PT, 1);
+  expect(sizes[0].height).toBeCloseTo((PAGE_HEIGHT + 6) * MM_TO_PT, 1);
 });
 
 test('test page prints as two sheets, front and back', async () => {

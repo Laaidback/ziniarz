@@ -105,6 +105,23 @@ describe('writeZin / readZin', () => {
     await expect(readZin(corrupt)).rejects.toThrow(ZinFileError);
   });
 
+  test('an old A5 .zin file opens as A6', async () => {
+    const bundle = sampleBundle();
+    const old = {
+      ...bundle.zine,
+      formatVersion: 1,
+      margins: { outer: 30, inner: 30, top: 30, bottom: 30 },
+      spreads: bundle.zine.spreads.map((s, i) =>
+        i === 1 ? { ...s, elements: [createTextElement({ x: 148, y: 210, width: 148, text: 'A' })] } : s,
+      ),
+    };
+    const read = await readZin(await writeZin({ ...bundle, zine: old }));
+    expect(read.zine.formatVersion).toBe(2);
+    expect(read.zine.margins.outer).toBeCloseTo(30 * (105 / 148), 9);
+    expect(read.zine.spreads[1].elements[0].x).toBeCloseTo(105, 9);
+    expect(read.zine.spreads[1].elements[0].y).toBeCloseTo(148, 9);
+  });
+
   test('drops zine.fonts entries without a family in the file', async () => {
     const bundle = sampleBundle();
     bundle.zine.fonts = ['fam', 'ghost'];

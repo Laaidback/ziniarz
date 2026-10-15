@@ -8,6 +8,7 @@ import {
 } from './factory';
 import { pageExists, spreadCount } from './geometry';
 import { newId } from './ids';
+import { migrateA5ToA6 } from './migrate';
 import type { Frame, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
 
 export class ZineFormatError extends Error {
@@ -84,20 +85,23 @@ function parseSpread(v: unknown): Spread {
 
 export function parseZine(input: unknown): Zine {
   if (!isObj(input)) throw invalid();
-  if (num(input.formatVersion, 1) > FORMAT_VERSION) {
+  const version = num(input.formatVersion, 1);
+  if (version > FORMAT_VERSION) {
     throw new ZineFormatError('newer', 'Ten zin zapisała nowsza wersja ZINIARZA. Odśwież stronę i spróbuj jeszcze raz.');
   }
-  if (typeof input.id !== 'string' || typeof input.sheets !== 'number' || !Array.isArray(input.spreads)) {
+  // Format 1 had A5 pages; everything after this line reads A6 mm.
+  const data = version < 2 ? migrateA5ToA6(input) : input;
+  if (typeof data.id !== 'string' || typeof data.sheets !== 'number' || !Array.isArray(data.spreads)) {
     throw invalid();
   }
-  const sheets = clampSheets(input.sheets);
-  if (sheets !== input.sheets || input.spreads.length !== spreadCount(sheets)) throw invalid();
+  const sheets = clampSheets(data.sheets);
+  if (sheets !== data.sheets || data.spreads.length !== spreadCount(sheets)) throw invalid();
 
-  const margins = isObj(input.margins) ? input.margins : {};
-  const print = isObj(input.print) ? input.print : {};
+  const margins = isObj(data.margins) ? data.margins : {};
+  const print = isObj(data.print) ? data.print : {};
   const pages: Record<number, PageStyle> = {};
-  if (isObj(input.pages)) {
-    for (const [key, value] of Object.entries(input.pages)) {
+  if (isObj(data.pages)) {
+    for (const [key, value] of Object.entries(data.pages)) {
       const page = Number(key);
       if (Number.isInteger(page) && pageExists(page, sheets) && isObj(value) && typeof value.background === 'string') {
         pages[page] = { background: value.background };
@@ -108,8 +112,8 @@ export function parseZine(input: unknown): Zine {
 
   return {
     formatVersion: FORMAT_VERSION,
-    id: input.id,
-    title: str(input.title, 'Bez tytułu'),
+    id: data.id,
+    title: str(data.title, 'Bez tytułu'),
     sheets,
     margins: {
       outer: num(margins.outer, DEFAULT_MARGINS.outer),
@@ -117,9 +121,9 @@ export function parseZine(input: unknown): Zine {
       top: num(margins.top, DEFAULT_MARGINS.top),
       bottom: num(margins.bottom, DEFAULT_MARGINS.bottom),
     },
-    spreads: input.spreads.map(parseSpread),
+    spreads: data.spreads.map(parseSpread),
     pages,
-    fonts: Array.isArray(input.fonts) ? input.fonts.filter((f): f is string => typeof f === 'string') : [],
+    fonts: Array.isArray(data.fonts) ? data.fonts.filter((f): f is string => typeof f === 'string') : [],
     print: {
       printerMargin: num(print.printerMargin, DEFAULT_PRINT.printerMargin),
       bleed: bool(print.bleed, DEFAULT_PRINT.bleed),
@@ -129,7 +133,7 @@ export function parseZine(input: unknown): Zine {
       duplex: print.duplex === 'manual' ? 'manual' : 'auto',
       manualReverseBacks: bool(print.manualReverseBacks, DEFAULT_PRINT.manualReverseBacks),
     },
-    createdAt: str(input.createdAt, now),
-    updatedAt: str(input.updatedAt, now),
+    createdAt: str(data.createdAt, now),
+    updatedAt: str(data.updatedAt, now),
   };
 }

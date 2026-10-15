@@ -1,7 +1,7 @@
 import { userEvent } from '@vitest/browser/context';
 import type Konva from 'konva';
 import { afterEach, expect, test } from 'vitest';
-import { createPhotoElement, createTextElement, createZine } from '../../model/factory';
+import { createPhotoElement, createTextElement, createZine, DEFAULT_MARGINS } from '../../model/factory';
 import { mountStage } from '../../test/stageHarness';
 import { solidBitmap } from '../../test/pixels';
 
@@ -14,7 +14,7 @@ function mount(...args: Parameters<typeof mountStage>) {
   return mounted;
 }
 
-/** Spread mm are about 2 px here; pointer positions land within a pixel. */
+/** Spread mm are about 3 px here; pointer positions land within a pixel. */
 const near = (actual: number, expected: number) => expect(Math.abs(actual - expected)).toBeLessThan(1);
 
 function photoZine() {
@@ -27,11 +27,11 @@ function photoZine() {
 test('dragging a frame near a margin snaps it there and reports the new position', async () => {
   const { zine, photo } = photoZine();
   const { callbacks, surface, at } = mount(zine);
-  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(61, 70) });
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(41, 70) });
   expect(callbacks.select).toHaveBeenCalledWith(photo.id, 2);
   const [id, patch] = callbacks.change.mock.calls.at(-1)!;
   expect(id).toBe(photo.id);
-  expect(patch.x).toBeCloseTo(30, 5); // the left margin, 1 mm away
+  expect(patch.x).toBeCloseTo(DEFAULT_MARGINS.outer, 5); // the left margin, 1 mm away
   near(patch.y, 40);
 });
 
@@ -51,9 +51,9 @@ test('holding Alt turns snapping off', async () => {
   const { zine } = photoZine();
   const { callbacks, surface, at } = mount(zine);
   await userEvent.keyboard('{Alt>}');
-  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(61, 70) });
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(41, 70) });
   await userEvent.keyboard('{/Alt}');
-  near(callbacks.change.mock.calls.at(-1)![1].x, 31);
+  near(callbacks.change.mock.calls.at(-1)![1].x, 11);
 });
 
 test('a finished resize is reported as a frame in mm', () => {
