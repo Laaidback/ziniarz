@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
 import { countOf } from '../app/plural';
@@ -10,14 +10,46 @@ import type { Zine } from '../model/types';
 import { pruneUnusedAssets } from '../storage/cleanup';
 import { StorageFullError } from '../storage/db';
 import { holdOpenZineLock, whenNoZineIsOpen } from '../storage/zineLock';
-import { isNearlyFull, storageUsage, usageText, type StorageUsage } from '../storage/quota';
+import {
+  isNearlyFull,
+  NOT_PERSISTENT_HINT,
+  persistentStorage,
+  storageUsage,
+  usageText,
+  type StorageUsage,
+} from '../storage/quota';
 import { createNewZine, DEFAULT_SHEETS, importZinFile, listZinesForHome } from './homeActions';
 import { ZineCard } from './ZineCard';
+
+/** The browser updates its used-space figure a little after a write, so it is read again later too. */
+const USAGE_RECHECKS_MS = [1500, 5000];
+
+/** Used space, read now and again a little later; `refresh` after every change to the list. */
+function useStorageUsage() {
+  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const timers = useRef<number[]>([]);
+  const mounted = useRef(true);
+  const refresh = useCallback(() => {
+    const read = () => void storageUsage().then((value) => mounted.current && setUsage(value));
+    read();
+    timers.current.forEach((timer) => clearTimeout(timer));
+    timers.current = USAGE_RECHECKS_MS.map((ms) => window.setTimeout(read, ms));
+  }, []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      timers.current.forEach((timer) => clearTimeout(timer));
+    };
+  }, []);
+  return { usage, refresh };
+}
 
 export function HomeScreen() {
   const db = useDb();
   const [zines, setZines] = useState<Zine[] | null>(null);
-  const [usage, setUsage] = useState<StorageUsage | null>(null);
+  const { usage, refresh: refreshUsage } = useStorageUsage();
+  const [persistent, setPersistent] = useState(true);
   const [listFailed, setListFailed] = useState(false);
   const [title, setTitle] = useState('');
   // Kept as typed (it may be empty while retyping); the count used is clamped.
@@ -35,8 +67,16 @@ export function HomeScreen() {
       setListFailed(true);
       return;
     }
-    setUsage(await storageUsage());
-  }, [db]);
+    refreshUsage();
+  }, [db, refreshUsage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void persistentStorage().then((granted) => !cancelled && setPersistent(granted));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -130,10 +170,15 @@ export function HomeScreen() {
         </ul>
       )}
 
-      {usage && (
+      {(usage || !persistent) && (
         <footer className="home-footer muted">
-          {usageText(usage)}
-          {isNearlyFull(usage) && <strong className="warning"> {new StorageFullError().message}</strong>}
+          {!persistent && <p className="storage-hint">{NOT_PERSISTENT_HINT}</p>}
+          {usage && (
+            <p>
+              {usageText(usage)}
+              {isNearlyFull(usage) && <strong className="warning"> {new StorageFullError().message}</strong>}
+            </p>
+          )}
         </footer>
       )}
     </main>

@@ -9,7 +9,7 @@ import { HomeScreen } from './home/HomeScreen';
 import { Preview3dScreen } from './preview3d/Preview3dScreen';
 import { PrintScreen } from './print/screen/PrintScreen';
 import { openZiniarzDb, type ZiniarzDb } from './storage/db';
-import { requestPersistentStorage } from './storage/quota';
+import { persistentStorage } from './storage/quota';
 
 function Screen({ route }: { route: Route }) {
   switch (route.name) {
@@ -31,7 +31,7 @@ export function App() {
 
   useEffect(() => {
     openZiniarzDb().then(setDb, () => setFailed(true));
-    void requestPersistentStorage();
+    void persistentStorage();
   }, []);
 
   if (failed) {

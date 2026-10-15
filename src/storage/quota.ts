@@ -16,6 +16,22 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
 }
 
+let persistence: Promise<boolean> | null = null;
+
+/** requestPersistentStorage, asked once per page load (App asks at start; the zine list reads the answer). */
+export function persistentStorage(): Promise<boolean> {
+  persistence ??= requestPersistentStorage();
+  return persistence;
+}
+
+/** For tests: the next persistentStorage() asks the browser again. */
+export function forgetPersistentStorageAnswer(): void {
+  persistence = null;
+}
+
+/** Shown on the zine list when the browser may evict our data. */
+export const NOT_PERSISTENT_HINT = 'Przeglądarka może kiedyś usunąć ziny. Zapisuj co jakiś czas pliki .zin.';
+
 export async function storageUsage(): Promise<StorageUsage | null> {
   try {
     const estimate = await navigator.storage?.estimate?.();

@@ -203,6 +203,10 @@ select {
   margin-top: 32px;
 }
 
+.home-footer p {
+  margin: 4px 0;
+}
+
 .editor {
   display: grid;
   grid-template-columns: 180px minmax(0, 1fr) 300px;

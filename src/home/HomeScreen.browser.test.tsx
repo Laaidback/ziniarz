@@ -1,12 +1,15 @@
 import { userEvent } from '@vitest/browser/context';
 import { render } from 'vitest-browser-react';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { ConfirmHost } from '../app/ConfirmHost';
 import { DbContext } from '../app/dbContext';
 import { createPhotoElement, createZine } from '../model/factory';
 import { newId } from '../model/ids';
 import { listImageIds, listZines, openZiniarzDb, putImage, saveZine, type ZiniarzDb } from '../storage/db';
+import { forgetPersistentStorageAnswer } from '../storage/quota';
 import { holdOpenZineLock } from '../storage/zineLock';
+import { chooseFiles } from '../test/files';
+import { exportZinFile } from './homeActions';
 import { HomeScreen } from './HomeScreen';
 
 async function setup(prepare?: (db: ZiniarzDb) => Promise<void>) {
@@ -105,5 +108,48 @@ test('while a zine is open in another tab, the list deletes nothing', async () =
     expect(await listImageIds(db)).toEqual(['needed-elsewhere']);
   } finally {
     release();
+  }
+});
+
+const PERSIST_HINT = 'Przeglądarka może kiedyś usunąć ziny. Zapisuj co jakiś czas pliki .zin.';
+
+test.each([
+  [false, true],
+  [true, false],
+])('when the browser grants persistent storage: %s, the hint about saving .zin files shows: %s', async (granted, shown) => {
+  forgetPersistentStorageAnswer();
+  const persisted = vi.spyOn(navigator.storage, 'persisted').mockResolvedValue(false);
+  const persist = vi.spyOn(navigator.storage, 'persist').mockResolvedValue(granted);
+  try {
+    const { screen } = await setup((db) => saveZine(db, createZine('Lato', 1)));
+    await expect.element(screen.getByRole('heading', { name: 'Lato' })).toBeVisible();
+    if (shown) await expect.element(screen.getByText(PERSIST_HINT)).toBeVisible();
+    else await expect.poll(() => persist.mock.calls.length).toBe(1);
+    if (!shown) await expect.element(screen.getByText(PERSIST_HINT)).not.toBeInTheDocument();
+  } finally {
+    persisted.mockRestore();
+    persist.mockRestore();
+    forgetPersistentStorageAnswer();
+  }
+});
+
+test('the used space is read again after loading a .zin (the browser updates it a little later)', async () => {
+  let grown = false;
+  const estimate = vi
+    .spyOn(navigator.storage, 'estimate')
+    .mockImplementation(async () => ({ usage: grown ? 3_000_000 : 1_000_000, quota: 1_000_000_000 }));
+  try {
+    const source = await openZiniarzDb(`test-${newId()}`);
+    const zine = createZine('Z pliku', 1);
+    await saveZine(source, zine);
+    const file = await exportZinFile(source, zine);
+    const { screen } = await setup();
+    await expect.element(screen.getByText('Zajęte miejsce: 1 MB z 1 GB')).toBeVisible();
+    chooseFiles(screen.getByLabelText('Wczytaj plik .zin').element(), [new File([file.blob], 'z-pliku.zin')]);
+    await expect.element(screen.getByRole('heading', { name: 'Z pliku' })).toBeVisible();
+    grown = true;
+    await expect.element(screen.getByText('Zajęte miejsce: 3 MB z 1 GB'), { timeout: 4000 }).toBeVisible();
+  } finally {
+    estimate.mockRestore();
   }
 });
