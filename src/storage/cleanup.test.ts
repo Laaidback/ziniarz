@@ -18,9 +18,14 @@ test('unusedAssets finds images without photos and families on no font list', ()
   const a = createZine('A', 1);
   a.spreads[1].elements.push(createPhotoElement('used'));
   a.fonts = ['kept'];
-  expect(unusedAssets([a], ['used', 'orphan'], ['kept', 'unused'])).toEqual({
+  const files = [
+    { id: 'kept-r', familyId: 'kept' },
+    { id: 'lost-r', familyId: 'lost' },
+  ];
+  expect(unusedAssets([a], ['used', 'orphan'], ['kept', 'unused'], files)).toEqual({
     images: ['orphan'],
     fontFamilies: ['unused'],
+    fontFiles: ['lost-r'],
   });
 });
 
@@ -37,10 +42,13 @@ test('pruneUnusedAssets deletes them from the database', async () => {
   await putFontFamily(db, { id: 'unused', name: 'U' });
   await putFontFile(db, { id: 'kept-r', familyId: 'kept', bold: false, italic: false, mime: 'font/ttf', data });
   await putFontFile(db, { id: 'unused-r', familyId: 'unused', bold: false, italic: false, mime: 'font/ttf', data });
+  // A file whose family record is gone (e.g. an interrupted upload) is never used either.
+  await putFontFile(db, { id: 'lost-r', familyId: 'lost', bold: false, italic: false, mime: 'font/ttf', data });
 
-  expect(await pruneUnusedAssets(db)).toEqual({ images: 1, fontFamilies: 1 });
+  expect(await pruneUnusedAssets(db)).toEqual({ images: 1, fontFamilies: 1, fontFiles: 1 });
   expect(await listImageIds(db)).toEqual(['used']);
   expect(await listFontFamilyIds(db)).toEqual(['kept']);
   expect(await fontFilesOfFamily(db, 'unused')).toEqual([]);
   expect((await fontFilesOfFamily(db, 'kept')).map((f) => f.id)).toEqual(['kept-r']);
+  expect(await fontFilesOfFamily(db, 'lost')).toEqual([]);
 });

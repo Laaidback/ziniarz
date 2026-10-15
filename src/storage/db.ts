@@ -122,6 +122,22 @@ export async function deleteFontFile(db: ZiniarzDb, id: string): Promise<void> {
   await db.delete('fontFiles', id);
 }
 
+/** Every stored font file's id and family, without reading the font data. */
+export async function listFontFileFamilies(db: ZiniarzDb): Promise<{ id: string; familyId: string }[]> {
+  const files: { id: string; familyId: string }[] = [];
+  let cursor = await db.transaction('fontFiles').store.index('byFamily').openKeyCursor();
+  while (cursor) {
+    files.push({ id: cursor.primaryKey, familyId: cursor.key });
+    cursor = await cursor.continue();
+  }
+  return files;
+}
+
+export async function deleteFontFiles(db: ZiniarzDb, ids: string[]): Promise<void> {
+  const tx = db.transaction('fontFiles', 'readwrite');
+  await Promise.all([...ids.map((id) => tx.store.delete(id)), tx.done]);
+}
+
 export function listFontFamilyIds(db: ZiniarzDb): Promise<string[]> {
   return db.getAllKeys('fontFamilies');
 }
