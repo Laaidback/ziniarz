@@ -3,7 +3,7 @@ import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff2?u
 import { expect, test } from 'vitest';
 import { createTextElement, createZine } from '../../model/factory';
 import type { TextElement } from '../../model/types';
-import { putFontFamily, putFontFile } from '../../storage/db';
+import { fontFilesOfFamily, putFontFamily, putFontFile, saveZine } from '../../storage/db';
 import { chooseFiles } from '../../test/files';
 import { renderPanel } from '../../test/panelHarness';
 
@@ -48,4 +48,27 @@ test('"Użyj fontu z innego zina" adds a family uploaded elsewhere', async () =>
   await screen.getByRole('list', { name: 'Fonty z innych zinów' }).getByRole('button', { name: 'Inna' }).click();
   await expect.poll(() => textOf(zine()).fontFamilyId).toBe('inna');
   expect(zine().fonts).toEqual(['inna']);
+});
+
+test('uploading into a family borrowed from another zine gives this zine its own copy, in one undo step', async () => {
+  const zine = { ...createZine('Lato', 1), fonts: ['wspolna'] };
+  const { screen, db, store, zine: current } = await renderPanel(zine, (store) =>
+    store.getState().addElement(createTextElement({ text: 'a', fontFamilyId: 'wspolna' })),
+  );
+  const data = await (await fetch(interRegular)).arrayBuffer();
+  await putFontFamily(db, { id: 'wspolna', name: 'Moja' });
+  await putFontFile(db, { id: 'wspolna-r', familyId: 'wspolna', bold: false, italic: false, mime: 'font/woff2', data });
+  await saveZine(db, { ...createZine('Inny', 1), fonts: ['wspolna'] });
+  const before = current();
+
+  chooseFiles(screen.getByLabelText('Wybierz pliki fontów').element(), [await fontFile(interBold, 'Moja-Bold.woff2')]);
+  await expect.poll(() => current().fonts[0]).not.toBe('wspolna');
+  const [copy] = current().fonts;
+  expect(current().fonts).toEqual([copy]);
+  await expect.poll(() => textOf(current()).fontFamilyId).toBe(copy);
+  expect((await fontFilesOfFamily(db, 'wspolna')).map((f) => f.id)).toEqual(['wspolna-r']);
+  expect((await fontFilesOfFamily(db, copy)).map((f) => f.bold).sort()).toEqual([false, true]);
+
+  store.getState().undo();
+  expect(current()).toEqual(before);
 });

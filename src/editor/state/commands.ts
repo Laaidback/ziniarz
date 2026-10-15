@@ -1,4 +1,4 @@
-import type { Margins, PhotoElement, TextElement, Zine, ZineElement } from '../../model/types';
+import type { Margins, PhotoElement, Spread, TextElement, Zine, ZineElement } from '../../model/types';
 
 /** Fields of either element kind; the store only passes fields that fit the element. */
 export type ElementPatch = Partial<Omit<PhotoElement, 'kind' | 'id' | 'imageId'>> & Partial<Omit<TextElement, 'kind' | 'id'>>;
@@ -69,4 +69,21 @@ export function setTitle(zine: Zine, title: string): Zine {
 export function addFontFamilies(zine: Zine, familyIds: string[]): Zine {
   const fresh = familyIds.filter((id, i) => !zine.fonts.includes(id) && familyIds.indexOf(id) === i);
   return fresh.length ? { ...zine, fonts: [...zine.fonts, ...fresh] } : zine;
+}
+
+/** Swaps font family ids (old → new) in the zine's font list and in its texts; same zine when nothing changes. */
+export function replaceFontFamilies(zine: Zine, replaced: Record<string, string>): Zine {
+  const hit = (id: string) => Object.hasOwn(replaced, id);
+  const swap = (id: string) => (hit(id) ? replaced[id] : id);
+  const usesHit = (spread: Spread) => spread.elements.some((e) => e.kind === 'text' && hit(e.fontFamilyId));
+  if (!zine.fonts.some(hit) && !zine.spreads.some(usesHit)) return zine;
+  return {
+    ...zine,
+    fonts: zine.fonts.map(swap),
+    spreads: zine.spreads.map((spread) =>
+      usesHit(spread)
+        ? { ...spread, elements: spread.elements.map((e) => (e.kind === 'text' ? { ...e, fontFamilyId: swap(e.fontFamilyId) } : e)) }
+        : spread,
+    ),
+  };
 }

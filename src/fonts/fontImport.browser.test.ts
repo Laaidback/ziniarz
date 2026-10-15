@@ -4,7 +4,7 @@ import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff2?u
 import { expect, test, vi } from 'vitest';
 import { createZine } from '../model/factory';
 import { newId } from '../model/ids';
-import { fontFilesOfFamily, getFontFamily, openZiniarzDb } from '../storage/db';
+import { fontFilesOfFamily, getFontFamily, openZiniarzDb, saveZine } from '../storage/db';
 import { cssFontFamily } from './fontLoader';
 import { importFontFiles } from './fontImport';
 
@@ -60,13 +60,58 @@ test('files that are not fonts are not read at all', async () => {
   const notes = new File(['hello'], 'notatki.txt');
   const read = vi.spyOn(notes, 'arrayBuffer');
   const result = await importFontFiles(db, createZine('t', 1), [notes]);
-  expect(result).toEqual({ familyIds: [], skipped: 1 });
+  expect(result).toEqual({ familyIds: [], skipped: 1, replaced: {} });
   expect(read).not.toHaveBeenCalled();
 });
 
 test('an upload with no usable file leaves no empty family behind', async () => {
   const db = await openZiniarzDb(`test-${newId()}`);
   const result = await importFontFiles(db, createZine('t', 1), [new File(['x'], 'Pusty-Regular.otf')]);
-  expect(result).toEqual({ familyIds: [], skipped: 1 });
+  expect(result).toEqual({ familyIds: [], skipped: 1, replaced: {} });
   expect(await db.getAll('fontFamilies')).toEqual([]);
+});
+
+test('a family borrowed from another zine is copied before a file changes, so the other zine keeps its font', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const owner = createZine('Właściciel', 1);
+  const first = await importFontFiles(db, owner, [
+    await fontFile(interRegular, 'Moja-Regular.woff2'),
+    await fontFile(interBold, 'Moja-Bold.woff2'),
+  ]);
+  const [shared] = first.familyIds;
+  owner.fonts = [shared];
+  await saveZine(db, owner);
+  const borrower = { ...createZine('Pożyczający', 1), fonts: [shared] };
+  await saveZine(db, borrower);
+  const before = (await fontFilesOfFamily(db, shared)).map((f) => f.id).sort();
+
+  const result = await importFontFiles(db, borrower, [await fontFile(interItalic, 'Moja-Regular.woff2')]);
+
+  // The shared family is untouched.
+  expect((await fontFilesOfFamily(db, shared)).map((f) => f.id).sort()).toEqual(before);
+  // The borrower gets its own copy: the bold file copied, the regular one replaced by the upload.
+  const copy = result.replaced[shared];
+  expect(copy).toBeDefined();
+  expect(copy).not.toBe(shared);
+  expect(result.familyIds).toEqual([copy]);
+  expect(await getFontFamily(db, copy)).toEqual({ id: copy, name: 'Moja' });
+  const files = await fontFilesOfFamily(db, copy);
+  expect(files.map((f) => [f.bold, f.italic]).sort()).toEqual([
+    [false, false],
+    [true, false],
+  ]);
+  expect(files.some((f) => before.includes(f.id))).toBe(false);
+  const italicBytes = new Uint8Array(await (await fontFile(interItalic, 'x.woff2')).arrayBuffer());
+  expect(new Uint8Array(files.find((f) => !f.bold)!.data)).toEqual(italicBytes);
+  expect(loadedFaces(copy)).toHaveLength(2);
+});
+
+test('a family only this zine uses is changed in place', async () => {
+  const db = await openZiniarzDb(`test-${newId()}`);
+  const zine = createZine('t', 1);
+  const first = await importFontFiles(db, zine, [await fontFile(interRegular, 'Moja-Regular.woff2')]);
+  zine.fonts = first.familyIds;
+  await saveZine(db, zine);
+  const second = await importFontFiles(db, zine, [await fontFile(interBold, 'Moja-Bold.woff2')]);
+  expect(second).toEqual({ familyIds: first.familyIds, skipped: 0, replaced: {} });
 });

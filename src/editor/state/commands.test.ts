@@ -7,6 +7,7 @@ import {
   mapElement,
   patchElement,
   removeElement,
+  replaceFontFamilies,
   setMargins,
   setPageBackground,
   setTitle,
@@ -59,4 +60,16 @@ test('addFontFamilies skips families already on the list', () => {
   const zine = { ...createZine('t', 1), fonts: ['a'] };
   expect(addFontFamilies(zine, ['a', 'b', 'b']).fonts).toEqual(['a', 'b']);
   expect(addFontFamilies(zine, ['a'])).toBe(zine);
+});
+
+test('replaceFontFamilies swaps family ids in the font list and in texts', () => {
+  const zine = { ...createZine('t', 1), fonts: ['old', 'other'] };
+  const uses = createTextElement({ text: 'a', fontFamilyId: 'old' });
+  const builtin = createTextElement({ text: 'b', fontFamilyId: 'inter' });
+  zine.spreads[1].elements.push(uses, builtin);
+  const next = replaceFontFamilies(zine, { old: 'new' });
+  expect(next.fonts).toEqual(['new', 'other']);
+  expect(next.spreads[1].elements.map((e) => (e.kind === 'text' ? e.fontFamilyId : null))).toEqual(['new', 'inter']);
+  expect(next.spreads[0]).toBe(zine.spreads[0]);
+  expect(replaceFontFamilies(zine, {})).toBe(zine);
 });
