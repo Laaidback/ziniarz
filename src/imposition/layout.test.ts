@@ -36,7 +36,10 @@ describe('printLayout', () => {
         [s.x1, s.y1],
         [s.x2, s.y2],
       ]);
-      points.push([l.spread.x - l.bleed, l.spread.y - l.bleed], [l.spread.x + l.spread.width + l.bleed, l.spread.y + l.spread.height + l.bleed]);
+      points.push(
+        [l.spread.x - l.bleed, l.spread.y - l.bleed],
+        [l.spread.x + l.spread.width + l.bleed, l.spread.y + l.spread.height + l.bleed],
+      );
       for (const [x, y] of points) {
         expect(x).toBeGreaterThan(20);
         expect(x).toBeLessThan(A4_LANDSCAPE.width - 20);

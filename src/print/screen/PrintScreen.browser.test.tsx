@@ -40,8 +40,11 @@ test('shows the sheets, the trimmed size, the reminders and a way back', async (
 });
 
 test('options are saved in the zine; there is no printer margin field', async () => {
-  const zine = createZine('Lato', 2);
+  // An older zine still carries the printer margin in its print settings.
+  const fresh = createZine('Lato', 2);
+  const zine = { ...fresh, print: { ...fresh.print, printerMargin: 7 } } as unknown as Zine;
   const { screen, stored } = await openPrint(zine, testExporter().exporter);
+  expect((await stored()).print).toHaveProperty('printerMargin', 7);
   await expect.element(screen.getByRole('checkbox', { name: 'Spady' })).toBeChecked();
   expect(screen.getByRole('spinbutton', { name: 'Margines drukarki' }).query()).toBeNull();
   await screen.getByRole('checkbox', { name: 'Linie cięcia' }).click();
