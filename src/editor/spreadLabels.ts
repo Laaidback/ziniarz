@@ -7,6 +7,12 @@ export function spreadLabel(spread: number, sheets: number): string {
   return `${pageAt(spread, 'left')}–${pageAt(spread, 'right')}`;
 }
 
+/** Accessible name of a spread thumbnail: "Okładka", "Strony 2–3", "Tył". */
+export function spreadName(spread: number, sheets: number): string {
+  const label = spreadLabel(spread, sheets);
+  return spread === 0 || spread === spreadCount(sheets) - 1 ? label : `Strony ${label}`;
+}
+
 /** Question asked before "− kartka" removes pages that have content. */
 export function removalMessage(pages: number[]): string {
   return `Strony ${pages[0]}–${pages[pages.length - 1]} mają treść, która zniknie. Usunąć kartkę?`;

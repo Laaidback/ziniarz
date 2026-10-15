@@ -18,6 +18,11 @@ test('opens a zine with its title, links to print and 3D, and nothing to undo ye
   await expect.element(screen.getByRole('link', { name: 'Druk' })).toHaveAttribute('href', `#/zin/${zine.id}/druk`);
   await expect.element(screen.getByRole('link', { name: 'Podgląd 3D' })).toHaveAttribute('href', `#/zin/${zine.id}/3d`);
   await expect.element(screen.getByRole('checkbox', { name: 'Pokaż prowadnice' })).toBeChecked();
+  // Named on the element itself too, for tools that do not follow a wrapping <label>.
+  await expect.element(screen.getByRole('checkbox', { name: 'Pokaż prowadnice' })).toHaveAttribute('aria-label', 'Pokaż prowadnice');
+  const spreads = screen.getByRole('navigation', { name: 'Rozkładówki' }).getByRole('button');
+  await expect.element(spreads.first()).toHaveAttribute('aria-label', 'Okładka');
+  await expect.element(spreads.nth(1)).toHaveAttribute('aria-label', 'Strony 2–3');
 });
 
 test('an old stored zine without margins opens through parseZine', async () => {

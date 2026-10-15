@@ -27,6 +27,7 @@ export function TopBar() {
         <label className="toggle">
           <input
             type="checkbox"
+            aria-label="Pokaż prowadnice"
             checked={showGuides}
             onChange={(event) => store.getState().setShowGuides(event.target.checked)}
           />

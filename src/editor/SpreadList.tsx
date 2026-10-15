@@ -4,7 +4,7 @@ import { countOf } from '../app/plural';
 import { useFontsVersion } from '../fonts/useFontsVersion';
 import { canAddSheet, removalNeedsConfirmation, sheetRemoval } from '../model/sheets';
 import { useEditor, useEditorEnv } from './EditorContext';
-import { removalMessage, spreadLabel } from './spreadLabels';
+import { removalMessage, spreadLabel, spreadName } from './spreadLabels';
 import { selectZine } from './state/store';
 import { useSpreadThumbnails } from './useSpreadThumbnails';
 
@@ -43,6 +43,7 @@ export function SpreadList() {
               className={['spread-thumb', index === current && 'current', doomed.includes(index) && 'doomed']
                 .filter(Boolean)
                 .join(' ')}
+              aria-label={spreadName(index, zine.sheets)}
               aria-current={index === current ? 'true' : undefined}
               onClick={() => store.getState().setSpread(index)}
             >

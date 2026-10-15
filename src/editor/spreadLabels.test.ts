@@ -1,9 +1,10 @@
 import { expect, test } from 'vitest';
 import { createTextElement, createZine } from '../model/factory';
-import { removalMessage, spreadLabel, thumbnailKey } from './spreadLabels';
+import { removalMessage, spreadLabel, spreadName, thumbnailKey } from './spreadLabels';
 
 test('spread labels', () => {
   expect([0, 1, 2, 3, 4].map((i) => spreadLabel(i, 2))).toEqual(['Okładka', '2–3', '4–5', '6–7', 'Tył']);
+  expect([0, 1, 4].map((i) => spreadName(i, 2))).toEqual(['Okładka', 'Strony 2–3', 'Tył']);
 });
 
 test('removal message names the pages', () => {
