@@ -1,6 +1,8 @@
 import { PDFDocument } from 'pdf-lib';
 import { expect, test, vi } from 'vitest';
-import { createZine } from '../../model/factory';
+import { render } from 'vitest-browser-react';
+import { DbContext } from '../../app/dbContext';
+import { createTextElement, createZine } from '../../model/factory';
 import type { Zine } from '../../model/types';
 import { openZineLockHeld } from '../../test/locks';
 import { openScreen } from '../../test/screenHarness';
@@ -52,6 +54,44 @@ test('options are saved in the zine; there is no printer margin field', async ()
   await expect.element(screen.getByText('Strona po przycięciu: 105 × 148 mm')).toBeVisible();
   await expect.poll(async () => (await stored()).print).toMatchObject({ cropMarks: false, foldMarks: false });
   expect((await stored()).print).not.toHaveProperty('printerMargin');
+});
+
+test('an old A5 zine is stored converted to A6, exactly once', async () => {
+  // Raw format 1 (A5 mm): a text on the right page of spread 1, margins in A5 mm.
+  const fresh = createZine('Stary', 1);
+  const old = {
+    ...fresh,
+    formatVersion: 1,
+    margins: { outer: 30, inner: 30, top: 30, bottom: 30 },
+    spreads: fresh.spreads.map((spread, i) =>
+      i === 1 ? { ...spread, elements: [createTextElement({ x: 148, y: 30, width: 148, text: 'A' })] } : spread,
+    ),
+  } as unknown as Zine;
+  const { db, screen, stored } = await openPrint(old, testExporter().exporter);
+  expect((await stored()).formatVersion).toBe(1);
+
+  await screen.getByRole('checkbox', { name: 'Linie cięcia' }).click();
+  await expect.poll(async () => (await stored()).print.cropMarks).toBe(false);
+  const first = await stored();
+  expect(first.formatVersion).toBe(2);
+  expect(first.margins.outer).toBeCloseTo((30 * 105) / 148, 6);
+  expect(first.margins.top).toBeCloseTo((30 * 148) / 210, 6);
+  expect(first.spreads[1].elements[0].x).toBeCloseTo(105, 6);
+
+  // Reopen on the same stored data: it is already version 2, so it must not be scaled again.
+  screen.unmount();
+  const again = render(
+    <DbContext.Provider value={db}>
+      <PrintScreen zineId={old.id} exporter={testExporter().exporter} />
+    </DbContext.Provider>,
+  );
+  await again.getByRole('checkbox', { name: 'Linie cięcia' }).click();
+  await expect.poll(async () => (await stored()).print.cropMarks).toBe(true);
+  const second = await stored();
+  expect(second.formatVersion).toBe(2);
+  expect(second.margins.outer).toBeCloseTo(first.margins.outer, 6);
+  expect(second.spreads[1].elements[0].x).toBeCloseTo(105, 6);
+  again.unmount();
 });
 
 test('automatic duplex downloads one PDF with every sheet side', async () => {
