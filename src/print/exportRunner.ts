@@ -27,11 +27,18 @@ export async function runExport(
   let files: PdfFile[];
   try {
     files = await task.build((done, total) => report({ kind: 'running', label: task.label, done, total }));
-  } catch {
+  } catch (e) {
+    console.error(e);
     report({ kind: 'failed', label: task.label });
     return false;
   }
-  for (const file of files) save(file);
+  try {
+    for (const file of files) save(file);
+  } catch (e) {
+    console.error(e);
+    report({ kind: 'failed', label: task.label });
+    return false;
+  }
   report({ kind: 'finished', label: task.label, files: files.map((f) => f.name) });
   return true;
 }

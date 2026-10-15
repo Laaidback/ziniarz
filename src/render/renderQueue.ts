@@ -15,7 +15,8 @@ export interface RenderQueue {
  * A failing job is skipped; it must show its own fallback.
  */
 export function createRenderQueue(): RenderQueue {
-  const waiting: RenderJob[] = [];
+  // Each queued job gets its own entry so cancelling never mistakes one for another.
+  const waiting: { job: RenderJob }[] = [];
   let running = false;
   let idleWaiters: (() => void)[] = [];
 
@@ -25,17 +26,17 @@ export function createRenderQueue(): RenderQueue {
   };
 
   const pump = () => {
-    const job = waiting.shift();
-    if (!job) {
+    const entry = waiting.shift();
+    if (!entry) {
       running = false;
       settle();
       return;
     }
     void (async () => {
       try {
-        await job();
-      } catch {
-        // see the doc comment
+        await entry.job();
+      } catch (e) {
+        console.error(e);
       }
       setTimeout(pump, 0);
     })();
@@ -43,13 +44,14 @@ export function createRenderQueue(): RenderQueue {
 
   return {
     add(job) {
-      waiting.push(job);
+      const entry = { job };
+      waiting.push(entry);
       if (!running) {
         running = true;
         setTimeout(pump, 0);
       }
       return () => {
-        const index = waiting.indexOf(job);
+        const index = waiting.indexOf(entry);
         if (index >= 0) waiting.splice(index, 1);
       };
     },

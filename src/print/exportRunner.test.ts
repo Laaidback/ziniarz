@@ -1,4 +1,4 @@
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { EXPORT_FAILED, exportProgressText, runExport, type ExportStatus, type ExportTask } from './exportRunner';
 import type { PdfFile } from './pdf';
 
@@ -42,6 +42,19 @@ test('a failure part way saves nothing and says so', async () => {
   expect(saved).toEqual([]);
   expect(statuses.at(-1)).toEqual({ kind: 'failed', label: 'PDF stronami' });
   expect(EXPORT_FAILED).toContain('Nic nie zostało pobrane');
+});
+
+test('a save that throws reports failure instead of staying running', async () => {
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  const statuses: ExportStatus[] = [];
+  const task: ExportTask = { label: 'PDF do druku', build: async () => [file('a.pdf'), file('b.pdf')] };
+  const ok = await runExport(task, (s) => statuses.push(s), () => {
+    throw new Error('download blocked');
+  });
+  expect(ok).toBe(false);
+  expect(statuses.at(-1)).toEqual({ kind: 'failed', label: 'PDF do druku' });
+  expect(error).toHaveBeenCalled();
+  error.mockRestore();
 });
 
 test('progress text', () => {
