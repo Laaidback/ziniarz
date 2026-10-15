@@ -32,6 +32,19 @@ jobs:
         run: npx playwright install --with-deps chromium
       - run: npm run typecheck
       - run: npm test
+      # Render references were made on macOS; Linux text rendering may differ slightly, so a failure here
+      # must not block the deploy. npm test skips them in CI; this step runs them strictly and only reports.
+      - name: Render references (informational)
+        id: references
+        continue-on-error: true
+        run: REFERENCE_STRICT=1 npx vitest run --project browser src/print/reference.browser.test.ts
+      - name: Upload render differences
+        if: steps.references.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: roznice-renderu
+          path: test-output/reference/
+          if-no-files-found: warn
       - name: End-to-end tests (only when the script exists)
         run: |
           if [ "$(npm pkg get scripts.test:e2e)" != "{}" ]; then

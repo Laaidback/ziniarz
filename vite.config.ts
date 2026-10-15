@@ -39,7 +39,12 @@ export default defineConfig({
           name: 'browser',
           include: ['src/**/*.browser.test.{ts,tsx}'],
           // UPDATE_REFERENCES=1 (npm run test:update-references) rewrites the render references.
-          provide: { updateReferences: process.env.UPDATE_REFERENCES === '1' },
+          // In CI (CI is set, as GitHub does) the render references are only informational and the comparison is
+          // skipped unless REFERENCE_STRICT=1; the workflow runs it separately with continue-on-error.
+          provide: {
+            updateReferences: process.env.UPDATE_REFERENCES === '1',
+            skipReferences: Boolean(process.env.CI) && process.env.REFERENCE_STRICT !== '1' && process.env.UPDATE_REFERENCES !== '1',
+          },
           browser: {
             enabled: true,
             provider: 'playwright',

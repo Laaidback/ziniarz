@@ -5,5 +5,7 @@ declare module 'vitest' {
   export interface ProvidedContext {
     /** UPDATE_REFERENCES=1: the render reference test writes new reference PNGs instead of comparing. */
     updateReferences: boolean;
+    /** CI is set and REFERENCE_STRICT is not 1: the render reference test is skipped (informational in CI). */
+    skipReferences: boolean;
   }
 }

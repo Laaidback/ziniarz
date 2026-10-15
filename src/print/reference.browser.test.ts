@@ -20,6 +20,8 @@ const CHANNEL_TOLERANCE = 24;
 const MAX_DIFFERING_SHARE = 0.005;
 
 const update = inject('updateReferences');
+// In CI the comparison is informational (see the workflow); locally and with REFERENCE_STRICT=1 it is strict.
+const skip = inject('skipReferences');
 let sample: { zine: Zine; assets: RenderAssets };
 
 beforeAll(async () => {
@@ -63,7 +65,7 @@ const sides = sheetSides(SAMPLE_SHEETS).map((side) => ({
 }));
 
 for (const side of sides) {
-  test(`${side.label} matches its reference`, { timeout: 30_000 }, async () => {
+  test.skipIf(skip)(`${side.label} matches its reference`, { timeout: 30_000 }, async () => {
     const { zine, assets } = sample;
     const layout = printLayout({ printerMargin: 4, bleed: true, cropMarks: true, foldMarks: true });
     const canvas = renderSheetSide(zine, side, assets, layout, { dpi: DPI, cropMarks: true, foldMarks: true, rotate180: false });
