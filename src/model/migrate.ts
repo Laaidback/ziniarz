@@ -4,6 +4,8 @@ import { BLEED } from './geometry';
 const A5 = { width: 148, height: 210 } as const;
 /** Page of format version 2 (A6), mm. Equal to PAGE_WIDTH × PAGE_HEIGHT. */
 const A6 = { width: 105, height: 148 } as const;
+/** Format version whose geometry is A6 mm. */
+export const A6_FORMAT_VERSION = 2;
 const KX = A6.width / A5.width;
 const KY = A6.height / A5.height;
 
@@ -33,6 +35,9 @@ export const mapY = (y: number) => mapAxis(y, A5.height, A6.height);
 function mapSpan(start: number, size: number, map: (v: number) => number, fallback: number) {
   const from = map(start);
   const to = map(start + size);
+  // The bleed rule is flat just beyond the bleed, so a frame lying wholly there would shrink to
+  // nothing (text size 0, infinite zoom); such frames scale linearly instead.
+  if (size > 0 && to - from <= 0) return { start: from, size: size * fallback, factor: fallback };
   return { start: from, size: to - from, factor: size === 0 ? fallback : (to - from) / size };
 }
 
@@ -85,7 +90,7 @@ function scaleKeys(o: Obj, keys: string[], k: number): Obj {
  * Never changes its input.
  */
 export function migrateA5ToA6(raw: Obj): Obj {
-  const out: Obj = { ...raw, formatVersion: 2 };
+  const out: Obj = { ...raw, formatVersion: A6_FORMAT_VERSION };
   if (isObj(raw.margins)) {
     const m = raw.margins;
     out.margins = { ...m, ...scaleKeys(m, ['outer', 'inner'], KX), ...scaleKeys(m, ['top', 'bottom'], KY) };

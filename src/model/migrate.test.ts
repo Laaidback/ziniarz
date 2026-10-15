@@ -105,6 +105,23 @@ describe('migrateA5ToA6', () => {
     expect(crop.zoom).toBeGreaterThan(zoom);
   });
 
+  test('a frame squeezed into the strip just beyond the bleed scales linearly instead of vanishing', () => {
+    const frame = { x: -4, y: 20, width: 0.8, height: 50 };
+    const [photo, text] = elementsOf(
+      migrateA5ToA6(
+        v1([
+          { kind: 'photo', id: 'p', imageId: 'i', ...frame, rotation: 0, crop: { offsetX: 0, offsetY: 0, zoom: 1.2 } },
+          { kind: 'text', id: 't', ...frame, rotation: 0, text: 'A', size: 12 },
+        ]),
+      ),
+    );
+    expect(photo.width).toBeGreaterThan(0);
+    expect(photo.width).toBeCloseTo(0.8 * kx, 9);
+    expect(Number.isFinite((photo.crop as { zoom: number }).zoom)).toBe(true);
+    expect(text.width).toBeCloseTo(0.8 * kx, 9);
+    expect(text.size).toBeGreaterThan(0);
+  });
+
   test('margins scale by axis', () => {
     const raw = migrateA5ToA6(v1([]));
     const margins = raw.margins as Record<string, number>;

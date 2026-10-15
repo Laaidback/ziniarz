@@ -1,7 +1,7 @@
 import { newId } from '../model/ids';
 import type { StoredImage } from '../storage/db';
 
-/** About 300 dpi across a whole spread with bleed (302 mm). */
+/** About 420 dpi across a whole spread with bleed (216 mm). */
 export const MAX_IMAGE_SIDE = 3600;
 const JPEG_QUALITY = 0.92;
 

@@ -8,7 +8,7 @@ import {
 } from './factory';
 import { pageExists, spreadCount } from './geometry';
 import { newId } from './ids';
-import { migrateA5ToA6 } from './migrate';
+import { A6_FORMAT_VERSION, migrateA5ToA6 } from './migrate';
 import type { Frame, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
 
 export class ZineFormatError extends Error {
@@ -90,7 +90,7 @@ export function parseZine(input: unknown): Zine {
     throw new ZineFormatError('newer', 'Ten zin zapisała nowsza wersja ZINIARZA. Odśwież stronę i spróbuj jeszcze raz.');
   }
   // Format 1 had A5 pages; everything after this line reads A6 mm.
-  const data = version < 2 ? migrateA5ToA6(input) : input;
+  const data = version < A6_FORMAT_VERSION ? migrateA5ToA6(input) : input;
   if (typeof data.id !== 'string' || typeof data.sheets !== 'number' || !Array.isArray(data.spreads)) {
     throw invalid();
   }
