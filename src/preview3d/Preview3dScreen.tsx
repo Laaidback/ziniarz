@@ -13,55 +13,107 @@ import { closedBook, spreadCaption, turnPage, type BookState } from './book';
 import type { ZineScene } from './scene';
 import { clickTurnsForward, isClick, texturePxPerMm, turnForKey, type Point } from './view';
 
-export function Preview3dScreen({ zineId }: { zineId: string }) {
+/** Draws one page as a texture image; tests pass a failing or counting one. */
+export type DrawPage = (zine: Zine, page: number, assets: RenderAssets) => HTMLCanvasElement;
+/** Loads the three.js part; tests pass one that fails. */
+export type LoadScene = () => Promise<typeof import('./scene')>;
+
+const drawPageTexture: DrawPage = (zine, page, assets) =>
+  renderPage(zine, page, assets, { pxPerMm: texturePxPerMm(), bleed: false });
+// three.js is loaded only when the preview opens, so the rest of the app stays small.
+const loadSceneModule: LoadScene = () => import('./scene');
+
+const LOAD_FAILED = 'Nie udało się wczytać podglądu 3D. Sprawdź połączenie z internetem i odśwież stronę.';
+const WEBGL_FAILED =
+  'Ta przeglądarka nie umie pokazać podglądu 3D. Spróbuj w aktualnym Chrome, Safari albo Firefoksie.';
+
+interface PreviewProps {
+  drawPage?: DrawPage;
+  loadScene?: LoadScene;
+}
+
+export function Preview3dScreen({ zineId, ...rest }: { zineId: string } & PreviewProps) {
   const view = useZineView(zineId);
   if (view.status === 'loading') return <main className="screen-message">Otwieranie zina…</main>;
   if (view.status === 'failed') return <LoadFailed message={view.message} />;
-  return <PreviewWorkspace zine={view.zine} assets={view.assets} />;
+  return <PreviewWorkspace zine={view.zine} assets={view.assets} {...rest} />;
 }
 
-function PreviewWorkspace({ zine, assets }: { zine: Zine; assets: RenderAssets }) {
+function PreviewWorkspace({
+  zine,
+  assets,
+  drawPage = drawPageTexture,
+  loadScene = loadSceneModule,
+}: { zine: Zine; assets: RenderAssets } & PreviewProps) {
   const container = useRef<HTMLDivElement>(null);
   const scene = useRef<ZineScene | null>(null);
   const book = useRef<BookState>(closedBook(zine.sheets));
   const pointerDown = useRef<Point | null>(null);
   const [spread, setSpread] = useState(0);
   const [drawn, setDrawn] = useState(0);
-  const [failed, setFailed] = useState(false);
+  // 'load': the three.js code did not download; 'webgl': the browser cannot draw 3D.
+  const [failed, setFailed] = useState<'load' | 'webgl' | null>(null);
   const pages = pageCount(zine.sheets);
   // Page size as trimmed with the current print settings (printer margin remembered in this browser).
   const trimPage = useMemo(() => printLayout(printSettingsFor(zine.print, loadPrinterMargin())).trimPage, [zine]);
 
   useEffect(() => {
     let disposed = false;
+    let round = 0;
     const queue = createRenderQueue();
     setDrawn(0);
-    // three.js is loaded only when the preview opens, so the rest of the app stays small.
-    import('./scene')
-      .then(({ ZineScene }) => {
-        if (disposed) return;
-        const view = new ZineScene(container.current!, {
-          pageWidth: trimPage.width,
-          pageHeight: trimPage.height,
-          book: book.current,
+
+    /** (Re)draws every page; a page that fails stays blank but still counts as done. */
+    const drawPages = (view: ZineScene) => {
+      const current = ++round;
+      queue.clear();
+      setDrawn(0);
+      for (let page = 1; page <= pages; page++) {
+        queue.add(() => {
+          if (disposed || current !== round) return;
+          try {
+            view.setPageImage(page, drawPage(zine, page, assets));
+          } catch (e) {
+            console.error(e);
+          }
+          setDrawn((count) => count + 1);
         });
-        scene.current = view;
-        for (let page = 1; page <= pages; page++) {
-          queue.add(() => {
-            if (disposed) return;
-            view.setPageImage(page, renderPage(zine, page, assets, { pxPerMm: texturePxPerMm(), bleed: false }));
-            setDrawn((count) => count + 1);
+      }
+    };
+
+    loadScene().then(
+      ({ ZineScene }) => {
+        if (disposed) return;
+        let view: ZineScene;
+        try {
+          view = new ZineScene(container.current!, {
+            pageWidth: trimPage.width,
+            pageHeight: trimPage.height,
+            book: book.current,
+            // Page images are not kept, so after a lost GPU context they are drawn again.
+            onContextRestored: () => !disposed && drawPages(view),
           });
+        } catch (e) {
+          console.error(e);
+          setFailed('webgl');
+          return;
         }
-      })
-      .catch(() => !disposed && setFailed(true));
+        scene.current = view;
+        drawPages(view);
+      },
+      (e: unknown) => {
+        if (disposed) return;
+        console.error(e);
+        setFailed('load');
+      },
+    );
     return () => {
       disposed = true;
       queue.clear();
       scene.current?.dispose();
       scene.current = null;
     };
-  }, [zine, assets, pages, trimPage]);
+  }, [zine, assets, pages, trimPage, drawPage, loadScene]);
 
   const turn = useCallback((forward: boolean) => {
     const next = turnPage(book.current, forward, performance.now());
@@ -73,7 +125,7 @@ function PreviewWorkspace({ zine, assets }: { zine: Zine; assets: RenderAssets }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const forward = turnForKey(event.key);
+      const forward = turnForKey(event);
       if (forward === null) return;
       event.preventDefault();
       turn(forward);
@@ -106,7 +158,7 @@ function PreviewWorkspace({ zine, assets }: { zine: Zine; assets: RenderAssets }
         </a>
       </header>
       {failed ? (
-        <p className="screen-message">Ta przeglądarka nie umie pokazać podglądu 3D. Spróbuj w aktualnym Chrome, Safari albo Firefoksie.</p>
+        <p className="screen-message">{failed === 'load' ? LOAD_FAILED : WEBGL_FAILED}</p>
       ) : (
         <div
           ref={container}
@@ -123,7 +175,7 @@ function PreviewWorkspace({ zine, assets }: { zine: Zine; assets: RenderAssets }
         />
       )}
       <p className="preview3d-help muted">
-        {drawn < pages ? `Rysowanie stron: ${drawn} z ${pages}. ` : ''}
+        {drawn < pages && !failed ? `Rysowanie stron: ${drawn} z ${pages}. ` : ''}
         Przeciągnij, żeby obrócić, kółkiem przybliż. Klik w prawą połowę albo strzałka w prawo przewraca dalej, w lewą
         albo strzałka w lewo wstecz.
       </p>

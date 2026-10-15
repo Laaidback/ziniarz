@@ -23,10 +23,16 @@ export function clickTurnsForward(x: number, width: number): boolean {
   return x >= width / 2;
 }
 
-/** true = forward, false = back, null = not a page-turning key. */
-export function turnForKey(key: string): boolean | null {
-  if (key === 'ArrowRight') return true;
-  if (key === 'ArrowLeft') return false;
+export type KeyPress = Pick<KeyboardEvent, 'key' | 'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey'>;
+
+/**
+ * true = forward, false = back, null = not a page-turning key. Arrows with a modifier are
+ * left to the browser (Alt+← goes back, Cmd+← too on a Mac).
+ */
+export function turnForKey(press: KeyPress): boolean | null {
+  if (press.altKey || press.ctrlKey || press.metaKey || press.shiftKey) return null;
+  if (press.key === 'ArrowRight') return true;
+  if (press.key === 'ArrowLeft') return false;
   return null;
 }
 

@@ -11,10 +11,16 @@ test('a click on the right half turns forward, on the left half back', () => {
   expect(clickTurnsForward(300, 1000)).toBe(false);
 });
 
-test('arrow keys turn pages, other keys do nothing', () => {
-  expect(turnForKey('ArrowRight')).toBe(true);
-  expect(turnForKey('ArrowLeft')).toBe(false);
-  expect(turnForKey('a')).toBeNull();
+test('arrow keys turn pages, other keys and arrows with modifiers (Alt+← is browser back) do nothing', () => {
+  const press = (key: string, modifiers: Partial<Record<'altKey' | 'ctrlKey' | 'metaKey' | 'shiftKey', boolean>> = {}) =>
+    turnForKey({ key, altKey: false, ctrlKey: false, metaKey: false, shiftKey: false, ...modifiers });
+  expect(press('ArrowRight')).toBe(true);
+  expect(press('ArrowLeft')).toBe(false);
+  expect(press('a')).toBeNull();
+  expect(press('ArrowLeft', { altKey: true })).toBeNull();
+  expect(press('ArrowRight', { metaKey: true })).toBeNull();
+  expect(press('ArrowRight', { ctrlKey: true })).toBeNull();
+  expect(press('ArrowLeft', { shiftKey: true })).toBeNull();
 });
 
 test('the camera distance fits the open spread in a wide and in a tall window', () => {
