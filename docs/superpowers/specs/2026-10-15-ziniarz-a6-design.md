@@ -52,7 +52,7 @@ Odrzucone: model dalej w milimetrach A5 i zmniejszanie dopiero przy druku. Panel
   - Przykłady: −3 → −3 (pełny spad), −1 → −1, −100 → −71 (proporcjonalnie), 299 → 213.
   - Działa na ramce przed obrotem, więc u obróconej ramki wystawanie liczy się na nieobróconym prostokącie, nie na widocznych rogach.
   - Ramka (zdjęcie i napis): lewa krawędź `x' = mapX(x)`, prawa `mapX(x + width)`, `width' = prawa − x'`; tak samo `y` i `height` przez `mapY`. Dotyczy ramki przed obrotem (pola `x, y, width, height`); obrócone ramki nie dostają dokładnej korekty, różnica jest niewidoczna. Przykład: zdjęcie na spad od x = −3 do 299 kończy jako −3 do 213, czyli z pełnym spadem 3 mm.
-  - Dla każdej ramki `fx = width' / width` i `fy = height' / height` (1, gdy wymiar był 0).
+  - Dla każdej ramki `fx = width' / width` i `fy = height' / height` (`kx` albo `ky`, gdy wymiar był 0, np. wysokość napisu przed pomiarem).
 - **Kadr zdjęcia:** `offsetX × fx`, `offsetY × fy`, `zoom × max(fx, fy) / min(fx, fy)`. Mnożnik zoomu (ok. 1,007 dla ramek w obrębie strony, nieco więcej dla ramek kilka milimetrów w spadzie) gwarantuje, że zdjęcie nadal wypełnia ramkę bez białego paska: obraz rośnie co najmniej tyle co większy z wymiarów ramki, więc przesunięcia mieszczą się w nowych granicach (`clampCrop` w `photoGeometry.ts` nie jest wołany przy rysowaniu, więc to musi wyjść z samego przeliczenia). Zoom po przeliczeniu może minimalnie przekroczyć `MAX_CROP_ZOOM` z panelu zdjęcia; nie przycinamy go ani w przeliczeniu, ani w `parseZine`, bo wróciłby biały pasek.
 - **Napis:** `size × fx`, żeby szerokość łamania i wielkość liter zmieniły się razem i wiersze łamały się tak samo; wysokość napisu i tak przelicza się z tekstu.
 - **Marginesy:** `outer` i `inner` × `kx`, `top` i `bottom` × `ky`.
