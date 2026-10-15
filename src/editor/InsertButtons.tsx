@@ -1,10 +1,11 @@
 import { useRef } from 'react';
-import { errorMessage, notify } from '../app/notices';
 import { useEditorEnv } from './EditorContext';
-import { insertPhotos, insertText } from './insert';
+import { insertText } from './insert';
+import { insertProgressText, usePhotoInsert } from './photoInsert';
 
 export function InsertButtons() {
-  const env = useEditorEnv();
+  const { store } = useEditorEnv();
+  const photos = usePhotoInsert();
   const input = useRef<HTMLInputElement>(null);
   return (
     <div className="toolbar">
@@ -21,12 +22,17 @@ export function InsertButtons() {
         onChange={(event) => {
           const files = [...(event.target.files ?? [])];
           event.target.value = '';
-          if (files.length) insertPhotos(env, files, null).catch((error) => notify(errorMessage(error)));
+          if (files.length) photos.add(files, null);
         }}
       />
-      <button type="button" onClick={() => insertText(env.store)}>
+      <button type="button" onClick={() => insertText(store)}>
         + Napis
       </button>
+      {photos.progress && (
+        <span className="muted" role="status">
+          {insertProgressText(photos.progress)}
+        </span>
+      )}
     </div>
   );
 }

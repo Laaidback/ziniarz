@@ -5,7 +5,7 @@ import { newId } from '../model/ids';
 import type { PhotoElement } from '../model/types';
 import { measureTextHeight } from '../render/buildSpread';
 import { getImage, openZiniarzDb } from '../storage/db';
-import { insertPhotos, insertText } from './insert';
+import { HEIC_SKIPPED, insertPhotos, insertText } from './insert';
 import { createEditorStore, selectedElement, selectZine } from './state/store';
 
 async function pngFile(width: number, height: number, name = 'zdjecie.png'): Promise<File> {
@@ -81,4 +81,48 @@ test('an element whose centre is off the page falls back to the first page of th
   store.getState().select(outside.id);
   insertText(store);
   expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: 30 });
+});
+
+test('progress is reported per file, and an aborted insert stops before the next file', async () => {
+  const env = await setup();
+  const controller = new AbortController();
+  const progress: [number, number][] = [];
+  const files = [await pngFile(100, 100), await pngFile(100, 100), await pngFile(100, 100)];
+  await insertPhotos(env, files, null, {
+    signal: controller.signal,
+    onProgress: (current, total) => {
+      progress.push([current, total]);
+      if (current === 2) controller.abort();
+    },
+  });
+  expect(progress).toEqual([
+    [1, 3],
+    [2, 3],
+  ]);
+  expect(selectZine(env.store.getState()).spreads[1].elements).toHaveLength(1);
+  expect(env.assets.images.size).toBe(1);
+});
+
+test('an insert aborted while a photo is being read adds nothing more and keeps no bitmap', async () => {
+  const env = await setup();
+  const controller = new AbortController();
+  const done = insertPhotos(env, [await pngFile(2000, 2000)], null, { signal: controller.signal });
+  controller.abort();
+  await done;
+  expect(selectZine(env.store.getState()).spreads[1].elements).toEqual([]);
+  expect(env.assets.images.size).toBe(0);
+  expect(noticeStore.getState().notices).toEqual([]);
+});
+
+test('HEIC photos the browser cannot read get their own message', async () => {
+  const env = await setup();
+  const heic = new File([new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112])], 'IMG_0001.HEIC', { type: 'image/heic' });
+  const heif = new File([new Uint8Array([1, 2, 3])], 'zdjecie.heif');
+  const text = new File(['hello'], 'notatki.txt', { type: 'text/plain' });
+  await insertPhotos(env, [heic, heif, text], null);
+  expect(noticeStore.getState().notices.map((n) => n.text)).toEqual([
+    HEIC_SKIPPED,
+    'Pominięto plików: 1 (to nie są obrazy).',
+  ]);
+  expect(HEIC_SKIPPED).toBe("Zdjęć HEIC (z iPhone'a) przeglądarka nie odczyta. Zapisz je jako JPG i dodaj jeszcze raz.");
 });

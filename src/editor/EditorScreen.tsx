@@ -10,6 +10,7 @@ import { holdOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { PropertiesPanel } from './panels/PropertiesPanel';
+import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
 import { openEditorSession } from './session';
 import { createAutosaver } from './state/autosave';
 import { SpreadList } from './SpreadList';
@@ -24,6 +25,7 @@ interface Loaded {
 
 function EditorWorkspace({ env }: { env: EditorEnv }) {
   useEditorKeyboard(env.store);
+  const photoInsert = usePhotoInsertState(env);
 
   // Autosave 500 ms after each change; leaving the editor or hiding the tab saves at once.
   useEffect(() => {
@@ -59,18 +61,20 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
 
   return (
     <EditorContext.Provider value={env}>
-      <div className="editor">
-        <TopBar />
-        <aside className="editor-spreads">
-          <SpreadList />
-        </aside>
-        <section className="editor-canvas">
-          <SpreadCanvas />
-        </section>
-        <aside className="editor-panel">
-          <PropertiesPanel />
-        </aside>
-      </div>
+      <PhotoInsertContext.Provider value={photoInsert}>
+        <div className="editor">
+          <TopBar />
+          <aside className="editor-spreads">
+            <SpreadList />
+          </aside>
+          <section className="editor-canvas">
+            <SpreadCanvas />
+          </section>
+          <aside className="editor-panel">
+            <PropertiesPanel />
+          </aside>
+        </div>
+      </PhotoInsertContext.Provider>
     </EditorContext.Provider>
   );
 }

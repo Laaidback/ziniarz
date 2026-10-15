@@ -12,6 +12,11 @@ export class ImageImportError extends Error {
   }
 }
 
+/** iPhone photos (HEIC/HEIF). Only Safari decodes them, so the message is shown only when decoding fails. */
+export function isHeicFile(file: { name?: string; type: string }): boolean {
+  return /^image\/hei[cf](-sequence)?$/i.test(file.type) || /\.hei[cf]$/i.test(file.name ?? '');
+}
+
 function hasTransparency(bitmap: ImageBitmap): boolean {
   const size = 256;
   const canvas = new OffscreenCanvas(size, size);

@@ -1,5 +1,5 @@
 import { errorMessage, notify } from '../app/notices';
-import { ImageImportError, prepareImage } from '../images/prepareImage';
+import { ImageImportError, isHeicFile, prepareImage } from '../images/prepareImage';
 import { createPhotoElement, createTextElement } from '../model/factory';
 import type { StoredImage } from '../storage/db';
 import { putImage } from '../storage/db';
@@ -24,34 +24,61 @@ function targetPage(store: EditorStore, page: number | null): number {
   return page ?? state.activePage ?? selectedPage ?? defaultPage(state.spread, sheets);
 }
 
+export const HEIC_SKIPPED = "Zdjęć HEIC (z iPhone'a) przeglądarka nie odczyta. Zapisz je jako JPG i dodaj jeszcze raz.";
+
+export interface InsertPhotosOptions {
+  /** Aborted when the editor closes: stops before the next file and adds nothing more. */
+  signal?: AbortSignal;
+  /** Called before each file: `current` (1-based) of `total`. */
+  onProgress?(current: number, total: number): void;
+}
+
 /**
  * Adds photos to the current spread. Each fills the margin area of `page` keeping its proportions;
- * further photos of the same drop step 5 mm aside. Files that are not images are skipped and counted.
+ * further photos of the same drop step 5 mm aside. Files that are not images are skipped and counted
+ * (HEIC photos the browser cannot decode separately, with a hint to save them as JPG).
  */
-export async function insertPhotos(env: Pick<EditorEnv, 'db' | 'store' | 'assets'>, files: File[], page: number | null): Promise<void> {
+export async function insertPhotos(
+  env: Pick<EditorEnv, 'db' | 'store' | 'assets'>,
+  files: File[],
+  page: number | null,
+  { signal, onProgress }: InsertPhotosOptions = {},
+): Promise<void> {
   const { db, store, assets } = env;
   const area = insertArea(selectZine(store.getState()), targetPage(store, page));
   let placed = 0;
   let skipped = 0;
-  for (const file of files) {
+  let heic = 0;
+  for (const [index, file] of files.entries()) {
+    if (signal?.aborted) return;
+    onProgress?.(index + 1, files.length);
+    if (signal?.aborted) return;
     let image: StoredImage;
     try {
       image = await prepareImage(file);
     } catch (error) {
       if (!(error instanceof ImageImportError)) throw error;
-      skipped++;
+      if (isHeicFile(file)) heic++;
+      else skipped++;
       continue;
     }
+    if (signal?.aborted) return;
     try {
       await putImage(db, image);
     } catch (error) {
       notify(errorMessage(error));
       break;
     }
-    assets.images.set(image.id, await bitmapOf(image));
+    const bitmap = await bitmapOf(image);
+    if (signal?.aborted) {
+      bitmap.close(); // the editor is gone: nothing will draw it (the stored image is pruned later)
+      return;
+    }
+    assets.images.set(image.id, bitmap);
     store.getState().assetsChanged();
     store.getState().addElement(createPhotoElement(image.id, cascade(fitPhotoFrame(area, image.width, image.height), placed++)));
   }
+  if (heic > 0) notify(HEIC_SKIPPED);
   if (skipped > 0) notify(`Pominięto plików: ${skipped} (to nie są obrazy).`);
 }
 

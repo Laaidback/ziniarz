@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { errorMessage, notify } from '../../app/notices';
 import { loadSpreadFonts } from '../../fonts/fontLoader';
 import { useFontsVersion } from '../../fonts/useFontsVersion';
 import { useEditor, useEditorEnv } from '../EditorContext';
 import { pageAtPoint } from '../geometry/placement';
-import { insertPhotos } from '../insert';
+import { usePhotoInsert } from '../photoInsert';
 import { findElement } from '../state/commands';
 import { selectZine } from '../state/store';
 import { EditorStage, type Viewport } from './EditorStage';
@@ -12,8 +11,8 @@ import { TextEditor } from './TextEditor';
 
 /** React wrapper around EditorStage: passes store changes in, store actions out, and takes file drops. */
 export function SpreadCanvas() {
-  const env = useEditorEnv();
-  const { store, assets } = env;
+  const { store, assets } = useEditorEnv();
+  const photos = usePhotoInsert();
   const zine = useEditor(selectZine);
   const spread = useEditor((s) => s.spread);
   const selectedId = useEditor((s) => s.selectedId);
@@ -81,7 +80,7 @@ export function SpreadCanvas() {
         if (!files.length || !editor) return;
         const point = editor.toSpreadMm(event.clientX, event.clientY);
         const page = pageAtPoint(spread, zine.sheets, point.x, point.y);
-        insertPhotos(env, files, page).catch((error) => notify(errorMessage(error)));
+        photos.add(files, page);
       }}
     >
       <div ref={host} className="spread-stage" />
