@@ -1,4 +1,4 @@
-import { frameBounds, marginRect, PAGE_WIDTH, pageRect, pagesOfSpread, slotOfPage, type Rect } from '../../model/geometry';
+import { frameBounds, marginRect, PAGE_WIDTH, pageRect, pagesOfSpread, sideOfPage, type Rect } from '../../model/geometry';
 import type { Zine } from '../../model/types';
 
 /** Lines (spread mm) an element snaps to: vertical lines in `xs`, horizontal in `ys`. */
@@ -22,7 +22,7 @@ export function snapTargets(zine: Zine, spread: number, excludeId: string | null
   const xs = [PAGE_WIDTH];
   const ys: number[] = [];
   for (const page of pagesOfSpread(spread, zine.sheets)) {
-    const side = slotOfPage(page).side;
+    const side = sideOfPage(page);
     const r = pageRect(side, 0);
     const m = marginRect(zine.margins, side);
     xs.push(r.x, r.x + r.width / 2, r.x + r.width, m.x, m.x + m.width);

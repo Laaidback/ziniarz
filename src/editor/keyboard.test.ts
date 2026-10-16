@@ -98,11 +98,12 @@ describe('applyKeyCommand', () => {
 
   test('PageUp and PageDown change the spread', () => {
     const store = createEditorStore(createZine('t', 1), deps);
+    // One sheet: spreads 0 (outside cover) and 1; pressing past the last spread stays there.
     applyKeyCommand(store, { type: 'nextSpread' });
-    applyKeyCommand(store, { type: 'nextSpread' });
-    applyKeyCommand(store, { type: 'nextSpread' });
-    expect(store.getState().spread).toBe(2);
-    applyKeyCommand(store, { type: 'prevSpread' });
     expect(store.getState().spread).toBe(1);
+    applyKeyCommand(store, { type: 'nextSpread' });
+    expect(store.getState().spread).toBe(1);
+    applyKeyCommand(store, { type: 'prevSpread' });
+    expect(store.getState().spread).toBe(0);
   });
 });

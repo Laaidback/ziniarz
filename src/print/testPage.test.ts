@@ -18,7 +18,7 @@ test('every page shows its number, "up" and its sheet side', () => {
   for (const side of sheetSides(zine.sheets)) {
     const label = `kartka ${side.sheet + 1} · ${side.face === 'front' ? 'przód' : 'tył'}`;
     for (const page of [side.left, side.right]) {
-      const onSpread = zine.spreads[slotOfPage(page).spread].elements.filter((e): e is TextElement => e.kind === 'text');
+      const onSpread = zine.spreads[slotOfPage(page, zine.sheets).spread].elements.filter((e): e is TextElement => e.kind === 'text');
       expect(onSpread.map((e) => e.text)).toContain(`${page}\n↑ góra`);
       expect(onSpread.map((e) => e.text)).toContain(label);
     }

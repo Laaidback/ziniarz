@@ -1,6 +1,6 @@
 import Konva from 'konva';
 import { konvaFontFamily, konvaFontStyle } from '../fonts/fontLoader';
-import { BLEED, pageRect, pagesOfSpread, slotOfPage } from '../model/geometry';
+import { BLEED, pageRect, pagesOfSpread, sideOfPage } from '../model/geometry';
 import type { PhotoElement, TextElement, Zine, ZineElement } from '../model/types';
 import type { RenderAssets } from './assets';
 import { imagePlacement } from './photoGeometry';
@@ -110,7 +110,7 @@ export function buildElementNode(element: ZineElement, assets: RenderAssets): Ko
 export function buildSpreadGroup(zine: Zine, spreadIndex: number, assets: RenderAssets): Konva.Group {
   const group = new Konva.Group();
   for (const page of pagesOfSpread(spreadIndex, zine.sheets)) {
-    const rect = pageRect(slotOfPage(page).side, BLEED);
+    const rect = pageRect(sideOfPage(page), BLEED);
     group.add(new Konva.Rect({ ...rect, fill: zine.pages[page]?.background ?? '#ffffff', name: 'page' }));
   }
   for (const element of zine.spreads[spreadIndex].elements) group.add(buildElementNode(element, assets));

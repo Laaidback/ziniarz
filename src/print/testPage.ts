@@ -31,7 +31,7 @@ export function testPageZine(): Zine {
     const label = `kartka ${side.sheet + 1} · ${side.face === 'front' ? 'przód' : 'tył'}`;
     for (const page of [side.left, side.right]) {
       zine.pages[page] = { background: '#e6e6e6' };
-      const slot = slotOfPage(page);
+      const slot = slotOfPage(page, SHEETS);
       const x = pageRect(slot.side, 0).x;
       zine.spreads[slot.spread].elements.push(
         createTextElement({

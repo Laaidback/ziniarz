@@ -23,15 +23,23 @@ export function pageCount(sheets: number): number {
   return sheets * 4;
 }
 
+/** Spread 0 is the outside cover; spreads 1 … 2 · sheets − 1 are the inside pages. */
 export function spreadCount(sheets: number): number {
-  return sheets * 2 + 1;
+  return sheets * 2;
 }
 
-export function slotOfPage(page: number): PageSlot {
-  return { spread: Math.floor(page / 2), side: page % 2 === 0 ? 'left' : 'right' };
+/** Side of its spread a page sits on: even pages on the left (the back cover P too), odd on the right. */
+export function sideOfPage(page: number): Side {
+  return page % 2 === 0 ? 'left' : 'right';
 }
 
-export function pageAt(spread: number, side: Side): number {
+/** Spread 0 holds the back cover P (left) and the front cover 1 (right); spread i ≥ 1 holds 2i | 2i + 1. */
+export function slotOfPage(page: number, sheets: number): PageSlot {
+  return { spread: page === pageCount(sheets) ? 0 : Math.floor(page / 2), side: sideOfPage(page) };
+}
+
+export function pageAt(spread: number, side: Side, sheets: number): number {
+  if (spread === 0 && side === 'left') return pageCount(sheets);
   return spread * 2 + (side === 'left' ? 0 : 1);
 }
 
@@ -39,8 +47,9 @@ export function pageExists(page: number, sheets: number): boolean {
   return page >= 1 && page <= pageCount(sheets);
 }
 
+/** Both pages of a spread, left first. Every spread has two. */
 export function pagesOfSpread(spread: number, sheets: number): number[] {
-  return [pageAt(spread, 'left'), pageAt(spread, 'right')].filter((p) => pageExists(p, sheets));
+  return [pageAt(spread, 'left', sheets), pageAt(spread, 'right', sheets)];
 }
 
 /** Page rectangle in spread coordinates, grown by `bleed` on the outer edges (never at the spine). */
@@ -81,7 +90,7 @@ export function frameBounds(f: Frame): Rect {
 export function pagesOfFrame(spread: number, f: Frame, sheets: number): number[] {
   const b = frameBounds(f);
   return pagesOfSpread(spread, sheets).filter((page) => {
-    const r = pageRect(slotOfPage(page).side, 0);
+    const r = pageRect(sideOfPage(page), 0);
     return b.x < r.x + r.width && b.x + b.width > r.x && b.y < r.y + r.height && b.y + b.height > r.y;
   });
 }

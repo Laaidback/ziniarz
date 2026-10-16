@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import JSZip from 'jszip';
 import { describe, expect, test } from 'vitest';
-import { createPhotoElement, createTextElement, createZine } from '../model/factory';
+import { createPhotoElement, createTextElement, createZine, FORMAT_VERSION } from '../model/factory';
 import type { TextElement } from '../model/types';
 import { newId } from '../model/ids';
 import {
@@ -111,12 +111,17 @@ describe('writeZin / readZin', () => {
       ...bundle.zine,
       formatVersion: 1,
       margins: { outer: 30, inner: 30, top: 30, bottom: 30 },
-      spreads: bundle.zine.spreads.map((s, i) =>
-        i === 1 ? { ...s, elements: [createTextElement({ x: 148, y: 210, width: 148, text: 'A' })] } : s,
-      ),
+      spreads: [
+        ...bundle.zine.spreads.map((s, i) =>
+          i === 1 ? { ...s, elements: [createTextElement({ x: 148, y: 210, width: 148, text: 'A' })] } : s,
+        ),
+        { id: 'back', elements: [createTextElement({ x: 20, y: 10, width: 50, text: 'tył' })] },
+      ],
     };
     const read = await readZin(await writeZin({ ...bundle, zine: old }));
-    expect(read.zine.formatVersion).toBe(2);
+    expect(read.zine.formatVersion).toBe(FORMAT_VERSION);
+    expect(read.zine.spreads).toHaveLength(2 * bundle.zine.sheets);
+    expect(read.zine.spreads[0].elements.some((e) => e.kind === 'text' && e.text === 'tył')).toBe(true);
     expect(read.zine.margins.outer).toBeCloseTo(30 * (105 / 148), 9);
     expect(read.zine.spreads[1].elements[0].x).toBeCloseTo(105, 9);
     expect(read.zine.spreads[1].elements[0].y).toBeCloseTo(148, 9);

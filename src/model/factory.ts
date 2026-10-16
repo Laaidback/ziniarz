@@ -2,7 +2,7 @@ import { MAX_SHEETS, MIN_SHEETS, spreadCount } from './geometry';
 import { newId } from './ids';
 import type { Margins, PhotoElement, PrintSettings, Spread, TextElement, Zine } from './types';
 
-export const FORMAT_VERSION = 2;
+export const FORMAT_VERSION = 3;
 export const DEFAULT_MARGINS: Margins = { outer: 12, inner: 7, top: 14, bottom: 11 };
 export const DEFAULT_PRINT: PrintSettings = {
   bleed: true,

@@ -40,7 +40,7 @@ export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }
   zine.pages[2] = { background: '#e8e2ff' };
   zine.pages[12] = { background: '#073b4c' };
 
-  // Cover (page 1, right half of spread 0).
+  // Front cover (page 1, right half of spread 0).
   zine.spreads[0].elements.push(
     createPhotoElement('p', { x: 113.5, y: 42.3, width: 88, height: 63.4, rotation: -4, flipX: true }),
     createTextElement({ text: 'PRÓBKA', size: 28.4, bold: true, x: 126.3, y: 14.1, width: 62.4, align: 'center', letterSpacing: 80 }),
@@ -79,8 +79,8 @@ export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }
     createPhotoElement('p', { x: 28.4, y: 28.2, width: 153.2, height: 91.6, opacity: 0.8 }),
     createTextElement({ text: 'Zdjęcie przez grzbiet, strony 10 i 11', size: 7.8, x: 21.3, y: 126.9, width: 62.4 }),
   );
-  // Back cover (page 12, left half of the last spread).
-  zine.spreads[6].elements.push(
+  // Back cover (page 12, left half of spread 0, the outside cover).
+  zine.spreads[0].elements.push(
     createTextElement({ text: 'koniec', size: 17, x: 21.3, y: 67, width: 62.4, align: 'center', color: '#ffffff' }),
   );
 

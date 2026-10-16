@@ -1,5 +1,5 @@
 import Konva from 'konva';
-import { BLEED, marginRect, PAGE_HEIGHT, PAGE_WIDTH, pageAt, pageExists, pageRect, pagesOfSpread, slotOfPage, type Rect } from '../model/geometry';
+import { BLEED, marginRect, PAGE_HEIGHT, PAGE_WIDTH, pageAt, pageExists, pageRect, pagesOfSpread, sideOfPage, type Rect } from '../model/geometry';
 import type { Side, Zine } from '../model/types';
 
 export const GUIDE_COLORS = { bleed: '#e5484d', margin: '#3e63dd', spine: 'rgba(0, 0, 0, 0.35)' };
@@ -13,7 +13,7 @@ export function buildGuidesGroup(zine: Zine, spread: number, pxPerMm: number): K
   const dash = [4 * px, 3 * px];
   const group = new Konva.Group({ listening: false });
   for (const page of pagesOfSpread(spread, zine.sheets)) {
-    const side = slotOfPage(page).side;
+    const side = sideOfPage(page);
     group.add(new Konva.Rect({ ...pageRect(side, BLEED), stroke: GUIDE_COLORS.bleed, strokeWidth: px, dash, name: 'guide-bleed' }));
     group.add(new Konva.Rect({ ...marginRect(zine.margins, side), stroke: GUIDE_COLORS.margin, strokeWidth: px, dash, name: 'guide-margin' }));
   }
@@ -39,7 +39,7 @@ function missingSideRect(side: Side): Rect {
 export function buildMissingPagesShade(zine: Zine, spread: number): Konva.Group {
   const group = new Konva.Group({ listening: false });
   for (const side of ['left', 'right'] as const) {
-    if (pageExists(pageAt(spread, side), zine.sheets)) continue;
+    if (pageExists(pageAt(spread, side, zine.sheets), zine.sheets)) continue;
     group.add(new Konva.Rect({ ...missingSideRect(side), fill: MISSING_PAGE_COLOR, opacity: 0.85, name: 'missing-page' }));
   }
   return group;

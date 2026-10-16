@@ -64,7 +64,7 @@ export function renderPage(
   assets: RenderAssets,
   options: RenderOptions & { bleed: boolean; sizePx?: PixelSize },
 ): HTMLCanvasElement {
-  const { spread, side } = slotOfPage(page);
+  const { spread, side } = slotOfPage(page, zine.sheets);
   const region = pageRect(side, options.bleed ? BLEED : 0);
   return renderRegion(zine, spread, assets, region, options.pxPerMm, options.sizePx);
 }

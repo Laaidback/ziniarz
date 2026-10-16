@@ -2,7 +2,7 @@ import { PDFDocument } from 'pdf-lib';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { DbContext } from '../../app/dbContext';
-import { createTextElement, createZine } from '../../model/factory';
+import { createTextElement, createZine, FORMAT_VERSION } from '../../model/factory';
 import type { Zine } from '../../model/types';
 import { openZineLockHeld } from '../../test/locks';
 import { openScreen } from '../../test/screenHarness';
@@ -63,9 +63,12 @@ test('an old A5 zine is stored converted to A6, exactly once', async () => {
     ...fresh,
     formatVersion: 1,
     margins: { outer: 30, inner: 30, top: 30, bottom: 30 },
-    spreads: fresh.spreads.map((spread, i) =>
-      i === 1 ? { ...spread, elements: [createTextElement({ x: 148, y: 30, width: 148, text: 'A' })] } : spread,
-    ),
+    spreads: [
+      ...fresh.spreads.map((spread, i) =>
+        i === 1 ? { ...spread, elements: [createTextElement({ x: 148, y: 30, width: 148, text: 'A' })] } : spread,
+      ),
+      { id: 'back', elements: [] },
+    ],
   } as unknown as Zine;
   const { db, screen, stored } = await openPrint(old, testExporter().exporter);
   expect((await stored()).formatVersion).toBe(1);
@@ -73,12 +76,13 @@ test('an old A5 zine is stored converted to A6, exactly once', async () => {
   await screen.getByRole('checkbox', { name: 'Linie cięcia' }).click();
   await expect.poll(async () => (await stored()).print.cropMarks).toBe(false);
   const first = await stored();
-  expect(first.formatVersion).toBe(2);
+  expect(first.spreads).toHaveLength(2);
+  expect(first.formatVersion).toBe(FORMAT_VERSION);
   expect(first.margins.outer).toBeCloseTo((30 * 105) / 148, 6);
   expect(first.margins.top).toBeCloseTo((30 * 148) / 210, 6);
   expect(first.spreads[1].elements[0].x).toBeCloseTo(105, 6);
 
-  // Reopen on the same stored data: it is already version 2, so it must not be scaled again.
+  // Reopen on the same stored data: it is already the current version, so it must not be scaled again.
   screen.unmount();
   const again = render(
     <DbContext.Provider value={db}>
@@ -88,7 +92,8 @@ test('an old A5 zine is stored converted to A6, exactly once', async () => {
   await again.getByRole('checkbox', { name: 'Linie cięcia' }).click();
   await expect.poll(async () => (await stored()).print.cropMarks).toBe(true);
   const second = await stored();
-  expect(second.formatVersion).toBe(2);
+  expect(second.spreads).toHaveLength(2);
+  expect(second.formatVersion).toBe(FORMAT_VERSION);
   expect(second.margins.outer).toBeCloseTo(first.margins.outer, 6);
   expect(second.spreads[1].elements[0].x).toBeCloseTo(105, 6);
   again.unmount();

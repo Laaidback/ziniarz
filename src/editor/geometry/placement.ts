@@ -7,7 +7,7 @@ import {
   pageExists,
   pageRect,
   pagesOfSpread,
-  slotOfPage,
+  sideOfPage,
   SPREAD_WIDTH,
   type Rect,
 } from '../../model/geometry';
@@ -21,18 +21,18 @@ const MIN_AREA = 10;
 /** The existing page under a point in spread mm (the bleed counts as the page), or null. */
 export function pageAtPoint(spread: number, sheets: number, x: number, y: number): number | null {
   if (x < -BLEED || x > SPREAD_WIDTH + BLEED || y < -BLEED || y > PAGE_HEIGHT + BLEED) return null;
-  const page = pageAt(spread, x < PAGE_WIDTH ? 'left' : 'right');
+  const page = pageAt(spread, x < PAGE_WIDTH ? 'left' : 'right', sheets);
   return pageExists(page, sheets) ? page : null;
 }
 
 /** Where "+ Zdjęcie" and "+ Napis" go when no page was clicked: the first existing page of the spread. */
 export function defaultPage(spread: number, sheets: number): number {
-  return pagesOfSpread(spread, sheets)[0];
+  return Math.min(...pagesOfSpread(spread, sheets));
 }
 
 /** Area new photos and texts fill: between the margins, or the whole page when the margins leave too little. */
 export function insertArea(zine: Zine, page: number): Rect {
-  const side = slotOfPage(page).side;
+  const side = sideOfPage(page);
   const area = marginRect(zine.margins, side);
   return area.width >= MIN_AREA && area.height >= MIN_AREA ? area : pageRect(side, 0);
 }

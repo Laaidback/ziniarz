@@ -13,8 +13,10 @@ test('targets: page edges and centres, margins, spine and other elements', () =>
   expect(targets.ys).toEqual([0, 14, 50, 55, 60, 74, 137, 148]);
 });
 
-test('the cover spread only snaps to the cover page and the spine', () => {
-  expect(snapTargets(createZine('t', 1), 0, null).xs).toEqual([105, 112, 157.5, 198, 210]);
+test('the outside cover snaps to both covers (back left, front right) and the spine', () => {
+  const targets = snapTargets(createZine('t', 1), 0, null);
+  expect(targets.xs).toEqual([0, 12, 52.5, 98, 105, 112, 157.5, 198, 210]);
+  expect(targets.ys).toEqual([0, 14, 74, 137, 148]);
 });
 
 test('snapBox picks the closest edge or centre within the threshold', () => {
