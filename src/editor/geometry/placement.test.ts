@@ -3,19 +3,19 @@ import { createZine, DEFAULT_MARGINS } from '../../model/factory';
 import { PAGE_HEIGHT, PAGE_WIDTH } from '../../model/geometry';
 import { cascade, defaultPage, fitPhotoFrame, frameFromCentre, insertArea, newTextFrame, pageAtPoint } from './placement';
 
-test('pageAtPoint finds existing pages, bleed included', () => {
+test('pageAtPoint finds the page, bleed included; on the cover the left half is the back cover', () => {
   expect(pageAtPoint(1, 1, 10, 100)).toBe(2);
   expect(pageAtPoint(1, 1, 200, 100)).toBe(3);
   expect(pageAtPoint(1, 1, -2, PAGE_HEIGHT + 2)).toBe(2);
   expect(pageAtPoint(1, 1, 10, PAGE_HEIGHT + 10)).toBeNull();
-  expect(pageAtPoint(0, 1, 10, 100)).toBeNull(); // left of the front cover
+  expect(pageAtPoint(0, 1, 10, 100)).toBe(4);
   expect(pageAtPoint(0, 1, 200, 100)).toBe(1);
 });
 
-test('defaultPage is the first existing page', () => {
+test('defaultPage is the lower page number: the front on the cover, else the left page', () => {
   expect(defaultPage(0, 2)).toBe(1);
   expect(defaultPage(2, 2)).toBe(4);
-  expect(defaultPage(4, 2)).toBe(8);
+  expect(defaultPage(3, 2)).toBe(6);
 });
 
 test('insertArea is the margin area, or the page when margins leave too little', () => {

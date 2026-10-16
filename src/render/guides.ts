@@ -1,11 +1,8 @@
 import Konva from 'konva';
-import { BLEED, marginRect, PAGE_HEIGHT, PAGE_WIDTH, pageAt, pageExists, pageRect, pagesOfSpread, sideOfPage, type Rect } from '../model/geometry';
-import type { Side, Zine } from '../model/types';
+import { BLEED, marginRect, PAGE_HEIGHT, PAGE_WIDTH, pageRect, pagesOfSpread, sideOfPage } from '../model/geometry';
+import type { Zine } from '../model/types';
 
 export const GUIDE_COLORS = { bleed: '#e5484d', margin: '#3e63dd', spine: 'rgba(0, 0, 0, 0.35)' };
-/** Same grey as the editor's canvas background, so a missing page blends into it. */
-export const MISSING_PAGE_COLOR = '#e8e8e8';
-const FAR = 1000;
 
 /** Bleed (red dashed), margins (blue dashed) and the spine. `pxPerMm` keeps the lines 1 px wide on screen. */
 export function buildGuidesGroup(zine: Zine, spread: number, pxPerMm: number): Konva.Group {
@@ -25,22 +22,5 @@ export function buildGuidesGroup(zine: Zine, spread: number, pxPerMm: number): K
       name: 'guide-spine',
     }),
   );
-  return group;
-}
-
-/** The half of the spread where `side` has no page, reaching far outwards (never past the spine). */
-function missingSideRect(side: Side): Rect {
-  return side === 'left'
-    ? { x: -FAR, y: -FAR, width: FAR + PAGE_WIDTH, height: PAGE_HEIGHT + 2 * FAR }
-    : { x: PAGE_WIDTH, y: -FAR, width: PAGE_WIDTH + FAR, height: PAGE_HEIGHT + 2 * FAR };
-}
-
-/** Greys out what lies on the non-existing page next to a cover (it is never printed). */
-export function buildMissingPagesShade(zine: Zine, spread: number): Konva.Group {
-  const group = new Konva.Group({ listening: false });
-  for (const side of ['left', 'right'] as const) {
-    if (pageExists(pageAt(spread, side, zine.sheets), zine.sheets)) continue;
-    group.add(new Konva.Rect({ ...missingSideRect(side), fill: MISSING_PAGE_COLOR, opacity: 0.85, name: 'missing-page' }));
-  }
   return group;
 }

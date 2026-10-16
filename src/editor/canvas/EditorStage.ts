@@ -3,7 +3,7 @@ import { BLEED, frameBounds, PAGE_HEIGHT, SPREAD_WIDTH } from '../../model/geome
 import type { Frame, PhotoCrop, PhotoElement, Zine, ZineElement } from '../../model/types';
 import type { RenderAssets } from '../../render/assets';
 import { buildSpreadGroup, ELEMENT_NODE_NAME } from '../../render/buildSpread';
-import { buildGuidesGroup, buildMissingPagesShade } from '../../render/guides';
+import { buildGuidesGroup } from '../../render/guides';
 import { imagePlacement } from '../../render/photoGeometry';
 import { frameFromCentre, pageAtPoint } from '../geometry/placement';
 import { snapBox, snapPoint, snapTargets, type SnapTargets } from '../geometry/snapping';
@@ -68,7 +68,7 @@ function elementNodeOf(target: Konva.Node): Konva.Node | null {
 /**
  * The editor canvas, in plain Konva. The spread itself is drawn by the shared renderer
  * (buildSpreadGroup); this class only adds guides, selection, snapping and pointer handling.
- * Layers: `content` (spread, scaled to mm), `overlay` (guides, shade, snap lines, the selection
+ * Layers: `content` (spread, scaled to mm), `overlay` (guides, snap lines, the selection
  * proxy; scaled, not listening) and `tools` (the Transformer; unscaled, it works in screen pixels).
  */
 export class EditorStage {
@@ -203,7 +203,6 @@ export class EditorStage {
     if (!view) return;
     if (force || this.contentChanged(view)) this.buildContent(view);
     this.decorations.destroyChildren();
-    this.decorations.add(buildMissingPagesShade(view.zine, view.spread));
     if (view.showGuides) this.decorations.add(buildGuidesGroup(view.zine, view.spread, this.viewportState.scale));
     this.snapLines.destroyChildren();
     this.attachSelection();
@@ -284,7 +283,7 @@ export class EditorStage {
     this.callbacks.clickPage(this.pageUnderPointer());
   }
 
-  /** The existing page under the pointer, or null (outside the spread, or the missing page beside a cover). */
+  /** The page under the pointer, or null outside the spread. */
   private pageUnderPointer(): number | null {
     const point = this.pointerMm();
     return point && this.view ? pageAtPoint(this.view.spread, this.view.zine.sheets, point.x, point.y) : null;

@@ -143,3 +143,13 @@ test('after clicking the right half of a photo across the spread, "+ Napis" goes
   insertText(store);
   expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: RIGHT_MARGIN_X });
 });
+
+test('on the cover "+ Napis" goes to the front, or to the back cover once it was clicked', async () => {
+  const { store } = await setup();
+  store.getState().setSpread(0);
+  insertText(store);
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: RIGHT_MARGIN_X });
+  store.getState().clickPage(4);
+  insertText(store);
+  expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: LEFT_MARGIN_X });
+});

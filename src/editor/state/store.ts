@@ -1,5 +1,5 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
-import { spreadCount } from '../../model/geometry';
+import { pageAt, sideOfPage, spreadCount } from '../../model/geometry';
 import { addSheet, removeSheet } from '../../model/sheets';
 import type { PhotoCrop, TextElement, Zine, ZineElement } from '../../model/types';
 import { clampCrop } from '../../render/photoGeometry';
@@ -132,14 +132,17 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       });
     };
 
-    /** Adds or removes a sheet and keeps showing the current spread's content where it moved (pages are 2 per spread). */
+    /**
+     * Adds or removes a sheet and keeps showing the current spread's content where it moved, with the
+     * clicked page on the same side (the back cover keeps being the back cover, renumbered P ± 4).
+     */
     const changeSheets = (change: (zine: Zine, spread: number) => Zine) => {
       const { history, spread, activePage } = get();
       const next = change(history.present, spread);
       if (next === history.present) return;
       const moved = next.spreads.indexOf(history.present.spreads[spread]);
       if (moved < 0) settle(record(history, next));
-      else settle(record(history, next), moved, activePage === null ? null : activePage + 2 * (moved - spread));
+      else settle(record(history, next), moved, activePage === null ? null : pageAt(moved, sideOfPage(activePage), next.sheets));
     };
 
     const travel = (step: (history: History<Zine>) => History<Zine>) => {

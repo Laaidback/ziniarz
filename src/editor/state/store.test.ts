@@ -102,15 +102,15 @@ describe('spreads and sheets', () => {
     s().addElement(createTextElement());
     s().clickPage(1);
     s().setSpread(99);
-    expect(s()).toMatchObject({ spread: 4, selectedId: null, activePage: null });
+    expect(s()).toMatchObject({ spread: 3, selectedId: null, activePage: null });
   });
 
   test('removing a sheet keeps the current spread index valid; undo brings it back', () => {
     const { s, zine } = setup(2);
-    s().setSpread(4);
+    s().setSpread(3);
     s().removeSheet();
     expect(zine().sheets).toBe(1);
-    expect(s().spread).toBe(2);
+    expect(s().spread).toBe(1);
     s().undo();
     expect(zine().sheets).toBe(2);
     s().addSheet();
@@ -243,14 +243,31 @@ describe('undo and redo', () => {
   });
 });
 
-test('adding a sheet on the back cover keeps showing the back cover', () => {
+test('a clicked back cover stays the back cover when a sheet is added or removed', () => {
   const { s, zine } = setup(2);
-  s().setSpread(4);
-  const back = zine().spreads[4];
+  s().clickPage(8);
   s().addSheet();
   expect(zine().sheets).toBe(3);
-  expect(zine().spreads[s().spread]).toBe(back);
-  expect(s().spread).toBe(6);
+  expect(s()).toMatchObject({ spread: 0, activePage: 12 });
+  s().removeSheet();
+  s().removeSheet();
+  expect(zine().sheets).toBe(1);
+  expect(s()).toMatchObject({ spread: 0, activePage: 4 });
+});
+
+test('a clicked front cover stays page 1', () => {
+  const { s } = setup(2);
+  s().clickPage(1);
+  s().addSheet();
+  expect(s()).toMatchObject({ spread: 0, activePage: 1 });
+});
+
+test('a clicked inside page moves with its spread', () => {
+  const { s } = setup(3);
+  s().setSpread(5);
+  s().clickPage(11);
+  s().removeSheet();
+  expect(s()).toMatchObject({ spread: 3, activePage: 7 });
 });
 
 test('adding a sheet on an inside spread stays on it', () => {

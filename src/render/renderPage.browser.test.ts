@@ -105,13 +105,14 @@ describe('renderPage', () => {
   });
 });
 
-test('renderSpread leaves the missing half of a cover spread empty', async () => {
+test('renderSpread draws the whole cover: back cover left, front cover right', () => {
   const zine = createZine('t', 1);
   zine.pages[1] = { background: '#ff0000' };
+  zine.pages[4] = { background: '#0000ff' };
   const canvas = renderSpread(zine, 0, { images: new Map() }, { pxPerMm: PX });
   expect([canvas.width, canvas.height]).toEqual([(SPREAD_WIDTH + 6) * PX, (PAGE_HEIGHT + 6) * PX]);
   expectColor(pixel(canvas, 203 * PX, 103 * PX), RED);
-  expect(pixel(canvas, 50 * PX, 103 * PX)[3]).toBe(0);
+  expectColor(pixel(canvas, 50 * PX, 103 * PX), BLUE);
 });
 
 describe('renderSpread overlays', () => {
@@ -129,16 +130,6 @@ describe('renderSpread overlays', () => {
     const withGuides = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX, guides: true });
     expect(bluish(plain, column, 50 * PX, 4, 40 * PX)).toBe(false);
     expect(bluish(withGuides, column, 50 * PX, 4, 40 * PX)).toBe(true);
-  });
-
-  test('shadeMissing greys out the part of an element on the missing page', async () => {
-    const zine = createZine('t', 1);
-    zine.spreads[0].elements.push(createPhotoElement('red', { x: PAGE_WIDTH - 48, y: 50, width: 100, height: 90 }));
-    const assets = { images: new Map([['red', await solidBitmap(100, 100, '#ff0000')]]) };
-    const at = (canvas: HTMLCanvasElement) => pixel(canvas, (PAGE_WIDTH - 28 + 3) * PX, (100 + 3) * PX);
-    expectColor(at(renderSpread(zine, 0, assets, { pxPerMm: PX })), RED);
-    expect(at(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }))[1]).toBeGreaterThan(150);
-    expectColor(pixel(renderSpread(zine, 0, assets, { pxPerMm: PX, shadeMissing: true }), (PAGE_WIDTH + 22) * PX, 100 * PX), RED);
   });
 });
 

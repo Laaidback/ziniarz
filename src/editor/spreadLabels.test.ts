@@ -2,9 +2,9 @@ import { expect, test } from 'vitest';
 import { createTextElement, createZine } from '../model/factory';
 import { removalMessage, spreadLabel, spreadName, thumbnailKey } from './spreadLabels';
 
-test('spread labels', () => {
-  expect([0, 1, 2, 3, 4].map((i) => spreadLabel(i, 2))).toEqual(['Okładka', '2–3', '4–5', '6–7', 'Tył']);
-  expect([0, 1, 4].map((i) => spreadName(i, 2))).toEqual(['Okładka', 'Strony 2–3', 'Tył']);
+test('spread labels: the cover is one spread, there is no separate back', () => {
+  expect([0, 1, 2, 3].map((i) => spreadLabel(i, 2))).toEqual(['Okładka', '2–3', '4–5', '6–7']);
+  expect([0, 1, 3].map((i) => spreadName(i, 2))).toEqual(['Okładka', 'Strony 2–3', 'Strony 6–7']);
 });
 
 test('removal message names the pages', () => {
@@ -21,4 +21,8 @@ test('thumbnail key changes with the spread, its page colours and the version on
   const edited = structuredClone(zine);
   edited.spreads[1].elements.push(createTextElement());
   expect(thumbnailKey(edited, 1, 0)).not.toBe(key);
+  const cover = thumbnailKey(zine, 0, 0);
+  expect(thumbnailKey({ ...zine, pages: { 8: { background: '#000' } } }, 0, 0)).not.toBe(cover);
+  expect(thumbnailKey({ ...zine, pages: { 1: { background: '#000' } } }, 0, 0)).not.toBe(cover);
+  expect(thumbnailKey({ ...zine, pages: { 2: { background: '#000' } } }, 0, 0)).toBe(cover);
 });

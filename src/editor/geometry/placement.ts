@@ -4,7 +4,6 @@ import {
   PAGE_HEIGHT,
   PAGE_WIDTH,
   pageAt,
-  pageExists,
   pageRect,
   pagesOfSpread,
   sideOfPage,
@@ -18,14 +17,13 @@ export const CASCADE_STEP = 5;
 /** Margin areas smaller than this fall back to the whole page. */
 const MIN_AREA = 10;
 
-/** The existing page under a point in spread mm (the bleed counts as the page), or null. */
+/** The page under a point in spread mm (the bleed counts as the page), or null outside the spread. */
 export function pageAtPoint(spread: number, sheets: number, x: number, y: number): number | null {
   if (x < -BLEED || x > SPREAD_WIDTH + BLEED || y < -BLEED || y > PAGE_HEIGHT + BLEED) return null;
-  const page = pageAt(spread, x < PAGE_WIDTH ? 'left' : 'right', sheets);
-  return pageExists(page, sheets) ? page : null;
+  return pageAt(spread, x < PAGE_WIDTH ? 'left' : 'right', sheets);
 }
 
-/** Where "+ Zdjęcie" and "+ Napis" go when no page was clicked: the first existing page of the spread. */
+/** Where "+ Zdjęcie" and "+ Napis" go when no page was clicked: the lower page number, so the front on the cover. */
 export function defaultPage(spread: number, sheets: number): number {
   return Math.min(...pagesOfSpread(spread, sheets));
 }

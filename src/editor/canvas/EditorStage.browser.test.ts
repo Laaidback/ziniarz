@@ -94,14 +94,15 @@ test('selection changes keep the element nodes; content changes rebuild them', (
   expect(nodeOf(text.id)!.x()).toBeCloseTo(100 + text.width / 2, 5);
 });
 
-test('guides follow the switch; the missing page next to a cover is shaded', () => {
+test('guides follow the switch; the cover has guides on both pages and nothing greyed out', () => {
   const { zine } = sample();
   const { editor, view } = mount(zine);
+  expect(editor.stage.find('.guide-margin')).toHaveLength(2);
+  editor.update({ ...view, spread: 0 });
   expect(editor.stage.find('.guide-margin')).toHaveLength(2);
   expect(editor.stage.find('.missing-page')).toHaveLength(0);
   editor.update({ ...view, showGuides: false, spread: 0 });
   expect(editor.stage.find('.guide-margin')).toHaveLength(0);
-  expect(editor.stage.find('.missing-page')).toHaveLength(1);
 });
 
 test('a selected text gets side handles only, a photo gets all eight', () => {

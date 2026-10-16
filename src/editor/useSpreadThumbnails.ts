@@ -22,7 +22,7 @@ export function useSpreadThumbnails(zine: Zine, assets: RenderAssets, version: n
           const key = thumbnailKey(zine, spread, version);
           let url = cache.current.get(key);
           if (!url) {
-            const canvas = renderSpread(zine, spread, assets, { pxPerMm: THUMB_PX_PER_MM, shadeMissing: true });
+            const canvas = renderSpread(zine, spread, assets, { pxPerMm: THUMB_PX_PER_MM });
             url = canvas.toDataURL('image/png');
             releaseCanvas(canvas);
             cache.current.set(key, url);

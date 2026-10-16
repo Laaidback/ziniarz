@@ -2,13 +2,14 @@ import { expect, test } from 'vitest';
 import { createTextElement, createZine } from '../model/factory';
 import { openInEditor } from '../test/editorHarness';
 
-const labels = ['Okładka', 'Strony 2–3', 'Strony 4–5', 'Strony 6–7', 'Tył'];
+const labels = ['Okładka', 'Strony 2–3', 'Strony 4–5', 'Strony 6–7'];
 
 test('lists spreads with thumbnails; clicking one makes it current', async () => {
   const { screen } = await openInEditor(createZine('Lato', 2));
   const list = screen.getByRole('navigation', { name: 'Rozkładówki' });
   for (const label of labels) await expect.element(list.getByRole('button', { name: label })).toBeVisible();
-  await expect.poll(() => document.querySelectorAll('.spread-thumb img').length).toBe(5);
+  await expect.element(list.getByRole('button', { name: 'Tył' })).not.toBeInTheDocument();
+  await expect.poll(() => document.querySelectorAll('.spread-thumb img').length).toBe(4);
   await list.getByRole('button', { name: 'Strony 4–5' }).click();
   await expect.element(list.getByRole('button', { name: 'Strony 4–5' })).toHaveAttribute('aria-current', 'true');
 });

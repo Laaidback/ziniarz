@@ -1,16 +1,14 @@
-import { pageAt, spreadCount } from '../model/geometry';
+import { pageAt } from '../model/geometry';
 import type { Zine } from '../model/types';
 
 export function spreadLabel(spread: number, sheets: number): string {
   if (spread === 0) return 'Okładka';
-  if (spread === spreadCount(sheets) - 1) return 'Tył';
   return `${pageAt(spread, 'left', sheets)}–${pageAt(spread, 'right', sheets)}`;
 }
 
-/** Accessible name of a spread thumbnail: "Okładka", "Strony 2–3", "Tył". */
+/** Accessible name of a spread thumbnail: "Okładka", "Strony 2–3". */
 export function spreadName(spread: number, sheets: number): string {
-  const label = spreadLabel(spread, sheets);
-  return spread === 0 || spread === spreadCount(sheets) - 1 ? label : `Strony ${label}`;
+  return spread === 0 ? 'Okładka' : `Strony ${spreadLabel(spread, sheets)}`;
 }
 
 /** Question asked before "− kartka" removes pages that have content. */
