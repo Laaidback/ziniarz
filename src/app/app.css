@@ -281,6 +281,15 @@ select {
   inset: 0;
 }
 
+.cover-caption {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .text-editor {
   position: absolute;
   margin: 0;

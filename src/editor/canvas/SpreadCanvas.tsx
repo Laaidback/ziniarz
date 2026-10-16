@@ -6,6 +6,7 @@ import { pageAtPoint } from '../geometry/placement';
 import { usePhotoInsert } from '../photoInsert';
 import { findElement } from '../state/commands';
 import { selectZine } from '../state/store';
+import { CoverCaptions } from './CoverCaptions';
 import { EditorStage, type Viewport } from './EditorStage';
 import { TextEditor } from './TextEditor';
 
@@ -84,6 +85,7 @@ export function SpreadCanvas() {
       }}
     >
       <div ref={host} className="spread-stage" />
+      {spread === 0 && viewport && <CoverCaptions viewport={viewport} />}
       {mode === 'text' && viewport && <TextEditor viewport={viewport} />}
     </div>
   );
