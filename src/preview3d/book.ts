@@ -1,4 +1,3 @@
-
 /** Duration of one page turn. */
 export const TURN_MS = 600;
 /** Thickness of one leaf (half a sheet), mm: keeps stacked pages from fighting for the same depth. */

@@ -41,6 +41,12 @@ export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }
   zine.pages[2] = { background: '#e8e2ff' };
   zine.pages[12] = { background: '#073b4c' };
 
+  // Back cover (page 12, left half of spread 0, the outside cover), and a photo wrapping
+  // around the spine from the back cover to the front, bleeding off the bottom.
+  zine.spreads[0].elements.push(
+    createPhotoElement('p', { x: 52.5, y: 130, width: 105, height: 21, crop: { offsetX: 0, offsetY: 0, zoom: 1.2 } }),
+    createTextElement({ text: 'koniec', size: 17, x: 21.3, y: 67, width: 62.4, align: 'center', color: '#ffffff' }),
+  );
   // Front cover (page 1, right half of spread 0).
   zine.spreads[0].elements.push(
     createPhotoElement('p', { x: 113.5, y: 42.3, width: 88, height: 63.4, rotation: -4, flipX: true }),
@@ -79,12 +85,6 @@ export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }
   zine.spreads[5].elements.push(
     createPhotoElement('p', { x: 28.4, y: 28.2, width: 153.2, height: 91.6, opacity: 0.8 }),
     createTextElement({ text: 'Zdjęcie przez grzbiet, strony 10 i 11', size: 7.8, x: 21.3, y: 126.9, width: 62.4 }),
-  );
-  // Back cover (page 12, left half of spread 0, the outside cover), and a photo wrapping
-  // around the spine from the back cover to the front, bleeding off the bottom.
-  zine.spreads[0].elements.push(
-    createPhotoElement('p', { x: 52.5, y: 130, width: 105, height: 21, crop: { offsetX: 0, offsetY: 0, zoom: 1.2 } }),
-    createTextElement({ text: 'koniec', size: 17, x: 21.3, y: 67, width: 62.4, align: 'center', color: '#ffffff' }),
   );
 
   await ensureFontsReady(zine);
