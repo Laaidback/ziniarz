@@ -24,7 +24,7 @@ Poza pierwszą wersją: efekty ksero/riso, rysowanie i kształty, szablony stron
 - **Kartka:** jedna kartka A5 zina, drukowana z obu stron na środku arkusza A4 i wycinana z niego. Liczba kartek `sheets` = 1…20.
 - **Arkusz:** kartka A4 z drukarki, na której stoi jedna kartka zina; reszta papieru to odpad.
 - **Strona:** połowa kartki po złożeniu, format A6 105×148 mm. Liczba stron `P = 4 · sheets`. Strony numerujemy od 1 (przednia okładka) do `P` (tylna okładka).
-- **Rozkładówka:** to, co czytelnik widzi po otwarciu zina. Rozkładówka `i` (0…`P/2`) ma lewą stronę `2i` i prawą `2i + 1`. Strony 0 i `P + 1` nie istnieją, więc rozkładówka 0 to sama przednia okładka (po prawej), a rozkładówka `P/2` to sama tylna okładka (po lewej).
+- **Rozkładówka:** to, co czytelnik widzi po otwarciu zina. Rozkładówka 0 to cała okładka od zewnątrz: strona `P` (tył) po lewej, strona 1 (przód) po prawej. Rozkładówki `1 … 2 · sheets − 1` mają lewą stronę `2i` i prawą `2i + 1` (zmiana: `2026-10-15-ziniarz-okladka-design.md`).
 - **Spad:** 3 mm tła i zdjęć poza krawędzią strony, odcinane przy przycinaniu. Tylko na zewnętrznych krawędziach strony (góra, dół, krawędź przeciwna do grzbietu). Przy grzbiecie strona kończy się równo.
 - **Margines:** prowadnica w odległości od krawędzi strony, w której trzymamy napisy. Domyślnie 12 mm od zewnętrznej krawędzi, 7 mm od grzbietu, 14 mm od góry i 11 mm od dołu; każdy zin ma własne.
 
@@ -72,7 +72,7 @@ interface TextElement extends Frame {
 ```
 
 - Element należy do rozkładówki, nie do strony. Może leżeć przez grzbiet.
-- Część elementu na nieistniejącej stronie (obok okładki) jest w edytorze wyszarzona i nie trafia do druku.
+- Element może przechodzić przez grzbiet okładki z tyłu na przód; drukuje się w całości na przodzie kartki 1.
 - Rozkładówka 1 zawiera wewnętrzną stronę przedniej okładki (strona 2), rozkładówka `P/2 − 1` wewnętrzną stronę tylnej okładki (strona `P − 1`). Rozkładówki przesuwają się zawsze w całości.
 - **„+ kartka”** wstawia 2 puste rozkładówki (4 strony) za rozkładówką `j = clamp(bieżąca, 1, P/2 − 2)`. Dzięki temu obie okładki i obie wewnętrzne strony okładek zostają na miejscu. Wyjątek: przy 1 kartce (P = 4) rozkładówka 1 zawiera obie wewnętrzne strony okładek; nowe strony idą za nią, więc treść strony 3 zostaje na stronie 3, a nowa wewnętrzna strona tylnej okładki (7) jest pusta.
 - **„− kartka”** usuwa dwie sąsiednie rozkładówki `j` i `j + 1`, gdzie `j = clamp(bieżąca, 2, P/2 − 3)`, więc okładki i ich wewnętrzne strony zostają. Przy 2 kartkach (P = 8) takiej pary nie ma; wtedy usuwa rozkładówki 2 i 3, a wewnętrzną stroną tylnej okładki staje się strona 3. Zanim usunie, zawsze podświetla, które strony znikną, i pyta, gdy mają elementy albo kolor tła. Minimum 1 kartka.
