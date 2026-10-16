@@ -31,7 +31,8 @@ export const SAMPLE_SHEETS = 3;
 
 /**
  * The sample zine for the sheet PNGs and the render references: 3 sheets, text in the bundled
- * Inter (fonts loaded before returning), photos across the fold, into the bleed, rotated and flipped.
+ * Inter (fonts loaded before returning), photos across the fold, into the bleed, rotated and flipped,
+ * and a photo wrapping around the cover from the back to the front.
  * Changing it changes the references: refresh them on purpose (see CLAUDE.md).
  */
 export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }> {
@@ -79,8 +80,10 @@ export async function sampleZine(): Promise<{ zine: Zine; assets: RenderAssets }
     createPhotoElement('p', { x: 28.4, y: 28.2, width: 153.2, height: 91.6, opacity: 0.8 }),
     createTextElement({ text: 'Zdjęcie przez grzbiet, strony 10 i 11', size: 7.8, x: 21.3, y: 126.9, width: 62.4 }),
   );
-  // Back cover (page 12, left half of spread 0, the outside cover).
+  // Back cover (page 12, left half of spread 0, the outside cover), and a photo wrapping
+  // around the spine from the back cover to the front, bleeding off the bottom.
   zine.spreads[0].elements.push(
+    createPhotoElement('p', { x: 52.5, y: 130, width: 105, height: 21, crop: { offsetX: 0, offsetY: 0, zoom: 1.2 } }),
     createTextElement({ text: 'koniec', size: 17, x: 21.3, y: 67, width: 62.4, align: 'center', color: '#ffffff' }),
   );
 

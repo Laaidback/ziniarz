@@ -84,4 +84,19 @@ describe('renderSheetSide at the fold', () => {
       }
     }
   });
+
+  test('a photo wrapping around the cover prints in one piece on the front of sheet 1', async () => {
+    const wrap = createZine('t', 1);
+    wrap.spreads[0].elements.push(createPhotoElement('dark', { x: -3, y: -3, width: SPREAD_WIDTH + 6, height: PAGE_HEIGHT + 6 }));
+    const darkAssets = { images: new Map([['dark', await solidBitmap(64, 64, '#202020')]]) };
+    const dpi = 150;
+    const k = mmToPx(dpi);
+    for (const l of layouts) {
+      const canvas = renderSheetSide(wrap, front, darkAssets, l, { dpi, cropMarks: true, foldMarks: true, rotate180: false });
+      const spine = l.spread.x + l.spread.width / 2;
+      for (const x of [l.spread.x + PAGE_WIDTH / 2, spine, l.spread.x + l.spread.width - PAGE_WIDTH / 2]) {
+        expectColor(pixel(canvas, x * k, 105 * k), [32, 32, 32]);
+      }
+    }
+  });
 });
