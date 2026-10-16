@@ -145,11 +145,21 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       else settle(record(history, next), moved, activePage === null ? null : pageAt(moved, sideOfPage(activePage), next.sheets));
     };
 
+    /**
+     * Undo/redo. When the sheet count changes, the clicked page stays on the same side of the spread
+     * shown afterwards, renumbered like in changeSheets (the back cover keeps being the back cover).
+     */
     const travel = (step: (history: History<Zine>) => History<Zine>) => {
-      const before = get().history;
+      const { history: before, activePage } = get();
       const after = step(before);
       if (after === before) return;
-      settle(after, changedSpread(before.present, after.present, get().spread));
+      const wanted = changedSpread(before.present, after.present, get().spread);
+      const { sheets } = after.present;
+      if (sheets === before.present.sheets) settle(after, wanted);
+      else {
+        const spread = Math.min(wanted, spreadCount(sheets) - 1);
+        settle(after, spread, activePage === null ? null : pageAt(spread, sideOfPage(activePage), sheets));
+      }
       get().refreshTextHeights();
     };
 

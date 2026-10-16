@@ -262,6 +262,37 @@ test('a clicked front cover stays page 1', () => {
   expect(s()).toMatchObject({ spread: 0, activePage: 1 });
 });
 
+test('undo and redo of removing a sheet renumber a clicked back cover', () => {
+  const { s, zine } = setup(3);
+  s().clickPage(12);
+  s().removeSheet();
+  expect(s()).toMatchObject({ spread: 0, activePage: 8 });
+  s().undo();
+  expect(zine().sheets).toBe(3);
+  expect(s()).toMatchObject({ spread: 0, activePage: 12 });
+  s().redo();
+  expect(zine().sheets).toBe(2);
+  expect(s()).toMatchObject({ spread: 0, activePage: 8 });
+});
+
+test('undo of adding a sheet renumbers a clicked back cover', () => {
+  const { s, zine } = setup(2);
+  s().clickPage(8);
+  s().addSheet();
+  expect(s().activePage).toBe(12);
+  s().undo();
+  expect(zine().sheets).toBe(2);
+  expect(s()).toMatchObject({ spread: 0, activePage: 8 });
+});
+
+test('a clicked front cover stays page 1 through adding a sheet and undo', () => {
+  const { s } = setup(2);
+  s().clickPage(1);
+  s().addSheet();
+  s().undo();
+  expect(s()).toMatchObject({ spread: 0, activePage: 1 });
+});
+
 test('a clicked inside page moves with its spread', () => {
   const { s } = setup(3);
   s().setSpread(5);
