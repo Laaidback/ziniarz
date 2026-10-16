@@ -1,4 +1,3 @@
-import { spreadLabel } from '../editor/spreadLabels';
 
 /** Duration of one page turn. */
 export const TURN_MS = 600;
@@ -82,7 +81,9 @@ export function leafLift(leaf: number, angle: number, leaves: number): number {
   return right + (left - right) * (angle / Math.PI);
 }
 
-export function spreadCaption(spread: number, sheets: number): string {
-  const label = spreadLabel(spread, sheets);
-  return /^\d/.test(label) ? `Strony ${label}` : label;
+/** What the reader sees with `turned` leaves turned: the front cover, two pages, or the back cover. */
+export function spreadCaption(turned: number, sheets: number): string {
+  if (turned === 0) return 'Okładka';
+  if (turned === leafCount(sheets)) return 'Tył';
+  return `Strony ${2 * turned}–${2 * turned + 1}`;
 }

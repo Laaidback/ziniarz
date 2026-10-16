@@ -88,3 +88,13 @@ test('leaves stack by paper thickness: the top leaf is the next one to turn on e
   expect(leafLift(3, Math.PI, leaves)).toBeCloseTo(3 * PAPER_MM);
   expect(leafLift(0, Math.PI, leaves)).toBeCloseTo(0);
 });
+
+test('captions follow the reader: front cover, page pairs, back cover', () => {
+  expect([0, 1, 2, 3, 4].map((turned) => spreadCaption(turned, 2))).toEqual([
+    'Okładka',
+    'Strony 2–3',
+    'Strony 4–5',
+    'Strony 6–7',
+    'Tył',
+  ]);
+});
