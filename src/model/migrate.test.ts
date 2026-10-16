@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { imagePlacement } from '../render/photoGeometry';
-import { mapX, mapY, migrateA5ToA6 } from './migrate';
+import { mapX, mapY, mergeCovers, migrateA5ToA6 } from './migrate';
 
 const kx = 105 / 148;
 const ky = 148 / 210;
@@ -141,5 +141,44 @@ describe('migrateA5ToA6', () => {
     const [photo, junk] = elementsOf(out) as unknown[];
     expect(photo).toMatchObject({ x: 10 * kx });
     expect(junk).toBe('junk');
+  });
+});
+
+describe('mergeCovers', () => {
+  const v2 = (sheets: number, spreads: unknown[]) => ({ formatVersion: 2, id: 'z', sheets, spreads });
+  const front = { kind: 'text', id: 'f', x: 120, y: 10, width: 50, text: 'przód' };
+  const back = { kind: 'text', id: 'b', x: 20, y: 10, width: 50, text: 'tył' };
+  const inside = { kind: 'text', id: 'i', x: 20, y: 10, width: 50, text: 'środek' };
+
+  test('the back cover joins spread 0 under the front cover; the last spread goes', () => {
+    const input = v2(1, [
+      { id: 's0', elements: [front] },
+      { id: 's1', elements: [inside] },
+      { id: 's2', elements: [back] },
+    ]);
+    const before = JSON.stringify(input);
+    const out = mergeCovers(input)!;
+    expect(JSON.stringify(input)).toBe(before);
+    expect(out.formatVersion).toBe(3);
+    expect(out.spreads).toEqual([
+      { id: 's0', elements: [back, front] },
+      { id: 's1', elements: [inside] },
+    ]);
+  });
+
+  test('works for any sheet count', () => {
+    const spreads = Array.from({ length: 11 }, (_, i) => ({ id: `s${i}`, elements: [] as unknown[] }));
+    spreads[10].elements.push(back);
+    const out = mergeCovers(v2(5, spreads))!.spreads as { id: string; elements: unknown[] }[];
+    expect(out).toHaveLength(10);
+    expect(out[0]).toEqual({ id: 's0', elements: [back] });
+    expect(out.map((s) => s.id)).toEqual(['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9']);
+  });
+
+  test('data of the wrong shape gives null, so parseZine rejects it whole', () => {
+    // 2 spreads for 1 sheet would look like a valid format-3 zine if it were passed on.
+    expect(mergeCovers(v2(1, [{ id: 's0', elements: [] }, { id: 's1', elements: [] }]))).toBeNull();
+    expect(mergeCovers(v2(1, [{ id: 's0', elements: [] }, { id: 's1', elements: [] }, { id: 's2' }]))).toBeNull();
+    expect(mergeCovers({ formatVersion: 2, id: 'z', spreads: [] })).toBeNull();
   });
 });

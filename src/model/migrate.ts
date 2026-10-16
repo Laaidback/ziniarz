@@ -102,3 +102,26 @@ export function migrateA5ToA6(raw: Obj): Obj {
   }
   return out;
 }
+
+/** Format version whose spread 0 is the whole outside cover (back cover left, front cover right). */
+export const COVER_FORMAT_VERSION = 3;
+
+/**
+ * Raw data of format 2 (covers on separate spreads: 2 · sheets + 1 spreads) turned into format 3:
+ * the last spread's elements join spread 0, under the front cover's. Coordinates stay, since the
+ * back cover already lay on the left half and the front cover on the right. Data without that
+ * shape gives null, and parseZine rejects it as broken: passed on, 2 · sheets spreads would
+ * look like a valid format-3 zine. Never changes its input.
+ */
+export function mergeCovers(raw: Obj): Obj | null {
+  const spreads = raw.spreads;
+  if (!isNum(raw.sheets) || !Array.isArray(spreads) || spreads.length !== 2 * raw.sheets + 1) return null;
+  const front = spreads[0];
+  const back = spreads[spreads.length - 1];
+  if (!isObj(front) || !isObj(back) || !Array.isArray(front.elements) || !Array.isArray(back.elements)) return null;
+  return {
+    ...raw,
+    formatVersion: COVER_FORMAT_VERSION,
+    spreads: [{ ...front, elements: [...back.elements, ...front.elements] }, ...spreads.slice(1, -1)],
+  };
+}
