@@ -7,9 +7,7 @@ import { releaseCanvas } from '../../render/canvasBytes';
 import { createRenderQueue, type RenderQueue } from '../../render/renderQueue';
 import { previewSheets, sideCaption } from '../printTexts';
 import { renderSheetSide } from '../sheetSide';
-
-/** Resolution of the preview images: an A4 side is 561 × 397 px. */
-export const PREVIEW_DPI = 48;
+import { previewDpi } from './previewDpi';
 
 interface Props {
   zine: Zine;
@@ -20,7 +18,8 @@ interface Props {
 /**
  * Every sheet, front and back, as it comes out of the printer (backs are never shown turned:
  * "Obróć tyły o 180°" only undoes the turn of a long-edge printer). Each side is drawn
- * in the background the first time it scrolls into view, one side at a time.
+ * in the background the first time it scrolls into view, one side at a time, with as many
+ * pixels as the screen shows it with, and again when the window grows.
  */
 export function SheetPreview({ zine, assets, settings }: Props) {
   const queue = useMemo(() => createRenderQueue(), []);
@@ -57,6 +56,7 @@ interface SideProps {
 function SheetSideImage({ zine, assets, side, layout, cropMarks, foldMarks, queue }: SideProps) {
   const ref = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false);
+  const [dpi, setDpi] = useState<number | null>(null);
   const [url, setUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -73,12 +73,25 @@ function SheetSideImage({ zine, assets, side, layout, cropMarks, foldMarks, queu
     return () => observer.disconnect();
   }, []);
 
+  // Only ever sharper: a narrower window keeps the image it has instead of drawing it again.
   useEffect(() => {
-    if (!visible) return;
+    const element = ref.current!;
+    const measure = () => {
+      const next = previewDpi(element.clientWidth, window.devicePixelRatio);
+      setDpi((current) => (current !== null && current >= next ? current : next));
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    measure();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!visible || dpi === null) return;
     let cancelled = false;
     const cancel = queue.add(() => {
       const canvas = renderSheetSide(zine, side, assets, layout, {
-        dpi: PREVIEW_DPI,
+        dpi,
         cropMarks,
         foldMarks,
         rotate180: false,
@@ -91,7 +104,7 @@ function SheetSideImage({ zine, assets, side, layout, cropMarks, foldMarks, queu
       cancelled = true;
       cancel();
     };
-  }, [visible, zine, assets, side, layout, cropMarks, foldMarks, queue]);
+  }, [visible, dpi, zine, assets, side, layout, cropMarks, foldMarks, queue]);
 
   const label = `Kartka ${side.sheet + 1}, ${sideCaption(side)}`;
   return (
