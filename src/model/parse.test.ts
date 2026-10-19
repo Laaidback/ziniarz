@@ -8,6 +8,7 @@ import {
   FORMAT_VERSION,
 } from './factory';
 import { COVER_FORMAT_VERSION } from './migrate';
+import { MAX_NOTES_LENGTH } from './notesHtml';
 import { parseZine, ZineFormatError } from './parse';
 import { imageIdsOfZine } from './queries';
 
@@ -30,6 +31,10 @@ describe('parseZine', () => {
     expect(parseZine(raw).notes).toBe('');
     expect(parseZine({ ...raw, notes: 42 }).notes).toBe('');
     expect(parseZine({ ...raw, notes: 'Wiersz\ndrugi' }).notes).toBe('Wiersz\ndrugi');
+    // Hostile or huge notes are cut, not refused.
+    const huge = parseZine({ ...raw, notes: 'x'.repeat(MAX_NOTES_LENGTH + 5), spreadNotes: { [raw.spreads[0].id]: '<a'.repeat(MAX_NOTES_LENGTH) } });
+    expect(huge.notes).toHaveLength(MAX_NOTES_LENGTH);
+    expect(huge.spreadNotes[raw.spreads[0].id]).toMatch(/^(&lt;a)+$/);
   });
 
   test('notes keep bold and highlight but never foreign HTML', () => {

@@ -132,6 +132,15 @@ test('"Wstaw zaznaczenie jako napis" adds the selected plain text as a selected 
   await expect.element(screen.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
 });
 
+test('a selection over several lines is inserted with its line breaks', async () => {
+  const { screen, stored } = await openWithNotes('<div>Ala ma</div><div>kota</div><div>i psa<br>oraz rybki</div>');
+  selectInNotes('makotai psaoraz');
+  await screen.getByRole('button', { name: 'Wstaw zaznaczenie jako napis' }).click();
+  await expect
+    .poll(async () => (await stored()).spreads[0].elements.map((e) => (e as TextElement).text))
+    .toEqual(['ma\nkota\ni psa\noraz']);
+});
+
 test('editor shortcuts do nothing while typing in the notepad', async () => {
   const zine = createZine('Lato', 1);
   zine.spreads[0].elements.push(createTextElement({ text: 'Napis', x: 120, y: 30 }));

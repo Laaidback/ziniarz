@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { sanitizeNotes } from './notesHtml';
+import { MAX_NOTES_LENGTH, sanitizeNotes } from './notesHtml';
 
 test('keeps bold, highlight, lines and line breaks, without attributes', () => {
   expect(sanitizeNotes('<div>Ala <b>ma</b> <strong>kota</strong></div><p><mark class="x">i psa</mark><br/></p>')).toBe(
@@ -37,4 +37,29 @@ test('the result is well formed and sanitizing again changes nothing', () => {
     const once = sanitizeNotes(input);
     expect(sanitizeNotes(once)).toBe(once);
   }
+});
+
+test('runs in linear time, also on unclosed tags and quotes', () => {
+  for (const piece of ['<a', '<a "', "<a '", '<a\t', '<!--', '<!', '</', '<b>', '&#', '&a', '<script']) {
+    const input = piece.repeat(Math.ceil(100_000 / piece.length));
+    const start = performance.now();
+    sanitizeNotes(input);
+    expect(performance.now() - start, piece).toBeLessThan(100);
+  }
+});
+
+test('a tag that never closes leaves the rest as text', () => {
+  expect(sanitizeNotes('x<b>y</b><a title="z')).toBe('x<b>y</b>&lt;a title="z');
+  expect(sanitizeNotes('<b>a<i')).toBe('<b>a&lt;i</b>');
+});
+
+test('notes are cut at MAX_NOTES_LENGTH characters', () => {
+  expect(sanitizeNotes('a'.repeat(MAX_NOTES_LENGTH + 10))).toHaveLength(MAX_NOTES_LENGTH);
+});
+
+test('closing tags of dropped elements are found case-insensitively on the original text', () => {
+  // 'İ' becomes two characters in lower case: indices of a lower-cased copy would drift.
+  expect(sanitizeNotes('İİİİ<script>x</SCRIPT>widać')).toBe('İİİİwidać');
+  expect(sanitizeNotes('<style>a</stylex>b</style>c')).toBe('c');
+  expect(sanitizeNotes('<script>x</script\n>po')).toBe('po');
 });
