@@ -1,5 +1,6 @@
 import { render } from 'vitest-browser-react';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
+import '../app/app.css';
 import { DbContext } from '../app/dbContext';
 import { createZine, DEFAULT_MARGINS } from '../model/factory';
 import { PAGE_WIDTH } from '../model/geometry';
@@ -10,6 +11,8 @@ import { openInEditor } from '../test/editorHarness';
 import { chooseFiles } from '../test/files';
 import { openZineLockHeld } from '../test/locks';
 import { EditorScreen } from './EditorScreen';
+
+afterEach(() => localStorage.removeItem('ziniarz.showSettings'));
 
 test('opens a zine with its title, links to print and 3D, and nothing to undo yet', async () => {
   const zine = createZine('Lato', 5);
@@ -109,4 +112,39 @@ test('leaving the editor stops adding photos', async () => {
   // Long enough for all four to be stored if adding went on.
   await new Promise((resolve) => setTimeout(resolve, 3000));
   expect((await listImageIds(db)).length).toBeLessThanOrEqual(1);
+});
+
+test('the settings panel is hidden at first; "Ustawienia" and "Schowaj" show and hide it, remembered', async () => {
+  const zine = createZine('Lato', 1);
+  const { db, screen } = await openInEditor(zine);
+  const toggle = screen.getByRole('button', { name: 'Ustawienia', exact: true });
+  const panel = screen.getByRole('complementary', { name: 'Ustawienia' });
+  await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
+  await expect.element(panel).not.toBeInTheDocument();
+  const canvas = document.querySelector<HTMLElement>('.editor-canvas')!;
+  const wide = canvas.clientWidth;
+
+  // Selecting an element does not open it.
+  await screen.getByRole('button', { name: '+ Napis' }).click();
+  await expect.element(screen.getByRole('textbox', { name: 'Treść napisu' })).toBeVisible();
+  await expect.element(panel).not.toBeInTheDocument();
+
+  await toggle.click();
+  await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
+  await expect.element(panel.getByRole('heading', { name: 'Napis' })).toBeVisible();
+  await expect.poll(() => canvas.clientWidth).toBe(wide - 300);
+  expect(localStorage.getItem('ziniarz.showSettings')).toBe('1');
+  screen.unmount();
+
+  const again = render(
+    <DbContext.Provider value={db}>
+      <EditorScreen zineId={zine.id} />
+    </DbContext.Provider>,
+  );
+  const panelAgain = again.getByRole('complementary', { name: 'Ustawienia' });
+  await expect.element(panelAgain).toBeVisible();
+  await panelAgain.getByRole('button', { name: 'Schowaj ustawienia' }).click();
+  await expect.element(panelAgain).not.toBeInTheDocument();
+  await expect.element(again.getByRole('button', { name: 'Ustawienia', exact: true })).toHaveAttribute('aria-pressed', 'false');
+  expect(localStorage.getItem('ziniarz.showSettings')).toBe('0');
 });

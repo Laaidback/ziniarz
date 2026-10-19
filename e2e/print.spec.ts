@@ -24,6 +24,8 @@ test('a new 5-sheet zine with a photo and a text prints as 10 landscape A4 pages
   await page.getByLabel('Kartki').fill('5');
   await page.getByRole('button', { name: 'Nowy zin' }).click();
   await expect(page.getByRole('heading', { name: 'Lato' })).toBeVisible();
+  // The settings panel is hidden until asked for.
+  await page.getByRole('button', { name: 'Ustawienia', exact: true }).click();
 
   await page.getByLabel('Wybierz zdjęcia').setInputFiles({ name: 'zdjecie.png', mimeType: 'image/png', buffer: await photoPng(page) });
   await expect(page.getByRole('heading', { name: 'Zdjęcie' })).toBeVisible();

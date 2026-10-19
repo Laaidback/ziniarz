@@ -321,19 +321,68 @@ progress {
 
 .editor {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 300px;
+  grid-template-columns: 180px minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   grid-template-areas:
-    'top top top'
-    'spreads canvas panel';
+    'top top'
+    'spreads canvas';
   height: 100vh;
 }
 
+/* The settings panel (300px) and the notepad (280px) take their columns only while shown. */
+.editor.with-settings {
+  grid-template-columns: 180px minmax(0, 1fr) 300px;
+  grid-template-areas:
+    'top top top'
+    'spreads canvas panel';
+}
+
 .editor.with-notes {
+  grid-template-columns: 180px minmax(0, 1fr) 280px;
+  grid-template-areas:
+    'top top top'
+    'spreads canvas notes';
+}
+
+.editor.with-settings.with-notes {
   grid-template-columns: 180px minmax(0, 1fr) 300px 280px;
   grid-template-areas:
     'top top top top'
     'spreads canvas panel notes';
+}
+
+/* Header of a side column: its name and "Schowaj". */
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.column-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.editor-panel .column-header {
+  margin-bottom: 10px;
+}
+
+button.column-hide {
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.editor-notes button.column-hide {
+  border-color: var(--note-border);
+  background: transparent;
+  color: var(--note-ink);
 }
 
 .editor-top {

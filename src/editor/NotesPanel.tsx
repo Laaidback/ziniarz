@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useEditorEnv } from './EditorContext';
+import { HideButton } from './HideButton';
 import { insertTextFrame } from './insert';
 import { insertPlainText, selectedText, selectionBold, selectionMarked, toggleBold, toggleMark } from './notesFormat';
 
@@ -18,7 +19,7 @@ const NOTHING: SelectionState = { text: '', bold: false, marked: false };
  * step in the design history; the field has the browser's own undo). The editable element is not
  * controlled by React: it is filled once, and every input stores its (sanitized) HTML.
  */
-export function NotesPanel() {
+export function NotesPanel({ onHide }: { onHide(): void }) {
   const { store } = useEditorEnv();
   const box = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(() => store.getState().history.present.notes === '');
@@ -78,9 +79,12 @@ export function NotesPanel() {
 
   return (
     <aside className="editor-notes" aria-labelledby="notes-heading">
-      <h2 id="notes-heading" className="notes-heading">
-        Notatnik
-      </h2>
+      <div className="column-header">
+        <h2 id="notes-heading" className="notes-heading">
+          Notatnik
+        </h2>
+        <HideButton label="Schowaj notatnik" onClick={onHide} />
+      </div>
       <div className="notes-tools" role="toolbar" aria-label="Formatowanie notatnika">
         <button
           type="button"

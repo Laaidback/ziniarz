@@ -10,8 +10,9 @@ import { saveZine } from '../storage/db';
 import { holdOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
+import { HideButton } from './HideButton';
 import { NotesPanel } from './NotesPanel';
-import { loadNotesShown, saveNotesShown } from './notesVisibility';
+import { loadColumnShown, saveColumnShown, type EditorColumn } from './columnVisibility';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
 import { openEditorSession } from './session';
@@ -29,10 +30,11 @@ interface Loaded {
 function EditorWorkspace({ env }: { env: EditorEnv }) {
   useEditorKeyboard(env.store);
   const photoInsert = usePhotoInsertState(env);
-  const [notesShown, setNotesShown] = useState(loadNotesShown);
-  const toggleNotes = () => {
-    saveNotesShown(!notesShown);
-    setNotesShown(!notesShown);
+  const [notesShown, setNotesShown] = useState(() => loadColumnShown('notes'));
+  const [settingsShown, setSettingsShown] = useState(() => loadColumnShown('settings'));
+  const showColumn = (column: EditorColumn, shown: boolean) => {
+    saveColumnShown(column, shown);
+    (column === 'notes' ? setNotesShown : setSettingsShown)(shown);
   };
 
   // Autosave 500 ms after each change; leaving the editor or hiding the tab saves at once.
@@ -67,18 +69,29 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   return (
     <EditorContext.Provider value={env}>
       <PhotoInsertContext.Provider value={photoInsert}>
-        <div className={notesShown ? 'editor with-notes' : 'editor'}>
-          <TopBar notesShown={notesShown} onToggleNotes={toggleNotes} />
+        <div className={['editor', settingsShown && 'with-settings', notesShown && 'with-notes'].filter(Boolean).join(' ')}>
+          <TopBar
+            notesShown={notesShown}
+            onToggleNotes={() => showColumn('notes', !notesShown)}
+            settingsShown={settingsShown}
+            onToggleSettings={() => showColumn('settings', !settingsShown)}
+          />
           <aside className="editor-spreads">
             <SpreadList />
           </aside>
           <section className="editor-canvas">
             <SpreadCanvas />
           </section>
-          <aside className="editor-panel">
-            <PropertiesPanel />
-          </aside>
-          {notesShown && <NotesPanel />}
+          {settingsShown && (
+            <aside className="editor-panel" aria-label="Ustawienia">
+              <div className="column-header">
+                <span className="column-title">Ustawienia</span>
+                <HideButton label="Schowaj ustawienia" onClick={() => showColumn('settings', false)} />
+              </div>
+              <PropertiesPanel />
+            </aside>
+          )}
+          {notesShown && <NotesPanel onHide={() => showColumn('notes', false)} />}
         </div>
       </PhotoInsertContext.Provider>
     </EditorContext.Provider>

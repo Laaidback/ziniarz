@@ -3,7 +3,14 @@ import { useEditor, useEditorEnv } from './EditorContext';
 import { InsertButtons } from './InsertButtons';
 import { selectCanRedo, selectCanUndo } from './state/store';
 
-export function TopBar({ notesShown, onToggleNotes }: { notesShown: boolean; onToggleNotes(): void }) {
+interface TopBarProps {
+  notesShown: boolean;
+  onToggleNotes(): void;
+  settingsShown: boolean;
+  onToggleSettings(): void;
+}
+
+export function TopBar({ notesShown, onToggleNotes, settingsShown, onToggleSettings }: TopBarProps) {
   const { store, zineId } = useEditorEnv();
   const title = useEditor((s) => s.history.present.title);
   const canUndo = useEditor(selectCanUndo);
@@ -33,6 +40,14 @@ export function TopBar({ notesShown, onToggleNotes }: { notesShown: boolean; onT
           />
           Pokaż prowadnice
         </label>
+        <button
+          type="button"
+          aria-pressed={settingsShown}
+          onClick={onToggleSettings}
+          title="Pokaż lub ukryj ustawienia zina, strony i zaznaczonego elementu"
+        >
+          Ustawienia
+        </button>
         <button type="button" aria-pressed={notesShown} onClick={onToggleNotes} title="Pokaż lub ukryj notatnik">
           Notatnik
         </button>

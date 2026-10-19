@@ -84,7 +84,7 @@ test('the notepad starts empty with a hint; typing is saved and comes back after
 test('"Notatnik" in the top bar hides and shows the column, and the choice is remembered', async () => {
   const zine = createZine('Lato', 1);
   const { db, screen } = await openInEditor(zine);
-  const toggle = screen.getByRole('button', { name: 'Notatnik' });
+  const toggle = screen.getByRole('button', { name: 'Notatnik', exact: true });
   await expect.element(toggle).toHaveAttribute('aria-pressed', 'true');
   const canvas = document.querySelector<HTMLElement>('.editor-canvas')!;
   const narrow = canvas.clientWidth;
@@ -101,12 +101,18 @@ test('"Notatnik" in the top bar hides and shows the column, and the choice is re
       <EditorScreen zineId={zine.id} />
     </DbContext.Provider>,
   );
-  const toggleAgain = again.getByRole('button', { name: 'Notatnik' });
+  const toggleAgain = again.getByRole('button', { name: 'Notatnik', exact: true });
   await expect.element(toggleAgain).toHaveAttribute('aria-pressed', 'false');
   await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).not.toBeInTheDocument();
   await toggleAgain.click();
   await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).toBeVisible();
   expect(localStorage.getItem('ziniarz.showNotes')).toBe('1');
+
+  // "Schowaj" in the notepad's own header hides it the same way.
+  await again.getByRole('button', { name: 'Schowaj notatnik' }).click();
+  await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).not.toBeInTheDocument();
+  await expect.element(toggleAgain).toHaveAttribute('aria-pressed', 'false');
+  expect(localStorage.getItem('ziniarz.showNotes')).toBe('0');
 });
 
 test('"Wstaw zaznaczenie jako napis" adds the selected plain text as a selected frame, in one undo step', async () => {
