@@ -91,6 +91,11 @@ export interface Zine {
    * (model/notesHtml.ts sanitizeNotes).
    */
   notes: string;
+  /**
+   * Notepad sections of single spreads, by Spread.id (so they follow their spread when sheets are added
+   * or removed), in the same HTML subset as `notes`. Spreads without notes have no key.
+   */
+  spreadNotes: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }

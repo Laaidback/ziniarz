@@ -34,14 +34,22 @@ export async function createNewZine(db: ZiniarzDb, title: string, sheets: number
 export function copyOfZine(zine: Zine, now = new Date()): Zine {
   const stamp = now.toISOString();
   const copy = structuredClone(zine);
+  const spreads = copy.spreads.map((spread) => ({
+    id: newId(),
+    elements: spread.elements.map((element) => ({ ...element, id: newId() })),
+  }));
+  // Spread notes are keyed by spread id: they follow their spreads to the new ids.
+  const spreadNotes: Record<string, string> = {};
+  copy.spreads.forEach((spread, i) => {
+    const notes = copy.spreadNotes[spread.id];
+    if (notes !== undefined) spreadNotes[spreads[i].id] = notes;
+  });
   return {
     ...copy,
     id: newId(),
     title: `${zine.title} (kopia)`,
-    spreads: copy.spreads.map((spread) => ({
-      id: newId(),
-      elements: spread.elements.map((element) => ({ ...element, id: newId() })),
-    })),
+    spreads,
+    spreadNotes,
     createdAt: stamp,
     updatedAt: stamp,
   };

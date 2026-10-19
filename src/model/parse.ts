@@ -84,6 +84,17 @@ function parseSpread(v: unknown): Spread {
   };
 }
 
+/** Sanitized notes of the zine's own spreads; notes of other ids and empty ones are dropped. */
+function parseSpreadNotes(v: unknown, spreads: Spread[]): Record<string, string> {
+  const notes: Record<string, string> = {};
+  if (!isObj(v)) return notes;
+  for (const { id } of spreads) {
+    const html = Object.hasOwn(v, id) && typeof v[id] === 'string' ? sanitizeNotes(v[id]) : '';
+    if (html !== '') notes[id] = html;
+  }
+  return notes;
+}
+
 export function parseZine(input: unknown): Zine {
   if (!isObj(input)) throw invalid();
   const version = num(input.formatVersion, 1);
@@ -112,6 +123,7 @@ export function parseZine(input: unknown): Zine {
     }
   }
   const now = new Date().toISOString();
+  const spreads = data.spreads.map(parseSpread);
 
   return {
     formatVersion: FORMAT_VERSION,
@@ -124,7 +136,7 @@ export function parseZine(input: unknown): Zine {
       top: num(margins.top, DEFAULT_MARGINS.top),
       bottom: num(margins.bottom, DEFAULT_MARGINS.bottom),
     },
-    spreads: data.spreads.map(parseSpread),
+    spreads,
     pages,
     fonts: Array.isArray(data.fonts) ? data.fonts.filter((f): f is string => typeof f === 'string') : [],
     print: {
@@ -137,6 +149,7 @@ export function parseZine(input: unknown): Zine {
     },
     // A .zin from someone else must never bring its own HTML into the notepad.
     notes: sanitizeNotes(str(data.notes, '')),
+    spreadNotes: parseSpreadNotes(data.spreadNotes, spreads),
     createdAt: str(data.createdAt, now),
     updatedAt: str(data.updatedAt, now),
   };

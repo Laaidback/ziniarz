@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { askConfirm } from '../app/confirm';
 import { countOf } from '../app/plural';
 import { useFontsVersion } from '../fonts/useFontsVersion';
-import { canAddSheet, removalNeedsConfirmation, sheetRemoval } from '../model/sheets';
+import { canAddSheet, removalHasContent, removalHasNotes, removalNeedsConfirmation, sheetRemoval } from '../model/sheets';
 import { useEditor, useEditorEnv } from './EditorContext';
 import { removalMessage, spreadLabel, spreadName } from './spreadLabels';
 import { selectZine } from './state/store';
@@ -27,7 +27,8 @@ export function SpreadList() {
     let ok = true;
     if (removalNeedsConfirmation(zine, removal)) {
       setConfirming(true);
-      ok = await askConfirm(removalMessage(removal.pages), 'Usuń kartkę');
+      const lost = { content: removalHasContent(zine, removal), notes: removalHasNotes(zine, removal) };
+      ok = await askConfirm(removalMessage(removal.pages, lost), 'Usuń kartkę');
       setConfirming(false);
     }
     if (ok) store.getState().removeSheet();

@@ -76,6 +76,8 @@ export interface EditorState {
    * it like any other change; undo and redo of the design keep the current notes.
    */
   setNotes(text: string): void;
+  /** The notepad section of one spread (by id), like setNotes; empty text removes it. */
+  setSpreadNote(spreadId: string, html: string): void;
   /** Re-measures text heights after fonts load; no undo step. */
   refreshTextHeights(): void;
   assetsChanged(): void;
@@ -102,6 +104,24 @@ function changedSpread(before: Zine, after: Zine, current: number): number {
   if (before.spreads[current]?.elements !== after.spreads[current]?.elements) return current;
   const index = after.spreads.findIndex((spread, i) => spread.elements !== before.spreads[i].elements);
   return index < 0 ? current : index;
+}
+
+/**
+ * `restored` (a snapshot from undo/redo) with the notepad of `current`: the notes of spreads shown now
+ * stay as they are; spreads that come back (an undone sheet removal) bring back their notes from the snapshot.
+ */
+function withCurrentNotes(current: Zine, restored: Zine): Zine {
+  const shown = new Set(current.spreads.map((spread) => spread.id));
+  const spreadNotes: Record<string, string> = {};
+  for (const { id } of restored.spreads) {
+    const notes = shown.has(id) ? current.spreadNotes[id] : restored.spreadNotes[id];
+    if (notes !== undefined) spreadNotes[id] = notes;
+  }
+  const same =
+    restored.notes === current.notes &&
+    Object.keys(spreadNotes).length === Object.keys(restored.spreadNotes).length &&
+    Object.entries(spreadNotes).every(([id, notes]) => restored.spreadNotes[id] === notes);
+  return same ? restored : { ...restored, notes: current.notes, spreadNotes };
 }
 
 export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
@@ -160,8 +180,7 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       const restored = step(before);
       if (restored === before) return;
       // Snapshots keep the notes of their time; the notepad is not part of the design history.
-      const { notes } = before.present;
-      const after = restored.present.notes === notes ? restored : replacePresent(restored, { ...restored.present, notes });
+      const after = replacePresent(restored, withCurrentNotes(before.present, restored.present));
       const wanted = changedSpread(before.present, after.present, get().spread);
       const { sheets } = after.present;
       if (sheets === before.present.sheets) settle(after, wanted);
@@ -244,6 +263,15 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       removeSheet: () => changeSheets(removeSheet),
       undo: () => travel(undo),
       redo: () => travel(redo),
+      setSpreadNote: (spreadId, html) => {
+        const z = zineOf();
+        if (!z.spreads.some((spread) => spread.id === spreadId)) return;
+        const notes = sanitizeNotes(html);
+        if (notes === (z.spreadNotes[spreadId] ?? '')) return;
+        const { [spreadId]: _old, ...others } = z.spreadNotes;
+        const spreadNotes = notes === '' ? others : { ...others, [spreadId]: notes };
+        set({ history: replacePresent(get().history, { ...z, spreadNotes }) });
+      },
       setNotes: (html) => {
         const z = zineOf();
         const notes = sanitizeNotes(html);

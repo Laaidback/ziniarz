@@ -10,7 +10,7 @@ import { EditorScreen } from './EditorScreen';
 
 afterEach(() => localStorage.removeItem('ziniarz.showNotes'));
 
-const notepad = () => document.querySelector<HTMLElement>('[role="textbox"][aria-label="Notatnik"]')!;
+const notepad = () => document.querySelector<HTMLElement>('[role="textbox"][aria-label="Notatki: Ogólne"]')!;
 
 /** Selects `text` (its first occurrence, maybe across formatting) inside the notepad, as a mouse would. */
 function selectInNotes(text: string): void {
@@ -49,7 +49,7 @@ function selectAllNotes(): void {
 /** Opens a zine with these notes, once the notepad is there. */
 async function openWithNotes(notes: string) {
   const opened = await openInEditor(zineWithNotes(notes));
-  await expect.element(opened.screen.getByRole('textbox', { name: 'Notatnik' })).toBeVisible();
+  await expect.element(opened.screen.getByRole('textbox', { name: 'Notatki: Ogólne' })).toBeVisible();
   return opened;
 }
 
@@ -62,7 +62,7 @@ function zineWithNotes(notes: string): Zine {
 test('the notepad starts empty with a hint; typing is saved and comes back after reopening', async () => {
   const zine = createZine('Lato', 1);
   const { db, screen, stored } = await openInEditor(zine);
-  const box = screen.getByRole('textbox', { name: 'Notatnik' });
+  const box = screen.getByRole('textbox', { name: 'Notatki: Ogólne' });
   await expect.element(screen.getByRole('heading', { name: 'Notatnik' })).toBeVisible();
   await expect.element(box).toHaveAttribute('data-placeholder', 'Tu trzymaj teksty do zina. Wklejaj, poprawiaj i kopiuj do napisów.');
   await expect.element(box).toHaveAttribute('spellcheck', 'true');
@@ -78,7 +78,7 @@ test('the notepad starts empty with a hint; typing is saved and comes back after
       <EditorScreen zineId={zine.id} />
     </DbContext.Provider>,
   );
-  await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).toHaveTextContent('Ala ma kota');
+  await expect.element(again.getByRole('textbox', { name: 'Notatki: Ogólne' })).toHaveTextContent('Ala ma kota');
 });
 
 test('"Notatnik" in the top bar hides and shows the column, and the choice is remembered', async () => {
@@ -90,7 +90,7 @@ test('"Notatnik" in the top bar hides and shows the column, and the choice is re
   const narrow = canvas.clientWidth;
   await toggle.click();
   await expect.element(toggle).toHaveAttribute('aria-pressed', 'false');
-  await expect.element(screen.getByRole('textbox', { name: 'Notatnik' })).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('textbox', { name: 'Notatki: Ogólne' })).not.toBeInTheDocument();
   // The canvas takes the space back and the stage follows it.
   await expect.poll(() => canvas.clientWidth).toBe(narrow + 280);
   await expect.poll(() => document.querySelector<HTMLCanvasElement>('.spread-stage canvas')!.clientWidth).toBe(narrow + 280);
@@ -103,14 +103,14 @@ test('"Notatnik" in the top bar hides and shows the column, and the choice is re
   );
   const toggleAgain = again.getByRole('button', { name: 'Notatnik', exact: true });
   await expect.element(toggleAgain).toHaveAttribute('aria-pressed', 'false');
-  await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).not.toBeInTheDocument();
+  await expect.element(again.getByRole('textbox', { name: 'Notatki: Ogólne' })).not.toBeInTheDocument();
   await toggleAgain.click();
-  await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).toBeVisible();
+  await expect.element(again.getByRole('textbox', { name: 'Notatki: Ogólne' })).toBeVisible();
   expect(localStorage.getItem('ziniarz.showNotes')).toBe('1');
 
   // "Schowaj" in the notepad's own header hides it the same way.
   await again.getByRole('button', { name: 'Schowaj notatnik' }).click();
-  await expect.element(again.getByRole('textbox', { name: 'Notatnik' })).not.toBeInTheDocument();
+  await expect.element(again.getByRole('textbox', { name: 'Notatki: Ogólne' })).not.toBeInTheDocument();
   await expect.element(toggleAgain).toHaveAttribute('aria-pressed', 'false');
   expect(localStorage.getItem('ziniarz.showNotes')).toBe('0');
 });
@@ -139,7 +139,7 @@ test('editor shortcuts do nothing while typing in the notepad', async () => {
   await screen.getByRole('button', { name: '+ Napis' }).click();
   await userEvent.keyboard('{Escape}');
   await expect.poll(async () => (await stored()).spreads[0].elements).toHaveLength(2);
-  const box = screen.getByRole('textbox', { name: 'Notatnik' });
+  const box = screen.getByRole('textbox', { name: 'Notatki: Ogólne' });
   await box.click();
   await userEvent.keyboard('abc');
   for (const keys of ['{Meta>}z{/Meta}', '{Control>}z{/Control}', '{Meta>}{Shift>}z{/Shift}{/Meta}', '{Meta>}d{/Meta}']) {

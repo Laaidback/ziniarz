@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createTextElement, createZine } from './factory';
 import { pageCount } from './geometry';
-import { addSheet, removalNeedsConfirmation, removeSheet, sheetRemoval } from './sheets';
+import { addSheet, removalHasNotes, removalNeedsConfirmation, removeSheet, sheetRemoval } from './sheets';
 import type { Zine } from './types';
 
 /** Zine where every spread holds one text element naming its original index. */
@@ -156,5 +156,38 @@ describe('removeSheet', () => {
     // 5 sheets: P = 20, so j is clamped to 2..7.
     expect(sheetRemoval(createZine('t', 5), 0)!.spreads).toEqual([2, 3]);
     expect(sheetRemoval(createZine('t', 5), 9)!.spreads).toEqual([7, 8]);
+  });
+});
+
+describe('spread notes', () => {
+  test('follow their spreads when a sheet is added', () => {
+    const zine = createZine('t', 3);
+    const ids = zine.spreads.map((s) => s.id);
+    zine.spreadNotes = { [ids[0]]: 'okładka', [ids[2]]: 'środek', [ids[5]]: 'koniec' };
+    const next = addSheet(zine, 1);
+    expect(next.spreadNotes).toEqual(zine.spreadNotes);
+    // The spreads moved, their notes are still under their ids.
+    expect(next.spreads.findIndex((s) => s.id === ids[2])).toBe(4);
+  });
+
+  test('of removed spreads are dropped, the others stay', () => {
+    const zine = createZine('t', 3);
+    const ids = zine.spreads.map((s) => s.id);
+    zine.spreadNotes = { [ids[1]]: 'zostaje', [ids[2]]: 'znika', [ids[3]]: 'też znika', [ids[4]]: 'zostaje też' };
+    const removal = sheetRemoval(zine, 2)!;
+    expect(removal.spreads).toEqual([2, 3]);
+    expect(removeSheet(zine, 2).spreadNotes).toEqual({ [ids[1]]: 'zostaje', [ids[4]]: 'zostaje też' });
+  });
+
+  test('on removed spreads ask for confirmation like content does', () => {
+    const zine = createZine('t', 3);
+    const removal = sheetRemoval(zine, 2)!;
+    expect(removalHasNotes(zine, removal)).toBe(false);
+    const other = { ...zine, spreadNotes: { [zine.spreads[1].id]: 'gdzie indziej' } };
+    expect(removalHasNotes(other, removal)).toBe(false);
+    expect(removalNeedsConfirmation(other, removal)).toBe(false);
+    const withNotes = { ...zine, spreadNotes: { [zine.spreads[3].id]: 'notatka' } };
+    expect(removalHasNotes(withNotes, removal)).toBe(true);
+    expect(removalNeedsConfirmation(withNotes, removal)).toBe(true);
   });
 });

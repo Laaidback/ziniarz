@@ -37,6 +37,7 @@ export function createZine(title: string, sheets: number, now = new Date()): Zin
     fonts: [],
     print: { ...DEFAULT_PRINT },
     notes: '',
+    spreadNotes: {},
     createdAt: stamp,
     updatedAt: stamp,
   };

@@ -44,9 +44,12 @@ test('copyOfZine gives new ids everywhere and keeps photos and fonts by id', () 
   const zine = createZine('Lato', 1);
   zine.fonts = ['fam'];
   zine.notes = 'Notatki';
+  zine.spreadNotes = { [zine.spreads[1].id]: 'Do rozkładówki' };
   zine.spreads[1].elements.push(createPhotoElement('img'), createTextElement({ text: 'a' }));
   const copy = copyOfZine(zine, new Date('2026-10-14T10:00:00Z'));
   expect(copy.notes).toBe('Notatki');
+  // Spreads get new ids; their notes follow them.
+  expect(copy.spreadNotes).toEqual({ [copy.spreads[1].id]: 'Do rozkładówki' });
   expect(copy.id).not.toBe(zine.id);
   expect(copy.title).toBe('Lato (kopia)');
   expect(copy.spreads[1].id).not.toBe(zine.spreads[1].id);

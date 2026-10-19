@@ -38,6 +38,27 @@ describe('parseZine', () => {
     expect(parseZine({ ...raw, notes }).notes).toBe('<div><b>Tytuł</b> <mark>ważne</mark></div>');
   });
 
+  test('spread notes: empty by default, sanitized, only for spreads of the zine', () => {
+    const zine = createZine('Lato', 2);
+    const raw = roundTrip(zine);
+    delete raw.spreadNotes;
+    expect(parseZine(raw).spreadNotes).toEqual({});
+    expect(parseZine({ ...raw, spreadNotes: 'x' }).spreadNotes).toEqual({});
+    expect(parseZine({ ...raw, spreadNotes: ['a'] }).spreadNotes).toEqual({});
+    const [cover, second] = zine.spreads.map((s) => s.id);
+    const notes = {
+      [cover]: '<b onclick="x()">Okładka</b><script>alert(1)</script>',
+      [second]: 'Wiersz\ndrugi',
+      gone: 'rozkładówka, której nie ma',
+      [zine.spreads[2].id]: 42,
+      [zine.spreads[3].id]: '<span></span>',
+    };
+    expect(parseZine({ ...raw, spreadNotes: notes }).spreadNotes).toEqual({
+      [cover]: '<b>Okładka</b>',
+      [second]: 'Wiersz\ndrugi',
+    });
+  });
+
   test('fills missing optional fields with defaults', () => {
     const raw = oldLayout(roundTrip(createZine('Lato', 2)));
     delete raw.margins;

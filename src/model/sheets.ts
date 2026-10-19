@@ -48,11 +48,21 @@ export function sheetRemoval(zine: Zine, currentSpread: number): SheetRemoval | 
   return { spreads: [j, j + 1], pages: [2 * j, 2 * j + 1, 2 * j + 2, 2 * j + 3] };
 }
 
-export function removalNeedsConfirmation(zine: Zine, removal: SheetRemoval): boolean {
+/** Whether the spreads "− kartka" would remove have elements or page backgrounds. */
+export function removalHasContent(zine: Zine, removal: SheetRemoval): boolean {
   return (
     removal.spreads.some((s) => zine.spreads[s].elements.length > 0) ||
     removal.pages.some((p) => zine.pages[p] !== undefined)
   );
+}
+
+/** Whether the spreads "− kartka" would remove have notes in the notepad (they go with the sheet). */
+export function removalHasNotes(zine: Zine, removal: SheetRemoval): boolean {
+  return removal.spreads.some((s) => zine.spreadNotes[zine.spreads[s].id] !== undefined);
+}
+
+export function removalNeedsConfirmation(zine: Zine, removal: SheetRemoval): boolean {
+  return removalHasContent(zine, removal) || removalHasNotes(zine, removal);
 }
 
 export function removeSheet(zine: Zine, currentSpread: number, now = new Date()): Zine {
@@ -60,6 +70,7 @@ export function removeSheet(zine: Zine, currentSpread: number, now = new Date())
   if (!removal) return zine;
   const [first, second] = removal.spreads;
   const lastRemovedPage = removal.pages[3];
+  const removedIds = new Set([zine.spreads[first].id, zine.spreads[second].id]);
   return {
     ...zine,
     sheets: zine.sheets - 1,
@@ -68,6 +79,7 @@ export function removeSheet(zine: Zine, currentSpread: number, now = new Date())
       if (removal.pages.includes(p)) return null;
       return p > lastRemovedPage ? p - 4 : p;
     }),
+    spreadNotes: Object.fromEntries(Object.entries(zine.spreadNotes).filter(([id]) => !removedIds.has(id))),
     updatedAt: now.toISOString(),
   };
 }

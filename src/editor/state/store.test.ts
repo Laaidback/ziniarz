@@ -374,3 +374,62 @@ describe('notes', () => {
     expect((zine().spreads[0].elements[0] as TextElement).text).toBe('');
   });
 });
+
+describe('spread notes', () => {
+  test('setSpreadNote changes the zine without an undo step, sanitized; empty text removes the key', () => {
+    const { s, zine } = setup();
+    const id = zine().spreads[1].id;
+    s().setSpreadNote(id, '<b style="x">Ala</b><img src=x>');
+    expect(zine().spreadNotes).toEqual({ [id]: '<b>Ala</b>' });
+    expect(selectCanUndo(s())).toBe(false);
+    const after = zine();
+    s().setSpreadNote(id, '<b>Ala</b>');
+    expect(zine()).toBe(after);
+    s().setSpreadNote(id, '');
+    expect(zine().spreadNotes).toEqual({});
+    s().setSpreadNote('no-such-spread', 'x');
+    expect(zine().spreadNotes).toEqual({});
+  });
+
+  test('undo and redo of the design never change the notes of spreads that stay', () => {
+    const { s, zine } = setup();
+    const [cover, second] = zine().spreads.map((spread) => spread.id);
+    s().setSpreadNote(cover, 'pierwsze');
+    s().addElement(createTextElement({ text: 'a' }));
+    s().setSpreadNote(cover, 'drugie');
+    s().setSpreadNote(second, 'obok');
+    s().undo();
+    expect(zine().spreads[0].elements).toHaveLength(0);
+    expect(zine().spreadNotes).toEqual({ [cover]: 'drugie', [second]: 'obok' });
+    s().setSpreadNote(cover, 'trzecie');
+    s().redo();
+    expect(zine().spreads[0].elements).toHaveLength(1);
+    expect(zine().spreadNotes).toEqual({ [cover]: 'trzecie', [second]: 'obok' });
+  });
+
+  test('removing a sheet drops its spreads\' notes; undoing the removal brings them back', () => {
+    const { s, zine } = setup(3);
+    const ids = zine().spreads.map((spread) => spread.id);
+    s().setSpread(2);
+    s().setSpreadNote(ids[1], 'zostaje');
+    s().setSpreadNote(ids[2], 'znika');
+    s().removeSheet();
+    expect(zine().spreadNotes).toEqual({ [ids[1]]: 'zostaje' });
+    s().setSpreadNote(ids[1], 'zmienione');
+    s().undo();
+    expect(zine().sheets).toBe(3);
+    expect(zine().spreadNotes).toEqual({ [ids[1]]: 'zmienione', [ids[2]]: 'znika' });
+  });
+
+  test('notes written on an added sheet come back when its addition is undone and redone', () => {
+    const { s, zine } = setup(2);
+    s().setSpread(1);
+    s().addSheet();
+    const added = zine().spreads[2].id;
+    s().setSpreadNote(added, 'nowa');
+    s().undo();
+    expect(zine().spreadNotes).toEqual({});
+    s().redo();
+    expect(zine().spreadNotes).toEqual({ [added]: 'nowa' });
+  });
+});
