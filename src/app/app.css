@@ -490,19 +490,20 @@ button.column-hide {
   transition: background 0.12s;
 }
 
-/* The grip: a short rounded bar in the middle, visible on hover and focus. */
+/* The grip: an always visible rounded handle in the middle of the edge, so the edge reads as a slider. */
 .notes-resizer::after {
   content: '';
   position: absolute;
   top: 50%;
-  left: 3px;
-  width: 3px;
-  height: 28px;
-  margin-top: -14px;
+  left: 0;
+  width: 9px;
+  height: 44px;
+  margin-top: -22px;
   border-radius: var(--radius-pill);
-  background: var(--note-border-strong);
-  opacity: 0;
-  transition: opacity 0.12s;
+  background: #b8a24a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+  opacity: 0.75;
+  transition: opacity 0.12s, transform 0.12s;
 }
 
 .notes-resizer:hover::before,
@@ -515,6 +516,7 @@ button.column-hide {
 .notes-resizer:focus-visible::after,
 .resizing-notes .notes-resizer::after {
   opacity: 1;
+  transform: scaleY(1.15);
 }
 
 .notes-resizer:focus-visible::before {
