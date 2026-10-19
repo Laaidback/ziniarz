@@ -317,3 +317,54 @@ test('removing a sheet before the current spread follows it to its new index', (
   expect(zine().sheets).toBe(2);
   expect(zine().spreads[s().spread]).toBe(current);
 });
+
+describe('notes', () => {
+  test('setNotes changes the zine without an undo step; the same text changes nothing', () => {
+    const { s, zine } = setup();
+    const before = zine();
+    s().setNotes('Ala ma kota');
+    expect(zine().notes).toBe('Ala ma kota');
+    expect(zine()).not.toBe(before);
+    expect(selectCanUndo(s())).toBe(false);
+    const after = zine();
+    s().setNotes('Ala ma kota');
+    expect(zine()).toBe(after);
+  });
+
+  test('undo and redo of the design never change the notes', () => {
+    const { s, zine } = setup();
+    s().setNotes('pierwsze');
+    s().addElement(createTextElement({ text: 'a' }));
+    s().setNotes('drugie');
+    s().addElement(createTextElement({ text: 'b' }));
+    s().setNotes('trzecie');
+    s().undo();
+    expect(zine().spreads[0].elements).toHaveLength(1);
+    expect(zine().notes).toBe('trzecie');
+    s().undo();
+    expect(zine().spreads[0].elements).toHaveLength(0);
+    expect(zine().notes).toBe('trzecie');
+    s().setNotes('czwarte');
+    s().redo();
+    s().redo();
+    expect(zine().spreads[0].elements).toHaveLength(2);
+    expect(zine().notes).toBe('czwarte');
+  });
+
+  test('design changes keep the latest notes, also merged ones and sheet changes', () => {
+    const { s, zine } = setup();
+    const text = createTextElement({ text: '' });
+    s().addElement(text);
+    s().updateElement(text.id, { text: 'A' }, `text:${text.id}`);
+    s().setNotes('notatka');
+    s().updateElement(text.id, { text: 'Al' }, `text:${text.id}`);
+    expect(zine().notes).toBe('notatka');
+    s().addSheet();
+    expect(zine().notes).toBe('notatka');
+    s().setNotes('nowa');
+    s().undo();
+    s().undo();
+    expect(zine().notes).toBe('nowa');
+    expect((zine().spreads[0].elements[0] as TextElement).text).toBe('');
+  });
+});

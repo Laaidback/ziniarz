@@ -39,6 +39,11 @@ export interface StageView {
   contentVersion?: string;
 }
 
+/** Whether the spread drawing may differ: buildSpreadGroup reads only these fields (not notes or the title). */
+function drawnChanged(a: Zine, b: Zine): boolean {
+  return a !== b && (a.sheets !== b.sheets || a.pages !== b.pages || a.spreads !== b.spreads);
+}
+
 /** What the canvas asks the store to do. */
 export interface StageCallbacks {
   /** `page`: the existing page under the pointer (an element may lie across both pages). */
@@ -188,7 +193,7 @@ export class EditorStage {
     if (!built) return true;
     const hidden = (v: StageView) => (v.mode === 'text' ? v.selectedId : null);
     return (
-      built.zine !== view.zine ||
+      drawnChanged(built.zine, view.zine) ||
       built.spread !== view.spread ||
       built.assets !== view.assets ||
       built.contentVersion !== view.contentVersion ||

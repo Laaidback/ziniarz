@@ -88,6 +88,9 @@ test('selection changes keep the element nodes; content changes rebuild them', (
   editor.update({ ...view, selectedId: text.id });
   expect(nodeOf(text.id)).toBe(before);
   expect(transformer(editor.stage).nodes()).toHaveLength(1);
+  // Notes are not drawn: typing in the notepad keeps the nodes too.
+  editor.update({ ...view, zine: { ...zine, notes: 'notatka' }, selectedId: text.id });
+  expect(nodeOf(text.id)).toBe(before);
   const moved = { ...zine, spreads: zine.spreads.map((s, i) => (i === 1 ? { ...s, elements: [photo, { ...text, x: 100 }] } : s)) };
   editor.update({ ...view, zine: moved, selectedId: text.id });
   expect(nodeOf(text.id)).not.toBe(before);

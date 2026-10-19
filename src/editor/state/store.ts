@@ -70,6 +70,11 @@ export interface EditorState {
   removeSheet(): void;
   undo(): void;
   redo(): void;
+  /**
+   * Replaces the notepad text. No undo step (the notepad field has its own undo), but autosave sees
+   * it like any other change; undo and redo of the design keep the current notes.
+   */
+  setNotes(text: string): void;
   /** Re-measures text heights after fonts load; no undo step. */
   refreshTextHeights(): void;
   assetsChanged(): void;
@@ -151,8 +156,11 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
      */
     const travel = (step: (history: History<Zine>) => History<Zine>) => {
       const { history: before, activePage } = get();
-      const after = step(before);
-      if (after === before) return;
+      const restored = step(before);
+      if (restored === before) return;
+      // Snapshots keep the notes of their time; the notepad is not part of the design history.
+      const { notes } = before.present;
+      const after = restored.present.notes === notes ? restored : replacePresent(restored, { ...restored.present, notes });
       const wanted = changedSpread(before.present, after.present, get().spread);
       const { sheets } = after.present;
       if (sheets === before.present.sheets) settle(after, wanted);
@@ -235,6 +243,10 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       removeSheet: () => changeSheets(removeSheet),
       undo: () => travel(undo),
       redo: () => travel(redo),
+      setNotes: (notes) => {
+        const z = zineOf();
+        if (notes !== z.notes) set({ history: replacePresent(get().history, { ...z, notes }) });
+      },
       refreshTextHeights: () => {
         const z = zineOf();
         let changed = false;
