@@ -134,6 +134,7 @@ export function parseZine(input: unknown): Zine {
       duplex: print.duplex === 'manual' ? 'manual' : 'auto',
       manualReverseBacks: bool(print.manualReverseBacks, DEFAULT_PRINT.manualReverseBacks),
     },
+    notes: str(data.notes, ''),
     createdAt: str(data.createdAt, now),
     updatedAt: str(data.updatedAt, now),
   };

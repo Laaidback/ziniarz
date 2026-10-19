@@ -43,8 +43,10 @@ test('listZinesForHome parses stored zines, newest first, and counts unreadable 
 test('copyOfZine gives new ids everywhere and keeps photos and fonts by id', () => {
   const zine = createZine('Lato', 1);
   zine.fonts = ['fam'];
+  zine.notes = 'Notatki';
   zine.spreads[1].elements.push(createPhotoElement('img'), createTextElement({ text: 'a' }));
   const copy = copyOfZine(zine, new Date('2026-10-14T10:00:00Z'));
+  expect(copy.notes).toBe('Notatki');
   expect(copy.id).not.toBe(zine.id);
   expect(copy.title).toBe('Lato (kopia)');
   expect(copy.spreads[1].id).not.toBe(zine.spreads[1].id);
@@ -57,8 +59,9 @@ test('copyOfZine gives new ids everywhere and keeps photos and fonts by id', () 
 test('duplicate and remove', async () => {
   const db = await freshDb();
   const zine = await createNewZine(db, 'Lato', 2);
-  await duplicateZine(db, zine);
+  const copy = await duplicateZine(db, { ...zine, notes: 'Do przepisania' });
   expect((await listZines(db)).map((z) => z.title).sort()).toEqual(['Lato', 'Lato (kopia)']);
+  expect((await listZines(db)).find((z) => z.id === copy.id)?.notes).toBe('Do przepisania');
   await removeZine(db, zine.id);
   expect((await listZines(db)).map((z) => z.title)).toEqual(['Lato (kopia)']);
 });

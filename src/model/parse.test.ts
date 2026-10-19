@@ -24,6 +24,14 @@ describe('parseZine', () => {
     expect(parseZine(roundTrip(zine))).toEqual(zine);
   });
 
+  test('a zine saved before the notepad gets empty notes; saved notes read back', () => {
+    const raw = roundTrip(createZine('Lato', 2));
+    delete raw.notes;
+    expect(parseZine(raw).notes).toBe('');
+    expect(parseZine({ ...raw, notes: 42 }).notes).toBe('');
+    expect(parseZine({ ...raw, notes: 'Wiersz\ndrugi' }).notes).toBe('Wiersz\ndrugi');
+  });
+
   test('fills missing optional fields with defaults', () => {
     const raw = oldLayout(roundTrip(createZine('Lato', 2)));
     delete raw.margins;

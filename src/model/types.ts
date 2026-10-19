@@ -86,6 +86,8 @@ export interface Zine {
   /** Ids of custom font families uploaded to this zine. */
   fonts: string[];
   print: PrintSettings;
+  /** The editor's notepad: free text kept beside the zine, never drawn or printed. */
+  notes: string;
   createdAt: string;
   updatedAt: string;
 }
