@@ -131,6 +131,31 @@ describe('renderSpread overlays', () => {
     expect(bluish(plain, column, 50 * PX, 4, 40 * PX)).toBe(false);
     expect(bluish(withGuides, column, 50 * PX, 4, 40 * PX)).toBe(true);
   });
+
+  test('guides show the cut line and tint the bleed outside it; without guides neither is drawn', () => {
+    const zine = createZine('t', 1);
+    const plain = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX });
+    const withGuides = renderSpread(zine, 1, { images: new Map() }, { pxPerMm: PX, guides: true });
+    const rgb = (canvas: HTMLCanvasElement, x: number, y: number) => [...canvas.getContext('2d')!.getImageData(x, y, 1, 1).data.slice(0, 3)];
+    // Inside the bleed, beside the outer edge of the left page (canvas starts 3 mm outside the cut).
+    const bleedX = Math.round(1.5 * PX);
+    const middleY = Math.round(70 * PX);
+    expect(rgb(plain, bleedX, middleY)).toEqual([255, 255, 255]);
+    const [r, g, b] = rgb(withGuides, bleedX, middleY);
+    expect(r).toBeGreaterThan(g + 4);
+    expect(Math.abs(g - b)).toBeLessThan(4);
+    // The page itself stays white.
+    expect(rgb(withGuides, Math.round(8 * PX), middleY)).toEqual([255, 255, 255]);
+    // The cut line: a grey column at 3 mm (the trim of the left page's outer edge).
+    const cutX = Math.round(3 * PX);
+    const greyAt = (canvas: HTMLCanvasElement) =>
+      [cutX - 1, cutX, cutX + 1].some((x) => {
+        const [cr, cg, cb] = rgb(canvas, x, middleY);
+        return cr < 235 && Math.abs(cr - cb) < 20 && Math.abs(cg - cb) < 20;
+      });
+    expect(greyAt(plain)).toBe(false);
+    expect(greyAt(withGuides)).toBe(true);
+  });
 });
 
 describe('shared text builder', () => {

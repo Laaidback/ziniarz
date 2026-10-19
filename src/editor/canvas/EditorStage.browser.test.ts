@@ -101,11 +101,16 @@ test('guides follow the switch; the cover has guides on both pages and nothing g
   const { zine } = sample();
   const { editor, view } = mount(zine);
   expect(editor.stage.find('.guide-margin')).toHaveLength(2);
+  // The cut line of each page and the shaded bleed outside it (3 outer edges per page).
+  expect(editor.stage.find('.guide-trim')).toHaveLength(2);
+  expect(editor.stage.find('.guide-bleed-zone')).toHaveLength(6);
   editor.update({ ...view, spread: 0 });
   expect(editor.stage.find('.guide-margin')).toHaveLength(2);
   expect(editor.stage.find('.missing-page')).toHaveLength(0);
   editor.update({ ...view, showGuides: false, spread: 0 });
   expect(editor.stage.find('.guide-margin')).toHaveLength(0);
+  expect(editor.stage.find('.guide-trim')).toHaveLength(0);
+  expect(editor.stage.find('.guide-bleed-zone')).toHaveLength(0);
 });
 
 test('a selected text gets side handles only, a photo gets all eight', () => {
