@@ -1,9 +1,10 @@
-import { beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 import { noticeStore } from '../app/notices';
+import { setSystemFontAvailability } from '../fonts/systemFonts';
 import { createTextElement, createZine, DEFAULT_MARGINS } from '../model/factory';
 import { PAGE_WIDTH, SPREAD_WIDTH } from '../model/geometry';
 import { newId } from '../model/ids';
-import type { PhotoElement } from '../model/types';
+import type { PhotoElement, TextElement } from '../model/types';
 import { measureTextHeight } from '../render/buildSpread';
 import { getImage, openZiniarzDb } from '../storage/db';
 import { HEIC_SKIPPED, insertPhotos, insertText } from './insert';
@@ -29,6 +30,7 @@ async function setup() {
 }
 
 beforeEach(() => noticeStore.setState({ notices: [] }));
+afterEach(() => setSystemFontAvailability('ayuthaya', false)); // as src/test/browserSetup.ts left it
 
 // Margin areas with the default margins: left page x 12…98, right page x 112…198, y 14…137.
 const LEFT_MARGIN_X = DEFAULT_MARGINS.outer;
@@ -152,4 +154,14 @@ test('on the cover "+ Napis" goes to the front, or to the back cover once it was
   store.getState().clickPage(4);
   insertText(store);
   expect(selectedElement(store.getState())).toMatchObject({ text: 'Napis', x: LEFT_MARGIN_X });
+});
+
+test('"+ Napis" uses Ayuthaya when this computer has it, otherwise Inter', async () => {
+  const { store } = await setup();
+  setSystemFontAvailability('ayuthaya', false);
+  insertText(store);
+  expect((selectedElement(store.getState()) as TextElement).fontFamilyId).toBe('inter');
+  setSystemFontAvailability('ayuthaya', true);
+  insertText(store);
+  expect((selectedElement(store.getState()) as TextElement).fontFamilyId).toBe('ayuthaya');
 });

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import { createTextElement, createZine } from '../model/factory';
 import { BUILTIN_FONT_FILES } from './builtinFontFiles';
-import { BUILTIN_FONTS, styleKey } from './fontChoices';
+import { BUILTIN_FONTS, styleKey, SYSTEM_FONTS } from './fontChoices';
 import { ensureFontsReady, registerBuiltinFonts } from './fontLoader';
 
 const faces = (family: string) => [...document.fonts].filter((f) => f.family.replace(/["']/g, '') === family);
@@ -11,6 +11,10 @@ test('the file table matches the styles the font picker offers', () => {
     const styles = BUILTIN_FONT_FILES.filter((f) => f.familyId === font.id).map((f) => styleKey(f.bold, f.italic));
     expect(styles.sort()).toEqual([...font.styles].sort());
   }
+});
+
+test('system fonts (Ayuthaya) have no bundled files: their license forbids it', () => {
+  for (const font of SYSTEM_FONTS) expect(BUILTIN_FONT_FILES.filter((f) => f.familyId === font.id)).toEqual([]);
 });
 
 test('every bundled file is served', async () => {
@@ -36,6 +40,6 @@ test('ensureFontsReady loads the latin-ext file for Polish letters', async () =>
   expect(document.fonts.check('italic 16px "zf-lora"', 'Z')).toBe(true);
 });
 
-test('new texts use Inter by default', () => {
+test('createTextElement (parsing, test pages) defaults to Inter', () => {
   expect(createTextElement().fontFamilyId).toBe('inter');
 });

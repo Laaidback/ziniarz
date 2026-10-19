@@ -12,7 +12,10 @@ export const DEFAULT_PRINT: PrintSettings = {
   duplex: 'auto',
   manualReverseBacks: true,
 };
-/** Id of a built-in family (src/fonts/fontChoices.ts). */
+/**
+ * Id of a built-in family (src/fonts/fontChoices.ts, FALLBACK_FONT_FAMILY). Used when parsing data and by
+ * createTextElement; new frames in the editor take defaultFontFamilyId() (src/fonts/systemFonts.ts) instead.
+ */
 export const DEFAULT_FONT_FAMILY = 'inter';
 
 export function clampSheets(sheets: number): number {

@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react';
 import { errorMessage, notify } from '../../app/notices';
 import { loadFontChoices, otherZineFamilies } from '../../fonts/catalogue';
-import { fitStyle, type FontChoice } from '../../fonts/fontChoices';
+import { fitStyle, missingFontName, type FontChoice } from '../../fonts/fontChoices';
 import { importFontFiles } from '../../fonts/fontImport';
-import { cssFontFamily, registerZineFonts } from '../../fonts/fontLoader';
+import { konvaFontFamily, registerZineFonts } from '../../fonts/fontLoader';
 import type { TextElement, Zine } from '../../model/types';
 import { useEditor, useEditorEnv } from '../EditorContext';
 import { addFontFamilies, replaceFontFamilies } from '../state/commands';
@@ -73,11 +73,11 @@ export function FontField({ element }: { element: TextElement }) {
           }}
         >
           {offered.map((font) => (
-            <option key={font.id} value={font.id} style={{ fontFamily: `${cssFontFamily(font.id)}, sans-serif` }}>
+            <option key={font.id} value={font.id} style={{ fontFamily: konvaFontFamily(font.id) }}>
               {font.name}
             </option>
           ))}
-          {missing && <option value={element.fontFamilyId}>Brakujący font</option>}
+          {missing && <option value={element.fontFamilyId}>{missingFontName(element.fontFamilyId)}</option>}
         </select>
       </label>
       <div className="row">

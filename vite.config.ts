@@ -38,6 +38,8 @@ export default defineConfig({
         test: {
           name: 'browser',
           include: ['src/**/*.browser.test.{ts,tsx}'],
+          // Ayuthaya (a macOS system font) counts as missing unless a test turns it on.
+          setupFiles: ['src/test/browserSetup.ts'],
           // UPDATE_REFERENCES=1 (npm run test:update-references) rewrites the render references.
           // In CI (CI is set, as GitHub does) the render references are only informational and the comparison is
           // skipped unless REFERENCE_STRICT=1; the workflow runs it separately with continue-on-error.

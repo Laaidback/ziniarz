@@ -1,19 +1,24 @@
 import type { Zine } from '../model/types';
 import { fontFilesOfFamily, getFontFamily, listFontFamilies, type FontFamily, type ZiniarzDb } from '../storage/db';
-import { BUILTIN_FONTS, stylesOfFiles, type FontChoice } from './fontChoices';
+import { builtinFontChoices, stylesOfFiles, type FontChoice } from './fontChoices';
+import { availableSystemFonts, detectSystemFonts } from './systemFonts';
 
 async function choiceOf(db: ZiniarzDb, family: FontFamily): Promise<FontChoice> {
   return { id: family.id, name: family.name, styles: stylesOfFiles(await fontFilesOfFamily(db, family.id)), builtin: false };
 }
 
-/** Built-in families first, then the zine's own uploaded families in list order. */
+/**
+ * Built-in families first (system fonts found on this computer, then the bundled ones), then the
+ * zine's own uploaded families in list order.
+ */
 export async function loadFontChoices(db: ZiniarzDb, zine: Zine): Promise<FontChoice[]> {
+  await detectSystemFonts();
   const custom: FontChoice[] = [];
   for (const id of zine.fonts) {
     const family = await getFontFamily(db, id);
     if (family) custom.push(await choiceOf(db, family));
   }
-  return [...BUILTIN_FONTS, ...custom];
+  return [...builtinFontChoices(availableSystemFonts()), ...custom];
 }
 
 /**

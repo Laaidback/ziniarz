@@ -1,6 +1,7 @@
 import interBold from '@fontsource/inter/files/inter-latin-700-normal.woff2?url';
 import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff2?url';
 import { expect, test } from 'vitest';
+import { builtinFontChoices } from '../../fonts/fontChoices';
 import { createTextElement, createZine } from '../../model/factory';
 import type { TextElement } from '../../model/types';
 import { fontFilesOfFamily, putFontFamily, putFontFile, saveZine } from '../../storage/db';
@@ -71,4 +72,26 @@ test('uploading into a family borrowed from another zine gives this zine its own
 
   store.getState().undo();
   expect(current()).toEqual(before);
+});
+
+test('a zine using Ayuthaya on a computer without it names the missing font', async () => {
+  const { screen } = await renderPanel(createZine('Lato', 1), (store) =>
+    store.getState().addElement(createTextElement({ text: 'a', fontFamilyId: 'ayuthaya' })),
+  );
+  await expect.element(screen.getByLabelText('Font', { exact: true })).toHaveDisplayValue('Ayuthaya (brak na tym komputerze)');
+  await expect.element(screen.getByRole('button', { name: 'Pogrubienie' })).toBeDisabled();
+});
+
+test('with Ayuthaya installed it is offered, regular only', async () => {
+  const { screen, zine } = await renderPanel(
+    createZine('Lato', 1),
+    (store) => store.getState().addElement(createTextElement({ text: 'a', bold: true })),
+    builtinFontChoices(new Set(['ayuthaya'])),
+  );
+  await screen.getByLabelText('Font', { exact: true }).selectOptions('Ayuthaya (z macOS)');
+  await expect.poll(() => textOf(zine()).fontFamilyId).toBe('ayuthaya');
+  expect(textOf(zine()).bold).toBe(false);
+  expect(zine().fonts).toEqual([]); // nothing to store or put in a .zin file
+  await expect.element(screen.getByRole('button', { name: 'Pogrubienie' })).toBeDisabled();
+  await expect.element(screen.getByRole('button', { name: 'Kursywa' })).toBeDisabled();
 });

@@ -195,6 +195,18 @@ describe('database bundles', () => {
     expect(await loadZine(db, imported.id)).toEqual(imported);
   });
 
+  test('a text in Ayuthaya (a macOS system font) exports no font files and imports unchanged', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    const zine = createZine('Lato', 1);
+    zine.spreads[1].elements.push(createTextElement({ text: 'a', fontFamilyId: 'ayuthaya' }));
+    await saveZine(db, zine);
+    const { bundle } = await bundleFromDb(db, zine.id);
+    expect(bundle.fontFamilies).toEqual([]);
+    expect(bundle.fontFiles).toEqual([]);
+    const imported = await importBundle(await openZiniarzDb(`test-${newId()}`), await readZin(await writeZin(bundle)));
+    expect((imported.spreads[1].elements[0] as TextElement).fontFamilyId).toBe('ayuthaya');
+  });
+
   test('export leaves out photos missing from the database and counts them', async () => {
     const db = await openZiniarzDb(`test-${newId()}`);
     const bundle = sampleBundle();

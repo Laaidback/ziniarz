@@ -1,6 +1,8 @@
 import type { Spread, TextElement, Zine, ZineElement } from '../model/types';
 import { fontFilesOfFamily, type FontFile, type ZiniarzDb } from '../storage/db';
 import { BUILTIN_FONT_FILES, LATIN_EXT_RANGE, LATIN_RANGE } from './builtinFontFiles';
+import { FALLBACK_FONT_FAMILY, systemFont } from './fontChoices';
+import { detectSystemFonts, isSystemFontRegistered } from './systemFonts';
 
 export class FontImportError extends Error {
   constructor() {
@@ -16,8 +18,13 @@ export function cssFontFamily(familyId: string): string {
   return `zf-${familyId}`;
 }
 
-/** Konva quotes nothing here because ids have no spaces; unknown families fall back to sans-serif. */
+/**
+ * Konva quotes nothing here because ids have no spaces; unknown families fall back to sans-serif.
+ * A system font (Ayuthaya) falls back to Inter first, so a zine opened on a computer without it
+ * still looks like the app's own default. Also the CSS font-family of the text editor and font list.
+ */
 export function konvaFontFamily(familyId: string): string {
+  if (systemFont(familyId)) return `${cssFontFamily(familyId)}, ${cssFontFamily(FALLBACK_FONT_FAMILY)}, sans-serif`;
   return `${cssFontFamily(familyId)}, sans-serif`;
 }
 
@@ -73,13 +80,19 @@ export function registerBuiltinFonts(): void {
 /** Loads the font files the given texts need. The text matters: Polish letters live in the latin-ext files. */
 async function loadTextFonts(elements: Iterable<ZineElement>): Promise<void> {
   registerBuiltinFonts();
+  await detectSystemFonts();
   const requests = new Map<string, Set<string>>();
-  for (const e of elements) {
-    if (e.kind !== 'text') continue;
-    const spec = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}16px "${cssFontFamily(e.fontFamilyId)}"`;
+  const request = (familyId: string, e: TextElement) => {
+    const spec = `${e.italic ? 'italic ' : ''}${e.bold ? 'bold ' : ''}16px "${cssFontFamily(familyId)}"`;
     const chars = requests.get(spec) ?? new Set<string>();
     for (const char of e.text) chars.add(char);
     requests.set(spec, chars);
+  };
+  for (const e of elements) {
+    if (e.kind !== 'text') continue;
+    // A system font missing on this computer draws in Inter (konvaFontFamily), so load Inter's files.
+    if (systemFont(e.fontFamilyId) && !isSystemFontRegistered(e.fontFamilyId)) request(FALLBACK_FONT_FAMILY, e);
+    else request(e.fontFamilyId, e);
   }
   await Promise.all([...requests].map(([spec, chars]) => document.fonts.load(spec, [...chars].join('') || ' ')));
 }

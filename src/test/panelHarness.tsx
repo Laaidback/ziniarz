@@ -11,13 +11,13 @@ import type { Zine } from '../model/types';
 import { measureTextHeight } from '../render/buildSpread';
 import { openZiniarzDb } from '../storage/db';
 
-/** The properties panel on its own, with a real store and a fresh test database. */
-export async function renderPanel(zine: Zine, prepare?: (store: EditorStore) => void) {
+/** The properties panel on its own, with a real store and a fresh test database. `fonts` is the font list it starts with. */
+export async function renderPanel(zine: Zine, prepare?: (store: EditorStore) => void, initialFonts: FontChoice[] = BUILTIN_FONTS) {
   const db = await openZiniarzDb(`test-${newId()}`);
   const store = createEditorStore(zine, { measureText: measureTextHeight, imageSize: () => ({ width: 100, height: 100 }) });
   prepare?.(store);
   function Host() {
-    const [fonts, setFonts] = useState<FontChoice[]>(BUILTIN_FONTS);
+    const [fonts, setFonts] = useState<FontChoice[]>(initialFonts);
     return (
       <DbContext.Provider value={db}>
         <EditorContext.Provider value={{ zineId: zine.id, db, store, assets: { images: new Map() }, fonts, setFonts }}>

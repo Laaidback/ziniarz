@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
-import { cssFontFamily } from '../../fonts/fontLoader';
+import { konvaFontFamily } from '../../fonts/fontLoader';
 import { textStyleMm } from '../../render/buildSpread';
 import { useEditor, useEditorEnv } from '../EditorContext';
 import { selectedElement } from '../state/store';
@@ -60,7 +60,7 @@ export function TextEditor({ viewport }: { viewport: Viewport }) {
         top: originY + text.y * scale,
         width: text.width * scale,
         transform: `rotate(${text.rotation}deg)`,
-        fontFamily: `${cssFontFamily(text.fontFamilyId)}, sans-serif`,
+        fontFamily: konvaFontFamily(text.fontFamilyId),
         fontSize: style.fontSize * scale,
         fontWeight: text.bold ? 700 : 400,
         fontStyle: text.italic ? 'italic' : 'normal',

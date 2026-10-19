@@ -1,4 +1,5 @@
 import { errorMessage, notify } from '../app/notices';
+import { defaultFontFamilyId } from '../fonts/systemFonts';
 import { ImageImportError, isHeicFile, prepareImage } from '../images/prepareImage';
 import { createPhotoElement, createTextElement } from '../model/factory';
 import type { StoredImage } from '../storage/db';
@@ -82,11 +83,11 @@ export async function insertPhotos(
   if (skipped > 0) notify(`Pominięto plików: ${skipped} (to nie są obrazy).`);
 }
 
-/** A text frame from margin to margin of the target page, selected (one undo step). */
+/** A text frame from margin to margin of the target page, selected (one undo step), in the default font of new texts. */
 export function insertTextFrame(store: EditorStore, text: string): void {
   const zine = selectZine(store.getState());
   const frame = newTextFrame(zine, targetPage(store, null));
-  store.getState().addElement(createTextElement({ ...frame, text }));
+  store.getState().addElement(createTextElement({ ...frame, text, fontFamilyId: defaultFontFamilyId() }));
 }
 
 /** "+ Napis": a new frame, ready for typing. */
