@@ -12,8 +12,8 @@ import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { HideButton } from './HideButton';
 import { NotesPanel } from './NotesPanel';
-import { NotesResizer } from './NotesResizer';
-import { useNotesWidth } from './notesWidth';
+import { ColumnResizer } from './ColumnResizer';
+import { useColumnWidths } from './columnWidth';
 import { loadColumnShown, saveColumnShown, type EditorColumn } from './columnVisibility';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
@@ -34,7 +34,7 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   const photoInsert = usePhotoInsertState(env);
   const [notesShown, setNotesShown] = useState(() => loadColumnShown('notes'));
   const [settingsShown, setSettingsShown] = useState(() => loadColumnShown('settings'));
-  const notesWidth = useNotesWidth();
+  const widths = useColumnWidths({ spreads: true, settings: settingsShown, notes: notesShown });
   const showColumn = (column: EditorColumn, shown: boolean) => {
     saveColumnShown(column, shown);
     (column === 'notes' ? setNotesShown : setSettingsShown)(shown);
@@ -74,7 +74,13 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
       <PhotoInsertContext.Provider value={photoInsert}>
         <div
           className={['editor', settingsShown && 'with-settings', notesShown && 'with-notes'].filter(Boolean).join(' ')}
-          style={{ '--notes-width': `${notesWidth.width}px` } as CSSProperties}
+          style={
+            {
+              '--spreads-width': `${widths.spreads.width}px`,
+              '--settings-width': `${widths.settings.width}px`,
+              '--notes-width': `${widths.notes.width}px`,
+            } as CSSProperties
+          }
         >
           <TopBar
             notesShown={notesShown}
@@ -83,21 +89,58 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
             onToggleSettings={() => showColumn('settings', !settingsShown)}
           />
           <aside className="editor-spreads">
-            <SpreadList />
+            <div className="column-scroll">
+              <SpreadList width={widths.spreads.width} />
+            </div>
+            <ColumnResizer
+              side="right"
+              label="Szerokość listy stron"
+              value={widths.spreads.width}
+              min={widths.spreads.min}
+              max={widths.spreads.max}
+              onChange={widths.spreads.set}
+              onReset={widths.spreads.reset}
+            />
           </aside>
           <section className="editor-canvas">
             <SpreadCanvas />
           </section>
           {settingsShown && (
             <aside className="editor-panel" aria-label="Ustawienia">
-              <div className="column-header">
-                <span className="column-title">Ustawienia</span>
-                <HideButton label="Schowaj ustawienia" onClick={() => showColumn('settings', false)} />
+              <div className="column-scroll">
+                <div className="column-header">
+                  <span className="column-title">Ustawienia</span>
+                  <HideButton label="Schowaj ustawienia" onClick={() => showColumn('settings', false)} />
+                </div>
+                <PropertiesPanel />
               </div>
-              <PropertiesPanel />
+              <ColumnResizer
+                side="left"
+                label="Szerokość ustawień"
+                value={widths.settings.width}
+                min={widths.settings.min}
+                max={widths.settings.max}
+                onChange={widths.settings.set}
+                onReset={widths.settings.reset}
+              />
             </aside>
           )}
-          {notesShown && <NotesPanel onHide={() => showColumn('notes', false)} resizer={<NotesResizer {...notesWidth} />} />}
+          {notesShown && (
+            <NotesPanel
+              onHide={() => showColumn('notes', false)}
+              resizer={
+                <ColumnResizer
+                  side="left"
+                  label="Szerokość notatnika"
+                  value={widths.notes.width}
+                  min={widths.notes.min}
+                  max={widths.notes.max}
+                  onChange={widths.notes.set}
+                  onReset={widths.notes.reset}
+                />
+              }
+            />
+          )}
         </div>
       </PhotoInsertContext.Provider>
     </EditorContext.Provider>

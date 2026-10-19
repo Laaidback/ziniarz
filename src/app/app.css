@@ -327,7 +327,7 @@ progress {
 
 .editor {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: var(--spreads-width, 180px) minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   grid-template-areas:
     'top top'
@@ -335,23 +335,23 @@ progress {
   height: 100vh;
 }
 
-/* The settings panel (300px) and the notepad (--notes-width, 280px by default) take their columns only while shown. */
+/* The widths of the side columns are set by the drag handles (--spreads-width, --settings-width, --notes-width). The settings panel and the notepad take their columns only while shown. */
 .editor.with-settings {
-  grid-template-columns: 180px minmax(0, 1fr) 300px;
+  grid-template-columns: var(--spreads-width, 180px) minmax(0, 1fr) var(--settings-width, 300px);
   grid-template-areas:
     'top top top'
     'spreads canvas panel';
 }
 
 .editor.with-notes {
-  grid-template-columns: 180px minmax(0, 1fr) var(--notes-width, 280px);
+  grid-template-columns: var(--spreads-width, 180px) minmax(0, 1fr) var(--notes-width, 280px);
   grid-template-areas:
     'top top top'
     'spreads canvas notes';
 }
 
 .editor.with-settings.with-notes {
-  grid-template-columns: 180px minmax(0, 1fr) 300px var(--notes-width, 280px);
+  grid-template-columns: var(--spreads-width, 180px) minmax(0, 1fr) var(--settings-width, 300px) var(--notes-width, 280px);
   grid-template-areas:
     'top top top top'
     'spreads canvas panel notes';
@@ -431,7 +431,8 @@ button.column-hide {
 
 .editor-spreads {
   grid-area: spreads;
-  overflow-y: auto;
+  position: relative;
+  min-height: 0;
   border-right: 1px solid var(--line);
   background: var(--paper);
 }
@@ -446,10 +447,21 @@ button.column-hide {
 
 .editor-panel {
   grid-area: panel;
-  overflow-y: auto;
-  padding: 14px;
+  position: relative;
+  min-height: 0;
   border-left: 1px solid var(--line);
   background: var(--paper);
+}
+
+/* The scrolling content of a side column; the column itself stays put so its drag handle can overhang the edge. */
+.column-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+}
+
+.editor-panel .column-scroll {
+  padding: 14px;
 }
 
 .editor-notes {
@@ -466,12 +478,14 @@ button.column-hide {
   color: var(--note-ink);
 }
 
-/* The drag handle on the notepad's left edge; a wider hit area than the thin bar it draws. */
-.notes-resizer {
+/* The drag handle on a side column's edge (grey; golden on the notepad); a wider hit area than the thin bar it draws. */
+.column-resizer {
+  --grip: #9a9aa3;
+  --grip-line: var(--line-strong);
+  --grip-line-strong: #8a8a94;
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -4px;
   width: 9px;
   z-index: 2;
   cursor: col-resize;
@@ -479,7 +493,21 @@ button.column-hide {
   outline: none;
 }
 
-.notes-resizer::before {
+.column-resizer.edge-left {
+  left: -4px;
+}
+
+.column-resizer.edge-right {
+  right: -4px;
+}
+
+.editor-notes .column-resizer {
+  --grip: #b8a24a;
+  --grip-line: var(--note-border);
+  --grip-line-strong: var(--note-border-strong);
+}
+
+.column-resizer::before {
   content: '';
   position: absolute;
   top: 0;
@@ -491,7 +519,7 @@ button.column-hide {
 }
 
 /* The grip: an always visible rounded handle in the middle of the edge, so the edge reads as a slider. */
-.notes-resizer::after {
+.column-resizer::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -500,31 +528,31 @@ button.column-hide {
   height: 44px;
   margin-top: -22px;
   border-radius: var(--radius-pill);
-  background: #b8a24a;
+  background: var(--grip);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   opacity: 0.75;
   transition: opacity 0.12s, transform 0.12s;
 }
 
-.notes-resizer:hover::before,
-.notes-resizer:focus-visible::before,
-.resizing-notes .notes-resizer::before {
-  background: var(--note-border);
+.column-resizer:hover::before,
+.column-resizer:focus-visible::before,
+.resizing-column .column-resizer::before {
+  background: var(--grip-line);
 }
 
-.notes-resizer:hover::after,
-.notes-resizer:focus-visible::after,
-.resizing-notes .notes-resizer::after {
+.column-resizer:hover::after,
+.column-resizer:focus-visible::after,
+.resizing-column .column-resizer::after {
   opacity: 1;
   transform: scaleY(1.15);
 }
 
-.notes-resizer:focus-visible::before {
-  background: var(--note-border-strong);
+.column-resizer:focus-visible::before {
+  background: var(--grip-line-strong);
 }
 
-/* While dragging the handle nothing gets selected and the cursor stays a resize one. */
-body.resizing-notes {
+/* While dragging a handle nothing gets selected and the cursor stays a resize one. */
+body.resizing-column {
   user-select: none;
   cursor: col-resize;
 }

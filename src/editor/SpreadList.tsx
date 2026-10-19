@@ -4,17 +4,24 @@ import { countOf } from '../app/plural';
 import { useFontsVersion } from '../fonts/useFontsVersion';
 import { canAddSheet, removalHasContent, removalHasNotes, removalNeedsConfirmation, sheetRemoval } from '../model/sheets';
 import { useEditor, useEditorEnv } from './EditorContext';
+import { thumbnailPxPerMm } from './columnWidth';
 import { removalMessage, spreadLabel, spreadName } from './spreadLabels';
 import { selectZine } from './state/store';
 import { useSpreadThumbnails } from './useSpreadThumbnails';
 
-export function SpreadList() {
+/** `width` is the column's width in px; wider columns get sharper thumbnails. */
+export function SpreadList({ width = 180 }: { width?: number }) {
   const { store, assets } = useEditorEnv();
   const zine = useEditor(selectZine);
   const current = useEditor((s) => s.spread);
   const assetsVersion = useEditor((s) => s.assetsVersion);
   const fontsVersion = useFontsVersion();
-  const thumbnails = useSpreadThumbnails(zine, assets, assetsVersion * 10_000 + fontsVersion);
+  const thumbnails = useSpreadThumbnails(
+    zine,
+    assets,
+    assetsVersion * 10_000 + fontsVersion,
+    thumbnailPxPerMm(width, window.devicePixelRatio),
+  );
   const [hovering, setHovering] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
