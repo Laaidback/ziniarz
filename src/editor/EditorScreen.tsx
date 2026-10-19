@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
 import { onPageHide } from '../app/onPageHide';
@@ -12,6 +12,8 @@ import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { HideButton } from './HideButton';
 import { NotesPanel } from './NotesPanel';
+import { NotesResizer } from './NotesResizer';
+import { useNotesWidth } from './notesWidth';
 import { loadColumnShown, saveColumnShown, type EditorColumn } from './columnVisibility';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
@@ -32,6 +34,7 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   const photoInsert = usePhotoInsertState(env);
   const [notesShown, setNotesShown] = useState(() => loadColumnShown('notes'));
   const [settingsShown, setSettingsShown] = useState(() => loadColumnShown('settings'));
+  const notesWidth = useNotesWidth();
   const showColumn = (column: EditorColumn, shown: boolean) => {
     saveColumnShown(column, shown);
     (column === 'notes' ? setNotesShown : setSettingsShown)(shown);
@@ -69,7 +72,10 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   return (
     <EditorContext.Provider value={env}>
       <PhotoInsertContext.Provider value={photoInsert}>
-        <div className={['editor', settingsShown && 'with-settings', notesShown && 'with-notes'].filter(Boolean).join(' ')}>
+        <div
+          className={['editor', settingsShown && 'with-settings', notesShown && 'with-notes'].filter(Boolean).join(' ')}
+          style={{ '--notes-width': `${notesWidth.width}px` } as CSSProperties}
+        >
           <TopBar
             notesShown={notesShown}
             onToggleNotes={() => showColumn('notes', !notesShown)}
@@ -91,7 +97,7 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
               <PropertiesPanel />
             </aside>
           )}
-          {notesShown && <NotesPanel onHide={() => showColumn('notes', false)} />}
+          {notesShown && <NotesPanel onHide={() => showColumn('notes', false)} resizer={<NotesResizer {...notesWidth} />} />}
         </div>
       </PhotoInsertContext.Provider>
     </EditorContext.Provider>

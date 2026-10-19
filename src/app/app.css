@@ -335,7 +335,7 @@ progress {
   height: 100vh;
 }
 
-/* The settings panel (300px) and the notepad (280px) take their columns only while shown. */
+/* The settings panel (300px) and the notepad (--notes-width, 280px by default) take their columns only while shown. */
 .editor.with-settings {
   grid-template-columns: 180px minmax(0, 1fr) 300px;
   grid-template-areas:
@@ -344,14 +344,14 @@ progress {
 }
 
 .editor.with-notes {
-  grid-template-columns: 180px minmax(0, 1fr) 280px;
+  grid-template-columns: 180px minmax(0, 1fr) var(--notes-width, 280px);
   grid-template-areas:
     'top top top'
     'spreads canvas notes';
 }
 
 .editor.with-settings.with-notes {
-  grid-template-columns: 180px minmax(0, 1fr) 300px 280px;
+  grid-template-columns: 180px minmax(0, 1fr) 300px var(--notes-width, 280px);
   grid-template-areas:
     'top top top top'
     'spreads canvas panel notes';
@@ -454,6 +454,7 @@ button.column-hide {
 
 .editor-notes {
   grid-area: notes;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -463,6 +464,67 @@ button.column-hide {
   box-shadow: -3px 0 8px rgba(0, 0, 0, 0.08);
   background: var(--note-edge);
   color: var(--note-ink);
+}
+
+/* The drag handle on the notepad's left edge; a wider hit area than the thin bar it draws. */
+.notes-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  width: 9px;
+  z-index: 2;
+  cursor: col-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.notes-resizer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  width: 3px;
+  background: transparent;
+  transition: background 0.12s;
+}
+
+/* The grip: a short rounded bar in the middle, visible on hover and focus. */
+.notes-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 3px;
+  width: 3px;
+  height: 28px;
+  margin-top: -14px;
+  border-radius: var(--radius-pill);
+  background: var(--note-border-strong);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.notes-resizer:hover::before,
+.notes-resizer:focus-visible::before,
+.resizing-notes .notes-resizer::before {
+  background: var(--note-border);
+}
+
+.notes-resizer:hover::after,
+.notes-resizer:focus-visible::after,
+.resizing-notes .notes-resizer::after {
+  opacity: 1;
+}
+
+.notes-resizer:focus-visible::before {
+  background: var(--note-border-strong);
+}
+
+/* While dragging the handle nothing gets selected and the cursor stays a resize one. */
+body.resizing-notes {
+  user-select: none;
+  cursor: col-resize;
 }
 
 .notes-heading {

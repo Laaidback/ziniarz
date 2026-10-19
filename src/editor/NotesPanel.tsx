@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { useEditor, useEditorEnv } from './EditorContext';
 import { HideButton } from './HideButton';
 import { insertTextFrame } from './insert';
@@ -121,7 +121,8 @@ function NotesSection({ section, title, label, placeholder, current = false, onO
  * highlight, saved with the zine (no undo step in the design history; each field has the browser's
  * own undo). "Całość" shows every section as one document, "Ta rozkładówka" only the spread open in the editor.
  */
-export function NotesPanel({ onHide }: { onHide(): void }) {
+/** `resizer` is the width handle on the panel's left edge. */
+export function NotesPanel({ onHide, resizer }: { onHide(): void; resizer?: ReactNode }) {
   const { store } = useEditorEnv();
   const spreads = useEditor((s) => s.history.present.spreads);
   const sheets = useEditor((s) => s.history.present.sheets);
@@ -235,6 +236,7 @@ export function NotesPanel({ onHide }: { onHide(): void }) {
 
   return (
     <aside className="editor-notes" aria-labelledby="notes-heading">
+      {resizer}
       <div className="column-header">
         <h2 id="notes-heading" className="notes-heading">
           Notatnik
