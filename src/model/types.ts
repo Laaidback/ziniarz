@@ -86,7 +86,10 @@ export interface Zine {
   /** Ids of custom font families uploaded to this zine. */
   fonts: string[];
   print: PrintSettings;
-  /** The editor's notepad: free text kept beside the zine, never drawn or printed. */
+  /**
+   * The editor's notepad, never drawn or printed: HTML limited to text, <b>, <mark>, <br>, <div>, <p>
+   * (model/notesHtml.ts sanitizeNotes).
+   */
   notes: string;
   createdAt: string;
   updatedAt: string;

@@ -1,6 +1,7 @@
 import { createStore, type StoreApi } from 'zustand/vanilla';
 import { pageAt, sideOfPage, spreadCount } from '../../model/geometry';
 import { addSheet, removeSheet } from '../../model/sheets';
+import { sanitizeNotes } from '../../model/notesHtml';
 import type { PhotoCrop, TextElement, Zine, ZineElement } from '../../model/types';
 import { clampCrop } from '../../render/photoGeometry';
 import { cloneForPaste } from './clipboard';
@@ -71,7 +72,7 @@ export interface EditorState {
   undo(): void;
   redo(): void;
   /**
-   * Replaces the notepad text. No undo step (the notepad field has its own undo), but autosave sees
+   * Replaces the notepad (HTML, sanitized here). No undo step (the notepad field has its own undo), but autosave sees
    * it like any other change; undo and redo of the design keep the current notes.
    */
   setNotes(text: string): void;
@@ -243,8 +244,9 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
       removeSheet: () => changeSheets(removeSheet),
       undo: () => travel(undo),
       redo: () => travel(redo),
-      setNotes: (notes) => {
+      setNotes: (html) => {
         const z = zineOf();
+        const notes = sanitizeNotes(html);
         if (notes !== z.notes) set({ history: replacePresent(get().history, { ...z, notes }) });
       },
       refreshTextHeights: () => {

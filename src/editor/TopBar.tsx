@@ -3,7 +3,7 @@ import { useEditor, useEditorEnv } from './EditorContext';
 import { InsertButtons } from './InsertButtons';
 import { selectCanRedo, selectCanUndo } from './state/store';
 
-export function TopBar() {
+export function TopBar({ notesShown, onToggleNotes }: { notesShown: boolean; onToggleNotes(): void }) {
   const { store, zineId } = useEditorEnv();
   const title = useEditor((s) => s.history.present.title);
   const canUndo = useEditor(selectCanUndo);
@@ -33,6 +33,9 @@ export function TopBar() {
           />
           Pokaż prowadnice
         </label>
+        <button type="button" aria-pressed={notesShown} onClick={onToggleNotes} title="Pokaż lub ukryj notatnik">
+          Notatnik
+        </button>
       </div>
       <div className="toolbar">
         <a className="link-button" href={routeHash({ name: 'preview3d', zineId })}>

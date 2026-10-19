@@ -21,7 +21,7 @@ function sampleBundle(): ZinBundle {
   const zine = createZine('Lato', 1);
   zine.spreads[1].elements.push(createPhotoElement('img'));
   zine.fonts = ['fam'];
-  zine.notes = 'Tytuł\nTekst do zina';
+  zine.notes = '<div><b>Tytuł</b></div><div>Tekst <mark>do zina</mark></div>';
   return {
     zine,
     images: [{ id: 'img', mime: 'image/png', width: 3, height: 2, data: new Uint8Array([9, 8, 7]).buffer }],
@@ -36,7 +36,7 @@ describe('writeZin / readZin', () => {
     const read = await readZin(await writeZin(bundle));
     expect(read.zine.id).not.toBe(bundle.zine.id);
     expect({ ...read.zine, id: bundle.zine.id }).toEqual(bundle.zine);
-    expect(read.zine.notes).toBe('Tytuł\nTekst do zina');
+    expect(read.zine.notes).toBe('<div><b>Tytuł</b></div><div>Tekst <mark>do zina</mark></div>');
     expect(read.images[0]).toMatchObject({ id: 'img', mime: 'image/png', width: 3, height: 2 });
     expect(new Uint8Array(read.images[0].data)).toEqual(new Uint8Array([9, 8, 7]));
     expect(read.fontFamilies).toEqual(bundle.fontFamilies);

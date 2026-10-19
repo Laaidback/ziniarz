@@ -8,6 +8,7 @@ import {
 } from './factory';
 import { pageExists, spreadCount } from './geometry';
 import { newId } from './ids';
+import { sanitizeNotes } from './notesHtml';
 import { A6_FORMAT_VERSION, COVER_FORMAT_VERSION, mergeCovers, migrateA5ToA6 } from './migrate';
 import type { Frame, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
 
@@ -134,7 +135,8 @@ export function parseZine(input: unknown): Zine {
       duplex: print.duplex === 'manual' ? 'manual' : 'auto',
       manualReverseBacks: bool(print.manualReverseBacks, DEFAULT_PRINT.manualReverseBacks),
     },
-    notes: str(data.notes, ''),
+    // A .zin from someone else must never bring its own HTML into the notepad.
+    notes: sanitizeNotes(str(data.notes, '')),
     createdAt: str(data.createdAt, now),
     updatedAt: str(data.updatedAt, now),
   };

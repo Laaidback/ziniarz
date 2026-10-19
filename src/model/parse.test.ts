@@ -32,6 +32,12 @@ describe('parseZine', () => {
     expect(parseZine({ ...raw, notes: 'Wiersz\ndrugi' }).notes).toBe('Wiersz\ndrugi');
   });
 
+  test('notes keep bold and highlight but never foreign HTML', () => {
+    const raw = roundTrip(createZine('Lato', 2));
+    const notes = '<div><b>Tytuł</b> <mark>ważne</mark><img src=x onerror="alert(1)"><script>alert(2)</script></div>';
+    expect(parseZine({ ...raw, notes }).notes).toBe('<div><b>Tytuł</b> <mark>ważne</mark></div>');
+  });
+
   test('fills missing optional fields with defaults', () => {
     const raw = oldLayout(roundTrip(createZine('Lato', 2)));
     delete raw.margins;

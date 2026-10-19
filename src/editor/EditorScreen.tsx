@@ -10,6 +10,8 @@ import { saveZine } from '../storage/db';
 import { holdOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
+import { NotesPanel } from './NotesPanel';
+import { loadNotesShown, saveNotesShown } from './notesVisibility';
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
 import { openEditorSession } from './session';
@@ -27,6 +29,11 @@ interface Loaded {
 function EditorWorkspace({ env }: { env: EditorEnv }) {
   useEditorKeyboard(env.store);
   const photoInsert = usePhotoInsertState(env);
+  const [notesShown, setNotesShown] = useState(loadNotesShown);
+  const toggleNotes = () => {
+    saveNotesShown(!notesShown);
+    setNotesShown(!notesShown);
+  };
 
   // Autosave 500 ms after each change; leaving the editor or hiding the tab saves at once.
   useEffect(() => {
@@ -60,8 +67,8 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   return (
     <EditorContext.Provider value={env}>
       <PhotoInsertContext.Provider value={photoInsert}>
-        <div className="editor">
-          <TopBar />
+        <div className={notesShown ? 'editor with-notes' : 'editor'}>
+          <TopBar notesShown={notesShown} onToggleNotes={toggleNotes} />
           <aside className="editor-spreads">
             <SpreadList />
           </aside>
@@ -71,6 +78,7 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
           <aside className="editor-panel">
             <PropertiesPanel />
           </aside>
+          {notesShown && <NotesPanel />}
         </div>
       </PhotoInsertContext.Provider>
     </EditorContext.Provider>

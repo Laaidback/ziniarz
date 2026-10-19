@@ -82,10 +82,15 @@ export async function insertPhotos(
   if (skipped > 0) notify(`Pominięto plików: ${skipped} (to nie są obrazy).`);
 }
 
-/** "+ Napis": a frame from margin to margin of the page, selected and ready for typing. */
-export function insertText(store: EditorStore): void {
+/** A text frame from margin to margin of the target page, selected (one undo step). */
+export function insertTextFrame(store: EditorStore, text: string): void {
   const zine = selectZine(store.getState());
   const frame = newTextFrame(zine, targetPage(store, null));
-  store.getState().addElement(createTextElement({ ...frame, text: NEW_TEXT }));
+  store.getState().addElement(createTextElement({ ...frame, text }));
+}
+
+/** "+ Napis": a new frame, ready for typing. */
+export function insertText(store: EditorStore): void {
+  insertTextFrame(store, NEW_TEXT);
   store.getState().setMode('text');
 }

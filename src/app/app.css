@@ -6,6 +6,12 @@
   --canvas: #e8e8e8;
   --accent: #2b6cff;
   --danger: #d70015;
+  /* Notepad column: a yellow sticky note. */
+  --note-paper: #fff8c5;
+  --note-edge: #fdf0a0;
+  --note-border: #e3cf5c;
+  --note-ink: #2e2700;
+  --note-mark: #ffc98a;
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 14px;
   color: var(--ink);
@@ -217,6 +223,13 @@ select {
   height: 100vh;
 }
 
+.editor.with-notes {
+  grid-template-columns: 180px minmax(0, 1fr) 300px 280px;
+  grid-template-areas:
+    'top top top top'
+    'spreads canvas panel notes';
+}
+
 .editor-top {
   grid-area: top;
   display: flex;
@@ -273,6 +286,92 @@ select {
   padding: 12px;
   border-left: 1px solid var(--line);
   background: var(--paper);
+}
+
+.editor-notes {
+  grid-area: notes;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 12px;
+  border-left: 1px solid var(--note-border);
+  box-shadow: -3px 0 8px rgba(0, 0, 0, 0.08);
+  background: var(--note-edge);
+  color: var(--note-ink);
+}
+
+.notes-heading {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.notes-tools {
+  display: flex;
+  gap: 6px;
+}
+
+.notes-tools button {
+  border-color: var(--note-border);
+}
+
+.notes-bold {
+  min-width: 32px;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.notes-marker,
+.notes-text mark {
+  background: var(--note-mark);
+  color: inherit;
+}
+
+.notes-marker {
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.notes-tools button[aria-pressed='true'] .notes-marker {
+  color: var(--note-ink);
+}
+
+.notes-text {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  padding: 10px;
+  border: 1px solid var(--note-border);
+  border-radius: 4px;
+  background: var(--note-paper);
+  color: var(--note-ink);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: text;
+}
+
+.notes-text.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  inset: 10px;
+  color: #6b6130;
+  pointer-events: none;
+}
+
+.notes-text:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.notes-insert {
+  justify-content: center;
+  border-color: var(--note-border);
 }
 
 .spread-canvas,

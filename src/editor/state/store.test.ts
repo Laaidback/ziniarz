@@ -331,6 +331,12 @@ describe('notes', () => {
     expect(zine()).toBe(after);
   });
 
+  test('setNotes keeps only the safe HTML subset', () => {
+    const { s, zine } = setup();
+    s().setNotes('<b onclick="x()">Ala</b><script>alert(1)</script> <mark>kot</mark>');
+    expect(zine().notes).toBe('<b>Ala</b> <mark>kot</mark>');
+  });
+
   test('undo and redo of the design never change the notes', () => {
     const { s, zine } = setup();
     s().setNotes('pierwsze');
