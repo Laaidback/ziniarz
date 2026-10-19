@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { MAX_NOTES_LENGTH, sanitizeNotes } from './notesHtml';
+import { MAX_NOTES_LENGTH, notesPreview, sanitizeNotes } from './notesHtml';
 
 test('keeps bold, highlight, lines and line breaks, without attributes', () => {
   expect(sanitizeNotes('<div>Ala <b>ma</b> <strong>kota</strong></div><p><mark class="x">i psa</mark><br/></p>')).toBe(
@@ -62,4 +62,12 @@ test('closing tags of dropped elements are found case-insensitively on the origi
   expect(sanitizeNotes('İİİİ<script>x</SCRIPT>widać')).toBe('İİİİwidać');
   expect(sanitizeNotes('<style>a</stylex>b</style>c')).toBe('c');
   expect(sanitizeNotes('<script>x</script\n>po')).toBe('po');
+});
+
+test('notesPreview gives the plain text of the notes, line by line, without empty lines', () => {
+  expect(notesPreview('')).toBe('');
+  expect(notesPreview('Ala <b>ma</b> <mark>kota</mark>')).toBe('Ala ma kota');
+  expect(notesPreview('Raz<div>dwa</div><div><br></div><p>trzy &amp; &lt;cztery&gt;</p>')).toBe('Raz\ndwa\ntrzy & <cztery>');
+  expect(notesPreview('a<br><br>  b  ')).toBe('a\nb');
+  expect(notesPreview('x'.repeat(1000))).toHaveLength(300);
 });

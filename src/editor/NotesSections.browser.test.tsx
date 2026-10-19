@@ -12,26 +12,20 @@ afterEach(() => localStorage.removeItem('ziniarz.notesView'));
 
 type Screen = Awaited<ReturnType<typeof openInEditor>>['screen'];
 
-const sectionOf = (spreadId: string) => document.querySelector<HTMLElement>(`[data-section="${spreadId}"]`);
-const sectionList = () => document.querySelector<HTMLElement>('.notes-sections')!;
+const tileOf = (spreadId: string) => document.querySelector<HTMLElement>(`.notes-tile[data-section="${spreadId}"]`);
+const tileList = () => document.querySelector<HTMLElement>('.notes-tiles')!;
 const thumbnails = (screen: Screen) => screen.getByRole('navigation', { name: 'Rozkładówki' });
+const notepad = (screen: Screen) => screen.getByRole('complementary', { name: 'Notatnik' });
+const tile = (screen: Screen, name: string) =>
+  notepad(screen).getByRole('group', { name: 'Kartki notatnika' }).getByRole('button', { name, exact: true });
 const notesBox = (screen: Screen, name: string) => screen.getByRole('textbox', { name: `Notatki: ${name}` });
 const notesElement = (screen: Screen, name: string) => notesBox(screen, name).element() as HTMLElement;
 
-/** Whether `element` lies fully inside the visible part of the scrolling section list. */
+/** Whether `element` lies fully inside the visible part of the scrolling grid. */
 function inView(element: HTMLElement): boolean {
-  const list = sectionList().getBoundingClientRect();
+  const list = tileList().getBoundingClientRect();
   const box = element.getBoundingClientRect();
   return box.top >= list.top - 1 && box.bottom <= list.bottom + 1;
-}
-
-/** Waits until the section list stops scrolling (a smooth scroll may still be running). */
-async function settled(): Promise<void> {
-  let last = -1;
-  while (sectionList().scrollTop !== last) {
-    last = sectionList().scrollTop;
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
 }
 
 /** Selects all text of a notepad field, as a mouse would. */
@@ -49,128 +43,125 @@ function zineWith(sheets: number, notes: (zine: Zine) => void = () => {}): Zine 
   return zine;
 }
 
-test('"Całość" shows general notes and a section per spread, in order, as one document', async () => {
+test('the notepad shows a tile per section, in order, with the start of its notes', async () => {
   const zine = zineWith(2, (z) => {
     z.notes = 'Ogólnie';
-    z.spreadNotes = { [z.spreads[2].id]: '<b>Wiersz</b> o lecie' };
+    z.spreadNotes = { [z.spreads[2].id]: '<b>Wiersz</b> o lecie<div>druga linia</div>' };
   });
   const { screen } = await openInEditor(zine);
-  await expect.element(screen.getByRole('button', { name: 'Całość' })).toHaveAttribute('aria-pressed', 'true');
-  await expect.element(notesBox(screen, 'Ogólne')).toHaveTextContent('Ogólnie');
-  const titles = [...document.querySelectorAll('.notes-section-title')].map((t) => t.textContent);
+  await expect.element(tile(screen, 'Ogólne')).toHaveTextContent('Ogólnie');
+  const titles = [...document.querySelectorAll('.notes-tile-title')].map((t) => t.textContent);
   expect(titles).toEqual(['Ogólne', 'Okładkateraz', 'Strony 2–3', 'Strony 4–5', 'Strony 6–7']);
-  await expect.element(notesBox(screen, 'Strony 4–5')).toHaveTextContent('Wiersz o lecie');
-  expect(notesBox(screen, 'Strony 4–5').element().innerHTML).toBe('<b>Wiersz</b> o lecie');
-  // Empty sections show a light hint and stay low.
-  const empty = notesBox(screen, 'Strony 6–7');
-  await expect.element(empty).toHaveAttribute('data-placeholder', 'Notatki do: Strony 6–7');
-  await expect.element(empty).toHaveClass('is-empty');
-  expect(empty.element().getBoundingClientRect().height).toBeLessThan(45);
+  // Plain text, line by line: no formatting in a tile.
+  expect(tileOf(zine.spreads[2].id)!.querySelector('.notes-tile-text')!.textContent).toBe('Wiersz o lecie\ndruga linia');
+  await expect.element(tile(screen, 'Strony 6–7')).toHaveTextContent('pusto');
+  // The open spread's tile is marked; nothing to type into until a tile is opened.
+  await expect.element(tile(screen, 'Okładka')).toHaveAttribute('aria-current', 'true');
+  await expect.element(tile(screen, 'Strony 2–3')).not.toHaveAttribute('aria-current');
+  expect(document.querySelectorAll('.editor-notes [role="textbox"]')).toHaveLength(0);
+  await expect.element(screen.getByRole('button', { name: 'Wstaw zaznaczenie jako napis' })).not.toBeInTheDocument();
 });
 
-test('typing in a spread section saves its notes without an undo step, and they come back after reopening', async () => {
+test('a tile opens its page and that spread; "Wszystkie" goes back to the tiles', async () => {
+  const zine = zineWith(3, (z) => {
+    z.spreadNotes = { [z.spreads[3].id]: 'Sześć' };
+  });
+  const { screen } = await openInEditor(zine);
+  await tile(screen, 'Strony 6–7').click();
+  await expect.element(thumbnails(screen).getByRole('button', { name: 'Strony 6–7' })).toHaveAttribute('aria-current', 'true');
+  const box = notesBox(screen, 'Strony 6–7');
+  await expect.element(box).toHaveTextContent('Sześć');
+  // Ready to write: the caret is at the end of the notes.
+  await expect.element(box).toHaveFocus();
+  await userEvent.keyboard(' i siedem');
+  await expect.element(box).toHaveTextContent('Sześć i siedem');
+  await expect.element(tile(screen, 'Ogólne')).not.toBeInTheDocument();
+
+  await notepad(screen).getByRole('button', { name: 'Wszystkie' }).click();
+  await expect.element(tile(screen, 'Strony 6–7')).toHaveTextContent('Sześć i siedem');
+  await expect.element(tile(screen, 'Strony 6–7')).toHaveAttribute('aria-current', 'true');
+  expect(localStorage.getItem('ziniarz.notesView')).toBe('all');
+});
+
+test('typing on a spread page saves its notes without an undo step; the page is remembered', async () => {
   const zine = zineWith(2);
   const { db, screen, stored } = await openInEditor(zine);
-  await notesBox(screen, 'Strony 2–3').click();
+  await tile(screen, 'Strony 2–3').click();
+  await expect.element(notesBox(screen, 'Strony 2–3')).toHaveFocus();
   await userEvent.keyboard('Tekst do 2–3');
   await expect.poll(async () => (await stored()).spreadNotes).toEqual({ [zine.spreads[1].id]: 'Tekst do 2–3' });
   await expect.element(screen.getByRole('button', { name: 'Cofnij' })).toBeDisabled();
-  // Bold works in a spread section too.
+  // Bold works on a spread page too.
   selectAllIn(notesElement(screen, 'Strony 2–3'));
   await userEvent.keyboard('{Control>}b{/Control}');
   await expect.poll(async () => (await stored()).spreadNotes[zine.spreads[1].id]).toBe('<b>Tekst do 2–3</b>');
+  expect(localStorage.getItem('ziniarz.notesView')).toBe('spread');
   screen.unmount();
 
+  // Reopened, the notepad shows the page of the spread open in the editor (the cover).
   const again = render(
     <DbContext.Provider value={db}>
       <EditorScreen zineId={zine.id} />
     </DbContext.Provider>,
   );
+  await expect.element(again.getByRole('textbox', { name: 'Notatki: Okładka' })).toBeVisible();
+  await again.getByRole('navigation', { name: 'Rozkładówki' }).getByRole('button', { name: 'Strony 2–3' }).click();
   await expect.element(again.getByRole('textbox', { name: 'Notatki: Strony 2–3' })).toHaveTextContent('Tekst do 2–3');
 });
 
-test('the open spread\'s section is highlighted and scrolls into view when the editor changes spread', async () => {
-  const zine = zineWith(5);
-  const { screen } = await openInEditor(zine);
-  await expect.element(notesBox(screen, 'Okładka')).toBeVisible();
-  const cover = sectionOf(zine.spreads[0].id)!;
-  await expect.element(cover).toHaveClass('is-current');
-  const far = zine.spreads[8];
-  // Thumbnails render first; smooth scrolling waits for a free main thread.
-  await expect.poll(() => document.querySelectorAll('.spread-thumb img').length, { timeout: 5000 }).toBe(10);
-  expect(inView(sectionOf(far.id)!)).toBe(false);
-
-  await thumbnails(screen).getByRole('button', { name: 'Strony 16–17' }).click();
-  await expect.element(sectionOf(far.id)!).toHaveClass('is-current');
-  await expect.element(cover).not.toHaveClass('is-current');
-  await expect.poll(() => inView(sectionOf(far.id)!), { timeout: 5000 }).toBe(true);
-  // The editor keeps the focus: the notepad does not take it.
-  expect(document.activeElement?.closest('.editor-notes')).toBeNull();
-  await expect.element(screen.getByText('teraz')).toBeVisible();
-
-  // Not while typing in another section: a spread change does not move the notes away.
-  const general = notesElement(screen, 'Ogólne');
-  general.focus();
-  await settled();
-  sectionList().scrollTo({ top: 0 });
-  await expect.poll(() => sectionList().scrollTop).toBe(0);
-  (thumbnails(screen).getByRole('button', { name: 'Strony 18–19' }).element() as HTMLElement).click();
-  await expect.element(sectionOf(zine.spreads[9].id)!).toHaveClass('is-current');
-  await new Promise((resolve) => setTimeout(resolve, 300));
-  expect(sectionList().scrollTop).toBe(0);
-  expect(document.activeElement).toBe(general);
-});
-
-test('clicking a section heading in "Całość" opens that spread in the editor', async () => {
-  const { screen } = await openInEditor(zineWith(3));
-  await screen.getByRole('complementary', { name: 'Notatnik' }).getByRole('button', { name: 'Strony 6–7' }).click();
-  await expect.element(thumbnails(screen).getByRole('button', { name: 'Strony 6–7' })).toHaveAttribute('aria-current', 'true');
-});
-
-test('"Ta rozkładówka" shows only the open spread\'s section, follows the editor and is remembered', async () => {
+test('a spread page follows the editor; the general page stays', async () => {
   const zine = zineWith(3, (z) => {
+    z.notes = 'Wszędzie';
     z.spreadNotes = { [z.spreads[1].id]: 'Dwa', [z.spreads[2].id]: 'Cztery' };
   });
-  const { db, screen } = await openInEditor(zine);
-  await screen.getByRole('button', { name: 'Ta rozkładówka' }).click();
-  await expect.element(screen.getByRole('button', { name: 'Ta rozkładówka' })).toHaveAttribute('aria-pressed', 'true');
+  const { screen } = await openInEditor(zine);
+  await tile(screen, 'Okładka').click();
   await expect.element(notesBox(screen, 'Okładka')).toBeVisible();
-  await expect.element(notesBox(screen, 'Ogólne')).not.toBeInTheDocument();
-  await expect.element(notesBox(screen, 'Strony 2–3')).not.toBeInTheDocument();
-  // No "teraz" and no jump button: the only section is the open spread.
-  await expect.element(screen.getByText('teraz')).not.toBeInTheDocument();
-
   await thumbnails(screen).getByRole('button', { name: 'Strony 2–3' }).click();
   await expect.element(notesBox(screen, 'Strony 2–3')).toHaveTextContent('Dwa');
   await expect.element(notesBox(screen, 'Okładka')).not.toBeInTheDocument();
   await userEvent.keyboard('{PageDown}');
   await expect.element(notesBox(screen, 'Strony 4–5')).toHaveTextContent('Cztery');
-  expect(localStorage.getItem('ziniarz.notesView')).toBe('spread');
-  screen.unmount();
 
-  const again = render(
-    <DbContext.Provider value={db}>
-      <EditorScreen zineId={zine.id} />
-    </DbContext.Provider>,
-  );
-  await expect.element(again.getByRole('button', { name: 'Ta rozkładówka' })).toHaveAttribute('aria-pressed', 'true');
-  await expect.element(again.getByRole('textbox', { name: 'Notatki: Okładka' })).toBeVisible();
-  await again.getByRole('button', { name: 'Całość' }).click();
-  await expect.element(again.getByRole('textbox', { name: 'Notatki: Ogólne' })).toBeVisible();
-  expect(localStorage.getItem('ziniarz.notesView')).toBe('all');
+  await notepad(screen).getByRole('button', { name: 'Wszystkie' }).click();
+  await tile(screen, 'Ogólne').click();
+  await expect.element(notesBox(screen, 'Ogólne')).toHaveTextContent('Wszędzie');
+  // The editor stays where it was.
+  await expect.element(thumbnails(screen).getByRole('button', { name: 'Strony 4–5' })).toHaveAttribute('aria-current', 'true');
+  await thumbnails(screen).getByRole('button', { name: 'Strony 2–3' }).click();
+  await expect.element(notesBox(screen, 'Ogólne')).toBeVisible();
+  expect(localStorage.getItem('ziniarz.notesView')).toBe('general');
 });
 
-test('"Wstaw zaznaczenie jako napis" from another spread\'s section puts the text on that spread', async () => {
+test('the open spread\'s tile scrolls into view when the editor changes spread', async () => {
+  const zine = zineWith(10);
+  const { screen } = await openInEditor(zine);
+  await expect.element(tile(screen, 'Okładka')).toBeVisible();
+  const far = zine.spreads[18];
+  // Thumbnails render first; smooth scrolling waits for a free main thread.
+  await expect.poll(() => document.querySelectorAll('.spread-thumb img').length, { timeout: 8000 }).toBe(20);
+  expect(inView(tileOf(far.id)!)).toBe(false);
+
+  await thumbnails(screen).getByRole('button', { name: 'Strony 36–37' }).click();
+  await expect.element(tileOf(far.id)!).toHaveAttribute('aria-current', 'true');
+  await expect.element(tileOf(zine.spreads[0].id)!).not.toHaveAttribute('aria-current');
+  await expect.poll(() => inView(tileOf(far.id)!), { timeout: 5000 }).toBe(true);
+  // The editor keeps the focus: the notepad does not take it.
+  expect(document.activeElement?.closest('.editor-notes')).toBeNull();
+  await expect.element(screen.getByText('teraz')).toBeVisible();
+});
+
+test('"Wstaw zaznaczenie jako napis" from the general page puts the text on the open spread', async () => {
   const zine = zineWith(2, (z) => {
-    z.spreadNotes = { [z.spreads[2].id]: 'Na czwartą' };
+    z.notes = 'Na drugą';
   });
   const { screen, stored } = await openInEditor(zine);
-  await expect.element(thumbnails(screen).getByRole('button', { name: 'Okładka' })).toHaveAttribute('aria-current', 'true');
-  selectAllIn(notesElement(screen, 'Strony 4–5'));
+  await thumbnails(screen).getByRole('button', { name: 'Strony 2–3' }).click();
+  await tile(screen, 'Ogólne').click();
+  selectAllIn(notesElement(screen, 'Ogólne'));
   await screen.getByRole('button', { name: 'Wstaw zaznaczenie jako napis' }).click();
-  await expect.poll(async () => (await stored()).spreads[2].elements.map((e) => (e as TextElement).text)).toEqual(['Na czwartą']);
+  await expect.poll(async () => (await stored()).spreads[1].elements.map((e) => (e as TextElement).text)).toEqual(['Na drugą']);
   expect((await stored()).spreads[0].elements).toEqual([]);
-  await expect.element(thumbnails(screen).getByRole('button', { name: 'Strony 4–5' })).toHaveAttribute('aria-current', 'true');
 });
 
 test('"− kartka" asks first when the removed spreads have notes, and the notes go with them', async () => {
@@ -185,6 +176,6 @@ test('"− kartka" asks first when the removed spreads have notes, and the notes
   await screen.getByRole('button', { name: 'Usuń kartkę' }).click();
   await expect.poll(async () => (await stored()).sheets).toBe(1);
   expect((await stored()).spreadNotes).toEqual({ [zine.spreads[1].id]: 'Zostaje' });
-  await expect.element(notesBox(screen, 'Strony 2–3')).toHaveTextContent('Zostaje');
+  await expect.element(tile(screen, 'Strony 2–3')).toHaveTextContent('Zostaje');
   await expect.element(screen.getByText('Znika')).not.toBeInTheDocument();
 });

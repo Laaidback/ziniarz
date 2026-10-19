@@ -22,18 +22,18 @@
   --shadow: 0 1px 3px rgba(20, 20, 40, 0.08), 0 4px 14px rgba(20, 20, 40, 0.06);
   --shadow-lg: 0 12px 40px rgba(20, 20, 40, 0.22);
   --focus-ring: 0 0 0 3px rgba(43, 108, 255, 0.35);
-  /* Notepad column: a pale yellow sticky note. */
-  --note-paper: #fffbe0;
-  --note-edge: #fbf3c4;
-  --note-border: #eadc94;
-  --note-border-strong: #d8c460;
-  --note-hover: #fff5c2;
-  --note-ink: #2e2700;
-  --note-placeholder: #8a7d45;
+  /* Notepad column: warm cream paper with only a hint of yellow. */
+  --note-paper: #fffdf5;
+  --note-edge: #f8f4e6;
+  --note-border: #e5ddc2;
+  --note-border-strong: #cdbf8f;
+  --note-hover: #f5eedb;
+  --note-ink: #2b2718;
+  --note-placeholder: #8c846c;
   --note-mark: #ffc98a;
   /* The section of the spread open in the editor ("teraz"). */
-  --note-current: #c99a00;
-  --note-current-paper: #fff1a6;
+  --note-current: #b08a1c;
+  --note-current-paper: #fbf3d8;
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 14px;
   color: var(--ink);
@@ -563,36 +563,6 @@ body.resizing-column {
   font-weight: 600;
 }
 
-.notes-view {
-  display: flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--note-border);
-  border-radius: var(--radius-pill);
-  background: var(--note-paper);
-}
-
-.notes-view button {
-  flex: 1;
-  justify-content: center;
-  padding: 4px 8px;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  font-size: 13px;
-}
-
-.notes-view button:not(:disabled):hover {
-  border-color: transparent;
-  background: var(--note-hover);
-}
-
-.notes-view button[aria-pressed='true'],
-.notes-view button[aria-pressed='true']:not(:disabled):hover {
-  background: var(--note-ink);
-  color: #fff;
-}
-
 .notes-tools {
   display: flex;
   gap: 6px;
@@ -630,11 +600,13 @@ body.resizing-column {
   color: var(--note-ink);
 }
 
-/* The whole notepad as one scrolling document: "Ogólne", then a section per spread. */
-.notes-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* Every section of the notepad as a small card: "Ogólne", then one per spread. */
+.notes-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  grid-auto-rows: 96px;
+  gap: 8px;
+  align-content: start;
   flex: 1;
   min-height: 0;
   margin: 0 -6px;
@@ -642,64 +614,106 @@ body.resizing-column {
   overflow-y: auto;
 }
 
-.notes-section {
-  display: flex;
+.notes-tile {
   flex-direction: column;
-  gap: 4px;
-  padding: 6px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
+  align-items: stretch;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 9px;
+  border-color: var(--note-border);
+  border-radius: var(--radius-sm);
+  background: var(--note-paper);
+  color: var(--note-ink);
+  text-align: left;
+  overflow: hidden;
+}
+
+.notes-tile:not(:disabled):hover {
+  border-color: var(--note-border-strong);
+  background: var(--note-hover);
 }
 
 /* The spread open in the editor. */
-.notes-section.is-current {
+.notes-tile.is-current,
+.notes-tile.is-current:not(:disabled):hover {
   border-color: var(--note-current);
   background: var(--note-current-paper);
-  box-shadow: inset 4px 0 0 var(--note-current);
+  box-shadow: inset 0 0 0 1px var(--note-current);
 }
 
-.notes-sections.single .notes-section,
-.notes-sections.single .notes-text {
-  flex: 1;
-}
-
-.notes-section-title {
+.notes-tile-title {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 24px;
-  margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
-.notes-section-name {
-  padding: 0 4px;
+.notes-tile-text,
+.notes-tile-empty {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
-button.notes-open {
-  padding: 2px 6px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  box-shadow: none;
-  color: inherit;
-  font-weight: 600;
-}
-
-button.notes-open:not(:disabled):hover {
-  background: var(--note-hover);
-  text-decoration: underline;
+.notes-tile-empty {
+  color: var(--note-placeholder);
 }
 
 .notes-now {
-  padding: 1px 8px;
+  padding: 1px 7px;
   border-radius: var(--radius-pill);
   background: var(--note-current);
   color: #fff;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.02em;
+}
+
+/* One section opened from its tile, to write on. */
+.notes-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.notes-back {
+  padding: 5px 10px;
+  border-color: var(--note-border);
+  background: var(--note-paper);
+}
+
+.notes-back:not(:disabled):hover {
+  border-color: var(--note-border-strong);
+  background: var(--note-hover);
+}
+
+.notes-page,
+.notes-page .notes-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.notes-page .notes-text {
+  flex: 1;
+}
+
+.notes-section {
+  gap: 4px;
+}
+
+.notes-section-title {
+  margin: 0 2px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .notes-text {
@@ -718,11 +732,6 @@ button.notes-open:not(:disabled):hover {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   cursor: text;
-}
-
-/* The general section's hint is longer: room for it. */
-.notes-section[data-section='general'] .notes-text {
-  min-height: 84px;
 }
 
 .notes-text.is-empty::before {

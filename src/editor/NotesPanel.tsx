@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { notesPreview } from '../model/notesHtml';
 import { useEditor, useEditorEnv } from './EditorContext';
 import { HideButton } from './HideButton';
 import { insertTextFrame } from './insert';
@@ -41,19 +42,15 @@ interface SectionProps {
   title: string;
   label: string;
   placeholder: string;
-  /** The spread open in the editor, highlighted in "Całość". */
-  current?: boolean;
-  /** Clicking the heading opens this spread in the editor. */
-  onOpen?(): void;
   register(section: string, box: HTMLElement | null): void;
   onSaved(): void;
 }
 
 /**
- * One section of the notepad: a heading and its own editable text. The editable element is not
+ * One page of the notepad: a heading and its own editable text. The editable element is not
  * controlled by React: it is filled once from the store, and every input stores its (sanitized) HTML.
  */
-function NotesSection({ section, title, label, placeholder, current = false, onOpen, register, onSaved }: SectionProps) {
+function NotesSection({ section, title, label, placeholder, register, onSaved }: SectionProps) {
   const { store } = useEditorEnv();
   const box = useRef<HTMLDivElement>(null);
   const [empty, setEmpty] = useState(() => storedNotes(store, section) === '');
@@ -74,17 +71,8 @@ function NotesSection({ section, title, label, placeholder, current = false, onO
   };
 
   return (
-    <section className={current ? 'notes-section is-current' : 'notes-section'} data-section={section}>
-      <h3 className="notes-section-title">
-        {onOpen ? (
-          <button type="button" className="notes-open" title="Pokaż tę rozkładówkę w edytorze" onClick={onOpen}>
-            {title}
-          </button>
-        ) : (
-          <span className="notes-section-name">{title}</span>
-        )}
-        {current && <span className="notes-now">teraz</span>}
-      </h3>
+    <section className="notes-section" data-section={section}>
+      <h3 className="notes-section-title">{title}</h3>
       <div
         ref={box}
         className={empty ? 'notes-text is-empty' : 'notes-text'}
@@ -116,10 +104,44 @@ function NotesSection({ section, title, label, placeholder, current = false, onO
   );
 }
 
+interface TileProps {
+  section: string;
+  title: string;
+  /** The spread open in the editor. */
+  current?: boolean;
+  onOpen(): void;
+}
+
+/** A small card in the notepad's grid: the section's name and the start of its notes; clicking opens it. */
+function NotesTile({ section, title, current = false, onOpen }: TileProps) {
+  const html = useEditor((s) =>
+    section === GENERAL ? s.history.present.notes : (s.history.present.spreadNotes[section] ?? ''),
+  );
+  const preview = notesPreview(html);
+  return (
+    <button
+      type="button"
+      className={current ? 'notes-tile is-current' : 'notes-tile'}
+      data-section={section}
+      aria-label={title}
+      aria-current={current ? 'true' : undefined}
+      title="Otwórz notatki"
+      onClick={onOpen}
+    >
+      <span className="notes-tile-title">
+        {title}
+        {current && <span className="notes-now">teraz</span>}
+      </span>
+      {preview ? <span className="notes-tile-text">{preview}</span> : <span className="notes-tile-empty">pusto</span>}
+    </button>
+  );
+}
+
 /**
  * The zine's notepad beside the canvas: a general section and one per spread, each with bold and
  * highlight, saved with the zine (no undo step in the design history; each field has the browser's
- * own undo). "Całość" shows every section as one document, "Ta rozkładówka" only the spread open in the editor.
+ * own undo). It shows every section as a grid of tiles; a tile opens its section as a page to write
+ * on (a spread's tile also opens that spread in the editor, and its page then follows the editor).
  */
 /** `resizer` is the width handle on the panel's left edge. */
 export function NotesPanel({ onHide, resizer }: { onHide(): void; resizer?: ReactNode }) {
@@ -157,26 +179,49 @@ export function NotesPanel({ onHide, resizer }: { onHide(): void; resizer?: Reac
     return () => document.removeEventListener('selectionchange', readSelection);
   }, []);
 
-  // In "Całość" the section of the spread opened in the editor scrolls into view, without taking the
-  // focus, and not while the user types in another section.
+  // In the grid the tile of the spread opened in the editor scrolls into view, without taking the focus.
   const shown = useRef({ spread: currentId, view });
   useEffect(() => {
     const before = shown.current;
     shown.current = { spread: currentId, view };
     if (view !== 'all' || (before.spread === currentId && before.view === view)) return;
     const container = list.current;
-    const section = container?.querySelector<HTMLElement>(`[data-section="${CSS.escape(currentId ?? '')}"]`);
-    if (!container || !section) return;
-    const focused = document.activeElement;
-    const typingElsewhere = [...boxes.current].some(([key, box]) => box === focused && key !== currentId);
-    if (typingElsewhere) return;
-    const top = section.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-    container.scrollTo({ top: Math.max(0, top - 4), behavior: 'smooth' });
+    const tile = container?.querySelector<HTMLElement>(`[data-section="${CSS.escape(currentId ?? '')}"]`);
+    if (!container || !tile) return;
+    const box = container.getBoundingClientRect();
+    const at = tile.getBoundingClientRect();
+    if (at.top >= box.top && at.bottom <= box.bottom) return;
+    const top = at.top - box.top + container.scrollTop;
+    container.scrollTo({
+      top: Math.max(0, top - 4),
+      behavior: before.view === view ? 'smooth' : 'auto',
+    });
   }, [currentId, view]);
+
+  // A page opened from its tile is ready to write on: the caret goes to the end of its notes.
+  const focusPage = useRef(false);
+  useEffect(() => {
+    if (!focusPage.current || view === 'all') return;
+    focusPage.current = false;
+    const box = boxes.current.get(view === 'general' ? GENERAL : (currentId ?? ''));
+    if (!box) return;
+    box.focus();
+    const range = document.createRange();
+    range.selectNodeContents(box);
+    range.collapse(false);
+    document.getSelection()?.removeAllRanges();
+    document.getSelection()?.addRange(range);
+  });
 
   const chooseView = (next: NotesView) => {
     saveNotesView(next);
     setView(next);
+  };
+
+  const openPage = (next: 'spread' | 'general', spread?: number) => {
+    if (spread !== undefined) store.getState().setSpread(spread);
+    focusPage.current = true;
+    chooseView(next);
   };
 
   const bold = () => {
@@ -217,17 +262,30 @@ export function NotesPanel({ onHide, resizer }: { onHide(): void; resizer?: Reac
   // Toolbar buttons must not take the focus, or the selection they act on would go away.
   const keepSelection = (event: { preventDefault(): void }) => event.preventDefault();
 
-  const spreadSection = (index: number) => {
-    const name = spreadName(index, sheets);
+  /** The page to write on: the general notes, or the notes of the spread open in the editor. */
+  const page = () => {
+    if (view === 'general') {
+      return (
+        <NotesSection
+          key={GENERAL}
+          section={GENERAL}
+          title={GENERAL_TITLE}
+          label={`Notatki: ${GENERAL_TITLE}`}
+          placeholder={NOTES_PLACEHOLDER}
+          register={register}
+          onSaved={readSelection}
+        />
+      );
+    }
+    if (!spreads[current]) return null;
+    const name = spreadName(current, sheets);
     return (
       <NotesSection
-        key={spreads[index].id}
-        section={spreads[index].id}
+        key={spreads[current].id}
+        section={spreads[current].id}
         title={name}
         label={`Notatki: ${name}`}
         placeholder={`Notatki do: ${name}`}
-        current={view === 'all' && index === current}
-        onOpen={view === 'all' ? () => store.getState().setSpread(index) : undefined}
         register={register}
         onSaved={readSelection}
       />
@@ -243,62 +301,70 @@ export function NotesPanel({ onHide, resizer }: { onHide(): void; resizer?: Reac
         </h2>
         <HideButton label="Schowaj notatnik" onClick={onHide} />
       </div>
-      <div className="notes-view" role="group" aria-label="Co pokazać w notatniku">
-        <button type="button" aria-pressed={view === 'spread'} onClick={() => chooseView('spread')}>
-          Ta rozkładówka
-        </button>
-        <button type="button" aria-pressed={view === 'all'} onClick={() => chooseView('all')}>
-          Całość
-        </button>
-      </div>
-      <div className="notes-tools" role="toolbar" aria-label="Formatowanie notatnika">
-        <button
-          type="button"
-          className="notes-bold"
-          aria-label="Pogrubienie"
-          aria-pressed={selection.bold}
-          title="Pogrubienie (⌘B)"
-          disabled={!selection.text}
-          onMouseDown={keepSelection}
-          onClick={bold}
-        >
-          B
-        </button>
-        <button
-          type="button"
-          aria-label="Zaznaczenie"
-          aria-pressed={selection.marked}
-          title="Zaznaczenie markerem (⇧⌘H)"
-          disabled={!selection.text}
-          onMouseDown={keepSelection}
-          onClick={mark}
-        >
-          <span className="notes-marker">Zaznaczenie</span>
-        </button>
-      </div>
-      <div ref={list} className={view === 'all' ? 'notes-sections' : 'notes-sections single'} onKeyDown={onKeyDown}>
-        {view === 'all' && (
-          <NotesSection
-            key={GENERAL}
-            section={GENERAL}
-            title={GENERAL_TITLE}
-            label={`Notatki: ${GENERAL_TITLE}`}
-            placeholder={NOTES_PLACEHOLDER}
-            register={register}
-            onSaved={readSelection}
-          />
-        )}
-        {view === 'all' ? spreads.map((_, index) => spreadSection(index)) : spreads[current] && spreadSection(current)}
-      </div>
-      <button
-        type="button"
-        className="notes-insert"
-        disabled={selection.text.trim() === ''}
-        onMouseDown={keepSelection}
-        onClick={insert}
-      >
-        Wstaw zaznaczenie jako napis
-      </button>
+      {view === 'all' ? (
+        <div ref={list} className="notes-tiles" role="group" aria-label="Kartki notatnika">
+          <NotesTile section={GENERAL} title={GENERAL_TITLE} onOpen={() => openPage('general')} />
+          {spreads.map((spread, index) => (
+            <NotesTile
+              key={spread.id}
+              section={spread.id}
+              title={spreadName(index, sheets)}
+              current={index === current}
+              onOpen={() => openPage('spread', index)}
+            />
+          ))}
+        </div>
+      ) : (
+        <>
+          <div className="notes-bar">
+            <button
+              type="button"
+              className="notes-back"
+              title="Wróć do wszystkich kartek"
+              onClick={() => chooseView('all')}
+            >
+              <span aria-hidden="true">←</span> Wszystkie
+            </button>
+            <div className="notes-tools" role="toolbar" aria-label="Formatowanie notatnika">
+              <button
+                type="button"
+                className="notes-bold"
+                aria-label="Pogrubienie"
+                aria-pressed={selection.bold}
+                title="Pogrubienie (⌘B)"
+                disabled={!selection.text}
+                onMouseDown={keepSelection}
+                onClick={bold}
+              >
+                B
+              </button>
+              <button
+                type="button"
+                aria-label="Zaznaczenie"
+                aria-pressed={selection.marked}
+                title="Zaznaczenie markerem (⇧⌘H)"
+                disabled={!selection.text}
+                onMouseDown={keepSelection}
+                onClick={mark}
+              >
+                <span className="notes-marker">Zaznaczenie</span>
+              </button>
+            </div>
+          </div>
+          <div className="notes-page" onKeyDown={onKeyDown}>
+            {page()}
+          </div>
+          <button
+            type="button"
+            className="notes-insert"
+            disabled={selection.text.trim() === ''}
+            onMouseDown={keepSelection}
+            onClick={insert}
+          >
+            Wstaw zaznaczenie jako napis
+          </button>
+        </>
+      )}
     </aside>
   );
 }

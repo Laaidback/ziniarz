@@ -129,3 +129,20 @@ export function sanitizeNotes(input: string): string {
   while (open.length) out += `</${open.pop()}>`;
   return out;
 }
+
+/** Longest preview text, in characters: a tile shows only a few lines. */
+const PREVIEW_LENGTH = 300;
+
+/**
+ * The start of sanitized notes as plain text, for a notepad tile: lines (<br>, <div>, <p>) become
+ * line breaks, empty lines are dropped, formatting goes away.
+ */
+export function notesPreview(html: string): string {
+  const text = decodeEntities(html.replace(/<br>|<div>|<p>/g, '\n').replace(/<[^>]*>/g, ''));
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .join('\n')
+    .slice(0, PREVIEW_LENGTH);
+}

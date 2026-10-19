@@ -1,12 +1,16 @@
-/** What the notepad shows: the current spread's section only, or every section ("Całość"). */
-export type NotesView = 'spread' | 'all';
+/**
+ * What the notepad shows: every section as a grid of tiles ('all'), or one section as a page to
+ * write on: the spread open in the editor ('spread', follows it) or the general notes ('general').
+ */
+export type NotesView = 'all' | 'spread' | 'general';
 
 const KEY = 'ziniarz.notesView';
 
-/** The notepad view remembered in this browser; "Całość" by default. */
+/** The notepad view remembered in this browser; the tiles by default. */
 export function loadNotesView(): NotesView {
   try {
-    return localStorage.getItem(KEY) === 'spread' ? 'spread' : 'all';
+    const stored = localStorage.getItem(KEY);
+    return stored === 'spread' || stored === 'general' ? stored : 'all';
   } catch {
     return 'all'; // storage blocked (private window, site data off)
   }

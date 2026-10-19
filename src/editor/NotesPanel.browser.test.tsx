@@ -1,6 +1,6 @@
 import { userEvent } from '@vitest/browser/context';
 import { render } from 'vitest-browser-react';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 import '../app/app.css';
 import { DbContext } from '../app/dbContext';
 import { createTextElement, createZine } from '../model/factory';
@@ -8,7 +8,12 @@ import type { TextElement, Zine } from '../model/types';
 import { openInEditor } from '../test/editorHarness';
 import { EditorScreen } from './EditorScreen';
 
-afterEach(() => localStorage.removeItem('ziniarz.showNotes'));
+// These tests write on the general page; the grid of tiles is tested in NotesSections.browser.test.tsx.
+beforeEach(() => localStorage.setItem('ziniarz.notesView', 'general'));
+afterEach(() => {
+  localStorage.removeItem('ziniarz.showNotes');
+  localStorage.removeItem('ziniarz.notesView');
+});
 
 const notepad = () => document.querySelector<HTMLElement>('[role="textbox"][aria-label="Notatki: Ogólne"]')!;
 
