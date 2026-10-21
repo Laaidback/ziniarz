@@ -831,6 +831,14 @@ body.resizing-column {
   background: var(--danger-soft);
 }
 
+.sheet-footer {
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
 .sheet-buttons {
   display: flex;
   gap: 6px;
@@ -844,6 +852,7 @@ body.resizing-column {
 }
 
 .sheet-count {
+  margin: 6px 0 0;
   padding: 0 12px;
 }
 

@@ -1,4 +1,5 @@
 import { expect, test } from 'vitest';
+import '../app/app.css';
 import { createTextElement, createZine } from '../model/factory';
 import { openInEditor } from '../test/editorHarness';
 
@@ -39,4 +40,16 @@ test('"− kartka" asks first when the pages have content, and highlights them',
   await expect.element(list.getByRole('button', { name: 'Strony 6–7' })).toHaveClass('doomed');
   await screen.getByRole('button', { name: 'Usuń kartkę' }).click();
   await expect.poll(async () => (await stored()).sheets).toBe(1);
+});
+
+test('the sheet buttons stay in view at the bottom of a long spread list', async () => {
+  const { screen } = await openInEditor(createZine('Lato', 8));
+  const add = screen.getByRole('button', { name: '+ kartka' });
+  await expect.element(add).toBeVisible();
+  const column = document.querySelector('.editor-spreads .column-scroll')!;
+  expect(column.scrollHeight).toBeGreaterThan(column.clientHeight);
+  for (const name of ['+ kartka', '− kartka']) {
+    const button = screen.getByRole('button', { name }).element().getBoundingClientRect();
+    expect(button.bottom).toBeLessThanOrEqual(column.getBoundingClientRect().bottom);
+  }
 });

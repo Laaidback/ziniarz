@@ -61,25 +61,28 @@ export function SpreadList({ width = 180 }: { width?: number }) {
           </li>
         ))}
       </ol>
-      <div className="sheet-buttons">
-        <button type="button" onClick={() => store.getState().addSheet()} disabled={!canAddSheet(zine)}>
-          + kartka
-        </button>
-        <button
-          type="button"
-          disabled={!removal}
-          onClick={() => void removeSheet()}
-          onMouseEnter={() => setHovering(true)}
-          onMouseLeave={() => setHovering(false)}
-          onFocus={() => setHovering(true)}
-          onBlur={() => setHovering(false)}
-        >
-          − kartka
-        </button>
+      {/* Pinned to the bottom of the column, so adding and removing sheets is always at hand. */}
+      <div className="sheet-footer">
+        <div className="sheet-buttons">
+          <button type="button" onClick={() => store.getState().addSheet()} disabled={!canAddSheet(zine)}>
+            + kartka
+          </button>
+          <button
+            type="button"
+            disabled={!removal}
+            onClick={() => void removeSheet()}
+            onMouseEnter={() => setHovering(true)}
+            onMouseLeave={() => setHovering(false)}
+            onFocus={() => setHovering(true)}
+            onBlur={() => setHovering(false)}
+          >
+            − kartka
+          </button>
+        </div>
+        <p className="muted sheet-count">
+          {countOf(zine.sheets, 'kartka', 'kartki', 'kartek')} · {countOf(4 * zine.sheets, 'strona', 'strony', 'stron')}
+        </p>
       </div>
-      <p className="muted sheet-count">
-        {countOf(zine.sheets, 'kartka', 'kartki', 'kartek')} · {countOf(4 * zine.sheets, 'strona', 'strony', 'stron')}
-      </p>
     </nav>
   );
 }
