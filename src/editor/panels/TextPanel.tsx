@@ -14,6 +14,23 @@ const ALIGNS: [TextAlign, string][] = [
   ['justify', 'Wyjustuj'],
 ];
 
+const LINE_YS = [3, 6.5, 10, 13.5];
+const FULL = 14;
+const SHORT = 9;
+
+/** Four lines: long and short alternating, the short ones placed by the alignment (all long for justify). */
+function AlignIcon({ align }: { align: TextAlign }) {
+  return (
+    <svg className="align-icon" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      {LINE_YS.map((y, i) => {
+        const length = align === 'justify' || i % 2 === 0 ? FULL : SHORT;
+        const x1 = align === 'left' || align === 'justify' ? 1 : align === 'right' ? 15 - length : 8 - length / 2;
+        return <line key={y} x1={x1} x2={x1 + length} y1={y} y2={y} />;
+      })}
+    </svg>
+  );
+}
+
 export function TextPanel({ element }: { element: TextElement }) {
   const { store, fonts } = useEditorEnv();
   const update = (patch: ElementPatch, key?: string) => store.getState().updateElement(element.id, patch, key);
@@ -65,9 +82,10 @@ export function TextPanel({ element }: { element: TextElement }) {
         onChange={(lineHeight) => update({ lineHeight }, key('lineHeight'))}
       />
       <ColorField label="Kolor tekstu" value={element.color} onChange={(color) => update({ color }, key('color'))} />
-      <div className="row" role="group" aria-label="Wyrównanie">
+      <div className="align-buttons" role="group" aria-label="Wyrównanie">
         {ALIGNS.map(([align, label]) => (
           <button key={align} type="button" aria-pressed={element.align === align} onClick={() => update({ align })}>
+            <AlignIcon align={align} />
             {label}
           </button>
         ))}
