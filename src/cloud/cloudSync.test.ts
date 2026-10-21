@@ -8,7 +8,7 @@ import { listZines, loadZine, openZiniarzDb, saveZine, type ZiniarzDb } from '..
 import { bundleFromDb, writeZin } from '../storage/zinFile';
 import { createFakeDriveServer } from '../test/fakeDriveServer';
 import { cloudStatusStore } from './cloudStatus';
-import { linkToDrive, openFromDrive, relinkAsNew, resolveConflict, syncZine, unlinkFromDrive } from './cloudSync';
+import { linkToDrive, openFromDrive, relinkAsNew, resolveConflict, syncLinkedZines, syncZine, unlinkFromDrive } from './cloudSync';
 import { createDriveClient } from './driveApi';
 import { getLink } from './links';
 
@@ -209,4 +209,20 @@ test('syncs of one zine run one after another', async () => {
   ]);
   expect(results.map((r) => r.kind)).toEqual(['uploaded', 'upToDate']);
   expect(server.file(fileId)?.version).toBe(2);
+});
+
+test('syncLinkedZines uploads and downloads every linked zine', async () => {
+  const { db, zine } = await setup('A');
+  const fileA = await linkedFile(db, zine.id);
+  const b = { ...createZine('B', 1), updatedAt: stamp() };
+  await saveZine(db, b);
+  await linkedFile(db, b.id);
+  await edit(db, b.id, (z) => (z.title = 'B2'));
+  const other = await setup('A od Oli');
+  server.replaceBytes(fileA, await writeZin((await bundleFromDb(other.db, other.zine.id)).bundle), 'Ola');
+
+  expect(await syncLinkedZines(db, ala)).toBe(true);
+  expect(await titleIn(db, zine.id)).toBe('A od Oli');
+  expect(server.zinFiles().map((f) => f.name).sort()).toEqual(['A.zin', 'B2.zin']);
+  expect(await syncLinkedZines(db, ala)).toBe(false);
 });

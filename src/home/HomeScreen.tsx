@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useDb } from '../app/dbContext';
+import { signInFromClick } from '../cloud/cloudActions';
+import { useCloud, useSignedIn } from '../cloud/CloudContext';
+import { openFromDrive, syncLinkedZines } from '../cloud/cloudSync';
+import { cloudErrorOf } from '../cloud/errors';
+import { listLinks } from '../cloud/links';
 import { errorMessage, notify } from '../app/notices';
 import { countOf } from '../app/plural';
 import { navigate } from '../app/route';
@@ -8,7 +13,7 @@ import { clampSheets } from '../model/factory';
 import { MAX_SHEETS, MIN_SHEETS } from '../model/geometry';
 import type { Zine } from '../model/types';
 import { pruneUnusedAssets } from '../storage/cleanup';
-import { StorageFullError } from '../storage/db';
+import { StorageFullError, type DriveLink } from '../storage/db';
 import { holdOpenZineLock, whenNoZineIsOpen } from '../storage/zineLock';
 import {
   isNearlyFull,
@@ -47,7 +52,10 @@ function useStorageUsage() {
 
 export function HomeScreen() {
   const db = useDb();
+  const cloud = useCloud();
+  const signedIn = useSignedIn();
   const [zines, setZines] = useState<Zine[] | null>(null);
+  const [links, setLinks] = useState<Map<string, DriveLink>>(new Map());
   const { usage, refresh: refreshUsage } = useStorageUsage();
   const [persistent, setPersistent] = useState(true);
   const [listFailed, setListFailed] = useState(false);
@@ -60,6 +68,8 @@ export function HomeScreen() {
   const reload = useCallback(async () => {
     try {
       const result = await listZinesForHome(db);
+      const stored = cloud ? await listLinks(db) : [];
+      setLinks(new Map(stored.map((link) => [link.zineId, link])));
       setZines(result.zines);
       setListFailed(false);
       if (result.unreadable > 0) notify(`Nie da się otworzyć zinów: ${result.unreadable}. Odśwież stronę.`);
@@ -68,7 +78,7 @@ export function HomeScreen() {
       return;
     }
     refreshUsage();
-  }, [db, refreshUsage]);
+  }, [db, cloud, refreshUsage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +101,20 @@ export function HomeScreen() {
       cancelled = true;
     };
   }, [db, reload]);
+
+  // Zines saved on Google Drive: send changes made here, take newer versions (again after signing in).
+  useEffect(() => {
+    if (!cloud || !signedIn) return;
+    let cancelled = false;
+    void (async () => {
+      await whenSavesSettled();
+      const changed = await syncLinkedZines(db, cloud.drive).catch(() => false);
+      if (changed && !cancelled) await reload();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [db, cloud, signedIn, reload]);
 
   const create = async (event: FormEvent) => {
     event.preventDefault();
@@ -115,10 +139,39 @@ export function HomeScreen() {
     }
   };
 
+  const openFromDriveClick = async () => {
+    if (!cloud || !(await signInFromClick(cloud))) return;
+    const token = cloud.auth.token();
+    let fileId: string | null = null;
+    try {
+      fileId = token && (await cloud.pickFile(token));
+    } catch (error) {
+      notify(cloudErrorOf(error).message);
+    }
+    if (!fileId) return;
+    // Until the downloaded zine is saved its photos belong to no zine: keep other tabs from pruning them.
+    const release = holdOpenZineLock(db.name);
+    try {
+      // A conflict (the zine was on the list with changes of its own) is asked about in the editor.
+      const { zineId, result } = await openFromDrive(db, cloud.drive, fileId);
+      if (result.kind === 'failed') notify(result.error.message);
+      navigate({ name: 'editor', zineId });
+    } catch (error) {
+      notify(`Nie da się otworzyć tego pliku. ${cloudErrorOf(error).message}`);
+    } finally {
+      release();
+    }
+  };
+
   return (
     <main className="home">
       <header className="home-header">
         <h1>ZINIARZ</h1>
+        {cloud && (
+          <button type="button" onPointerEnter={cloud.prepare} onFocus={cloud.prepare} onClick={() => void openFromDriveClick()}>
+            Otwórz z Dysku Google
+          </button>
+        )}
         <label className="file-button">
           Wczytaj plik .zin
           <input
@@ -165,7 +218,7 @@ export function HomeScreen() {
       ) : (
         <ul className="zine-grid">
           {zines.map((zine) => (
-            <ZineCard key={zine.id} zine={zine} onChanged={reload} />
+            <ZineCard key={zine.id} zine={zine} link={links.get(zine.id)} onChanged={reload} />
           ))}
         </ul>
       )}

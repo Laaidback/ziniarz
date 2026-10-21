@@ -1,5 +1,7 @@
 import { lazy, useEffect, useState } from 'react';
 import { ConfirmHost } from './app/ConfirmHost';
+import { CloudContext, defaultCloudServices } from './cloud/CloudContext';
+import { ConflictHost } from './cloud/ConflictHost';
 import { DbContext } from './app/dbContext';
 import { NoticeList } from './app/NoticeList';
 import { routeHash, type Route } from './app/route';
@@ -47,11 +49,14 @@ export function App() {
   if (!db) return <main className="screen-message">Wczytywanie…</main>;
   return (
     <DbContext.Provider value={db}>
-      <ScreenBoundary key={routeHash(route)}>
-        <Screen route={route} />
-      </ScreenBoundary>
-      <NoticeList />
-      <ConfirmHost />
+      <CloudContext.Provider value={defaultCloudServices()}>
+        <ScreenBoundary key={routeHash(route)}>
+          <Screen route={route} />
+        </ScreenBoundary>
+        <NoticeList />
+        <ConfirmHost />
+        <ConflictHost />
+      </CloudContext.Provider>
     </DbContext.Provider>
   );
 }

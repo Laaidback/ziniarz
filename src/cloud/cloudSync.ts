@@ -2,11 +2,12 @@ import { copyOfZine } from '../home/homeActions';
 import { parseZine } from '../model/parse';
 import type { Zine } from '../model/types';
 import { loadZine, saveZine, type ZiniarzDb } from '../storage/db';
+import { whenNoZineIsOpen } from '../storage/zineLock';
 import { bundleFromDb, readZin, replaceFromBundle, writeZin, ZinFileError } from '../storage/zinFile';
 import { clearCloudStatus, setCloudStatus } from './cloudStatus';
 import type { DriveClient, DriveFileMeta } from './driveApi';
 import { CloudError, cloudErrorOf } from './errors';
-import { deleteLink, getLink, linkOfFile, putLink, type DriveLink } from './links';
+import { deleteLink, getLink, linkOfFile, listLinks, putLink, type DriveLink } from './links';
 import { decideSync, type LastChange } from './sync';
 
 export type SyncResult =
@@ -208,4 +209,21 @@ export function unlinkFromDrive(db: ZiniarzDb, zineId: string): Promise<void> {
 export async function relinkAsNew(db: ZiniarzDb, drive: DriveClient, zineId: string): Promise<LastChange> {
   await unlinkFromDrive(db, zineId);
   return linkToDrive(db, drive, zineId);
+}
+
+/**
+ * Syncs every zine saved on Drive (the zine list does it on opening). Newer versions are downloaded only
+ * while no tab has a zine open: an editor in another tab would otherwise save its older copy over them.
+ * Returns whether any zine's content changed here.
+ */
+export async function syncLinkedZines(db: ZiniarzDb, drive: DriveClient): Promise<boolean> {
+  let downloaded = false;
+  const syncAll = async (allowDownload: boolean) => {
+    for (const link of await listLinks(db)) {
+      const result = await syncZine(db, drive, link.zineId, { allowDownload });
+      if (result.kind === 'downloaded') downloaded = true;
+    }
+  };
+  if (!(await whenNoZineIsOpen(db.name, () => syncAll(true)))) await syncAll(false);
+  return downloaded;
 }

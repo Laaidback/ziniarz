@@ -242,11 +242,13 @@ progress {
 
 .home-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
 }
 
 .home-header h1 {
+  margin-right: auto;
   letter-spacing: 0.08em;
 }
 
@@ -1120,4 +1122,70 @@ body.resizing-column {
   padding: 8px 12px;
   border-top: 1px solid var(--line);
   background: var(--paper);
+}
+
+/* Google Drive */
+
+.conflict-choices {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 16px;
+}
+
+.conflict-choices button {
+  display: grid;
+  gap: 2px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.conflict-choices button.primary span {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cloud-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.cloud-status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cloud-status-text::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  vertical-align: 1px;
+}
+
+.cloud-status[data-tone='ok'] .cloud-status-text::before {
+  background: #2e9d4f;
+}
+
+.cloud-status[data-tone='busy'] .cloud-status-text::before {
+  background: var(--accent);
+}
+
+.cloud-status[data-tone='alert'] .cloud-status-text::before {
+  background: var(--danger);
+}
+
+.zine-card .cloud-status {
+  margin: 0 0 8px;
+  flex-wrap: wrap;
+}
+
+.cloud-status button {
+  padding: 3px 9px;
+  font-size: 12px;
 }

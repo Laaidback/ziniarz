@@ -4,12 +4,14 @@ import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
 import { countOf } from '../app/plural';
 import { routeHash } from '../app/route';
+import { ZineCardCloud } from '../cloud/ZineCardCloud';
 import type { Zine } from '../model/types';
+import type { DriveLink } from '../storage/db';
 import { renderCoverThumbnail } from './coverThumbnail';
 import { downloadBlob } from './download';
 import { duplicateZine, exportZinFile, missingPhotosText, removeZine } from './homeActions';
 
-export function ZineCard({ zine, onChanged }: { zine: Zine; onChanged(): void }) {
+export function ZineCard({ zine, link, onChanged }: { zine: Zine; link?: DriveLink; onChanged(): void }) {
   const db = useDb();
   const [cover, setCover] = useState<string | null>(null);
 
@@ -28,7 +30,8 @@ export function ZineCard({ zine, onChanged }: { zine: Zine; onChanged(): void })
     action().then(onChanged, (error: unknown) => notify(errorMessage(error)));
 
   const remove = async () => {
-    if (await askConfirm(`Usunąć zin „${zine.title}”? Tego nie da się cofnąć.`)) await removeZine(db, zine.id);
+    const driveNote = link ? ' Plik na Dysku Google zostanie.' : '';
+    if (await askConfirm(`Usunąć zin „${zine.title}”? Tego nie da się cofnąć.${driveNote}`)) await removeZine(db, zine.id);
   };
 
   const save = async () => {
@@ -60,6 +63,7 @@ export function ZineCard({ zine, onChanged }: { zine: Zine; onChanged(): void })
         <button type="button" className="danger" onClick={run(remove)}>
           Usuń
         </button>
+        <ZineCardCloud zine={zine} link={link} onChanged={onChanged} />
       </div>
     </li>
   );

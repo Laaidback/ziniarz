@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { routeHash } from '../app/route';
 import { useEditor, useEditorEnv } from './EditorContext';
 import { InsertButtons } from './InsertButtons';
@@ -8,9 +9,11 @@ interface TopBarProps {
   onToggleNotes(): void;
   settingsShown: boolean;
   onToggleSettings(): void;
+  /** Google Drive: "save to Drive" or the sync status. */
+  cloud?: ReactNode;
 }
 
-export function TopBar({ notesShown, onToggleNotes, settingsShown, onToggleSettings }: TopBarProps) {
+export function TopBar({ notesShown, onToggleNotes, settingsShown, onToggleSettings, cloud }: TopBarProps) {
   const { store, zineId } = useEditorEnv();
   const title = useEditor((s) => s.history.present.title);
   const canUndo = useEditor(selectCanUndo);
@@ -53,6 +56,7 @@ export function TopBar({ notesShown, onToggleNotes, settingsShown, onToggleSetti
         </button>
       </div>
       <div className="toolbar">
+        {cloud}
         <a className="link-button" href={routeHash({ name: 'preview3d', zineId })}>
           Podgląd 3D
         </a>

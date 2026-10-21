@@ -15,6 +15,7 @@ const USER_FACING = new Set([
   'ImageImportError',
   'FontImportError',
   'ZineNotFoundError',
+  'CloudError',
 ]);
 
 /** What to tell the user about an error: our own messages as they are, anything else a generic sentence. */

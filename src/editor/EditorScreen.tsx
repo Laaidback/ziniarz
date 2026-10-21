@@ -1,12 +1,19 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
 import { onPageHide } from '../app/onPageHide';
 import { routeHash } from '../app/route';
+import { chooseVersion } from '../cloud/cloudActions';
+import { EditorCloudBar } from '../cloud/EditorCloudBar';
+import { useCloud, type CloudServices } from '../cloud/CloudContext';
+import { syncZine } from '../cloud/cloudSync';
+import { getLink } from '../cloud/links';
+import { useEditorCloudSync } from '../cloud/useEditorCloudSync';
+import { parseZine } from '../model/parse';
 import type { FontChoice } from '../fonts/fontChoices';
 import { releaseRenderAssets, type RenderAssets } from '../render/assets';
 import { measureTextHeight } from '../render/buildSpread';
-import { saveZine } from '../storage/db';
+import { loadZine, saveZine, type ZiniarzDb } from '../storage/db';
 import { holdOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
@@ -18,7 +25,7 @@ import { loadColumnShown, saveColumnShown, type EditorColumn } from './columnVis
 import { PropertiesPanel } from './panels/PropertiesPanel';
 import { PhotoInsertContext, usePhotoInsertState } from './photoInsert';
 import { openEditorSession } from './session';
-import { createAutosaver } from './state/autosave';
+import { createAutosaver, whenSavesSettled, type Autosaver } from './state/autosave';
 import { SpreadList } from './SpreadList';
 import { createEditorStore, type EditorStore } from './state/store';
 import { TopBar } from './TopBar';
@@ -29,8 +36,13 @@ interface Loaded {
   assets: RenderAssets;
 }
 
-function EditorWorkspace({ env }: { env: EditorEnv }) {
+function EditorWorkspace({ env, reopen }: { env: EditorEnv; reopen(): void }) {
   useEditorKeyboard(env.store);
+  const saver = useRef<Autosaver | null>(null);
+  const flushSaves = useCallback(async () => {
+    await saver.current?.flush();
+    await whenSavesSettled();
+  }, []);
   const photoInsert = usePhotoInsertState(env);
   const [notesShown, setNotesShown] = useState(() => loadColumnShown('notes'));
   const [settingsShown, setSettingsShown] = useState(() => loadColumnShown('settings'));
@@ -42,11 +54,12 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
 
   // Autosave 500 ms after each change; leaving the editor or hiding the tab saves at once.
   useEffect(() => {
-    const saver = createAutosaver((zine) => saveZine(env.db, zine), { onError: (error) => notify(errorMessage(error)) });
+    const autosaver = createAutosaver((zine) => saveZine(env.db, zine), { onError: (error) => notify(errorMessage(error)) });
+    saver.current = autosaver;
     const unsubscribe = env.store.subscribe((state, previous) => {
-      if (state.history.present !== previous.history.present) saver.schedule(state.history.present);
+      if (state.history.present !== previous.history.present) autosaver.schedule(state.history.present);
     });
-    const saveNow = () => void saver.flush();
+    const saveNow = () => void autosaver.flush();
     const stopListening = onPageHide(saveNow);
     return () => {
       unsubscribe();
@@ -54,6 +67,9 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
       saveNow();
     };
   }, [env.db, env.store]);
+
+  // After the autosave above, so leaving the editor sends its last save to Google Drive.
+  const editorCloud = useEditorCloudSync({ db: env.db, zineId: env.zineId, store: env.store, flushSaves, reopen });
 
   // A file dropped beside the canvas would make the browser open it and leave the editor.
   useEffect(() => {
@@ -87,6 +103,7 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
             onToggleNotes={() => showColumn('notes', !notesShown)}
             settingsShown={settingsShown}
             onToggleSettings={() => showColumn('settings', !settingsShown)}
+            cloud={editorCloud && <EditorCloudBar zineId={env.zineId} editorCloud={editorCloud} />}
           />
           <aside className="editor-spreads">
             <div className="column-scroll">
@@ -147,11 +164,32 @@ function EditorWorkspace({ env }: { env: EditorEnv }) {
   );
 }
 
+/**
+ * A zine saved on Google Drive takes the newer version from Drive before opening, or asks when both sides
+ * changed. Without a token or internet it opens as it is in the browser; the top bar says so.
+ */
+async function syncBeforeOpening(db: ZiniarzDb, cloud: CloudServices | null, zineId: string): Promise<void> {
+  if (!cloud || !cloud.auth.token() || !(await getLink(db, zineId))) return;
+  await whenSavesSettled();
+  const result = await syncZine(db, cloud.drive, zineId, { allowDownload: true });
+  if (result.kind === 'conflict') {
+    const raw = await loadZine(db, zineId);
+    await chooseVersion(db, cloud, zineId, raw ? parseZine(raw).title : '', result.change);
+  }
+}
+
 export function EditorScreen({ zineId }: { zineId: string }) {
   const db = useDb();
+  const cloud = useCloud();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [fonts, setFonts] = useState<FontChoice[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // Bumped to open the zine again after its content came from Google Drive.
+  const [opening, setOpening] = useState(0);
+  const reopen = useCallback(() => {
+    setLoaded(null);
+    setOpening((n) => n + 1);
+  }, []);
 
   // Other tabs must not prune this zine's photos and fonts while it is open.
   useEffect(() => holdOpenZineLock(db.name), [db]);
@@ -159,30 +197,33 @@ export function EditorScreen({ zineId }: { zineId: string }) {
   useEffect(() => {
     let cancelled = false;
     let assets: RenderAssets | null = null;
-    openEditorSession(db, zineId).then(
-      (session) => {
-        assets = session.assets;
-        if (cancelled) {
-          releaseRenderAssets(session.assets);
-          return;
-        }
-        const store = createEditorStore(session.zine, {
-          measureText: measureTextHeight,
-          imageSize: (id) => {
-            const bitmap = session.assets.images.get(id);
-            return bitmap && { width: bitmap.width, height: bitmap.height };
-          },
-        });
-        setFonts(session.fonts);
-        setLoaded({ store, assets: session.assets });
-      },
-      (reason: unknown) => !cancelled && setError(errorMessage(reason)),
-    );
+    syncBeforeOpening(db, cloud, zineId)
+      .catch(() => {}) // the zine opens as it is in the browser
+      .then(() => (cancelled ? Promise.reject(new Error('cancelled')) : openEditorSession(db, zineId)))
+      .then(
+        (session) => {
+          assets = session.assets;
+          if (cancelled) {
+            releaseRenderAssets(session.assets);
+            return;
+          }
+          const store = createEditorStore(session.zine, {
+            measureText: measureTextHeight,
+            imageSize: (id) => {
+              const bitmap = session.assets.images.get(id);
+              return bitmap && { width: bitmap.width, height: bitmap.height };
+            },
+          });
+          setFonts(session.fonts);
+          setLoaded({ store, assets: session.assets });
+        },
+        (reason: unknown) => !cancelled && setError(errorMessage(reason)),
+      );
     return () => {
       cancelled = true;
       if (assets) releaseRenderAssets(assets);
     };
-  }, [db, zineId]);
+  }, [db, cloud, zineId, opening]);
 
   if (error) {
     return (
@@ -195,5 +236,5 @@ export function EditorScreen({ zineId }: { zineId: string }) {
     );
   }
   if (!loaded) return <main className="screen-message">Otwieranie zina…</main>;
-  return <EditorWorkspace env={{ zineId, db, store: loaded.store, assets: loaded.assets, fonts, setFonts }} />;
+  return <EditorWorkspace env={{ zineId, db, store: loaded.store, assets: loaded.assets, fonts, setFonts }} reopen={reopen} />;
 }
