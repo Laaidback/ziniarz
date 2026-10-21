@@ -140,20 +140,47 @@ export async function bundleFromDb(db: ZiniarzDb, zineId: string): Promise<{ bun
   return { bundle: { zine, images, fontFamilies, fontFiles }, missingImages };
 }
 
+const sameBytes = (a: ArrayBuffer, b: ArrayBuffer) => {
+  if (a.byteLength !== b.byteLength) return false;
+  const x = new Uint8Array(a);
+  const y = new Uint8Array(b);
+  return x.every((value, i) => value === y[i]);
+};
+
+/** Whether the stored family has exactly these files (same ids, styles and bytes). */
+async function storedFamilyMatches(db: ZiniarzDb, familyId: string, files: FontFile[]): Promise<boolean> {
+  const stored = await fontFilesOfFamily(db, familyId);
+  if (stored.length !== files.length) return false;
+  return files.every((file) => {
+    const twin = stored.find((s) => s.id === file.id);
+    return twin !== undefined && twin.bold === file.bold && twin.italic === file.italic && sameBytes(twin.data, file.data);
+  });
+}
+
 /**
  * Font families are shared between zines by id, so an imported family whose id is already taken
  * (maybe changed since the file was saved) gets new ids for itself and its files instead of
  * overwriting it; the zine's font list and texts follow. Files of families not in the bundle are dropped.
+ * With `reuseIdentical`, a stored family with exactly the same files keeps its id and is not written again
+ * (a zine downloaded again from Google Drive must not collect copies of its fonts).
  */
-async function withFreeFontIds(db: ZiniarzDb, bundle: ZinBundle): Promise<ZinBundle> {
+async function withFreeFontIds(db: ZiniarzDb, bundle: ZinBundle, reuseIdentical = false): Promise<ZinBundle> {
   const familyIds = new Map<string, string>();
+  const reused = new Set<string>();
   for (const family of bundle.fontFamilies) {
-    familyIds.set(family.id, (await getFontFamily(db, family.id)) ? newId() : family.id);
+    if (!(await getFontFamily(db, family.id))) {
+      familyIds.set(family.id, family.id);
+    } else if (reuseIdentical && (await storedFamilyMatches(db, family.id, bundle.fontFiles.filter((f) => f.familyId === family.id)))) {
+      familyIds.set(family.id, family.id);
+      reused.add(family.id);
+    } else {
+      familyIds.set(family.id, newId());
+    }
   }
   const fontFiles: FontFile[] = [];
   for (const file of bundle.fontFiles) {
     const familyId = familyIds.get(file.familyId);
-    if (familyId === undefined) continue;
+    if (familyId === undefined || reused.has(familyId)) continue;
     const renamed = familyId !== file.familyId || (await getFontFile(db, file.id)) !== undefined;
     fontFiles.push({ ...file, id: renamed ? newId() : file.id, familyId });
   }
@@ -166,16 +193,29 @@ async function withFreeFontIds(db: ZiniarzDb, bundle: ZinBundle): Promise<ZinBun
       elements: spread.elements.map((e) => (e.kind === 'text' ? { ...e, fontFamilyId: remap(e.fontFamilyId) } : e)),
     })),
   };
-  const fontFamilies = bundle.fontFamilies.map((family) => ({ ...family, id: remap(family.id) }));
+  const fontFamilies = bundle.fontFamilies.filter((f) => !reused.has(f.id)).map((family) => ({ ...family, id: remap(family.id) }));
   return { ...bundle, zine, fontFamilies, fontFiles };
 }
 
-/** Stores an imported bundle without changing anything already in the database. */
-export async function importBundle(db: ZiniarzDb, imported: ZinBundle): Promise<Zine> {
-  const bundle = await withFreeFontIds(db, imported);
+async function storeBundle(db: ZiniarzDb, bundle: ZinBundle): Promise<Zine> {
   for (const image of bundle.images) await putImage(db, image);
   for (const family of bundle.fontFamilies) await putFontFamily(db, family);
   for (const file of bundle.fontFiles) await putFontFile(db, file);
   await saveZine(db, bundle.zine);
   return bundle.zine;
+}
+
+/** Stores an imported bundle without changing anything already in the database. */
+export async function importBundle(db: ZiniarzDb, imported: ZinBundle): Promise<Zine> {
+  return storeBundle(db, await withFreeFontIds(db, imported));
+}
+
+/**
+ * Replaces the content of zine `zineId` with a bundle (a newer version from Google Drive). Photos are
+ * stored by id (a photo id never changes its picture); font families follow importBundle, except that
+ * a stored family with the same files is reused. Photos only the old version used are left for cleanup.
+ */
+export async function replaceFromBundle(db: ZiniarzDb, zineId: string, bundle: ZinBundle): Promise<Zine> {
+  const free = await withFreeFontIds(db, { ...bundle, zine: { ...bundle.zine, id: zineId } }, true);
+  return storeBundle(db, free);
 }

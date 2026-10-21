@@ -15,7 +15,7 @@ import {
   putImage,
   saveZine,
 } from './db';
-import { bundleFromDb, importBundle, readZin, writeZin, ZinFileError, type ZinBundle } from './zinFile';
+import { bundleFromDb, importBundle, readZin, replaceFromBundle, writeZin, ZinFileError, type ZinBundle } from './zinFile';
 
 function sampleBundle(): ZinBundle {
   const zine = createZine('Lato', 1);
@@ -218,5 +218,33 @@ describe('database bundles', () => {
     expect(exported.bundle.images.map((i) => i.id)).toEqual(['kept']);
     const read = await readZin(await writeZin(exported.bundle));
     expect(read.images.map((i) => i.id)).toEqual(['kept']);
+  });
+
+  test('replaceFromBundle keeps the zine id and reuses a font family with the same files', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    const first = await importBundle(db, sampleBundle());
+    const newer = sampleBundle();
+    newer.zine.title = 'Lato 2';
+    newer.zine.spreads[1].elements.push(createTextElement({ text: 'a', fontFamilyId: 'fam' }));
+    const replaced = await replaceFromBundle(db, first.id, newer);
+
+    expect(replaced.id).toBe(first.id);
+    expect(replaced.title).toBe('Lato 2');
+    expect(replaced.fonts).toEqual(['fam']);
+    expect(await loadZine(db, first.id)).toEqual(replaced);
+    expect((await fontFilesOfFamily(db, 'fam')).map((f) => f.id)).toEqual(['ff']);
+  });
+
+  test('replaceFromBundle never changes a family in place when its files differ', async () => {
+    const db = await openZiniarzDb(`test-${newId()}`);
+    const first = await importBundle(db, sampleBundle());
+    const newer = sampleBundle();
+    newer.fontFiles = [{ ...newer.fontFiles[0], data: new Uint8Array([6]).buffer }];
+    const replaced = await replaceFromBundle(db, first.id, newer);
+
+    const [familyId] = replaced.fonts;
+    expect(familyId).not.toBe('fam');
+    expect((await fontFilesOfFamily(db, 'fam')).map((f) => new Uint8Array(f.data))).toEqual([new Uint8Array([5])]);
+    expect((await fontFilesOfFamily(db, familyId)).map((f) => new Uint8Array(f.data))).toEqual([new Uint8Array([6])]);
   });
 });

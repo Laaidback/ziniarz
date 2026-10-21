@@ -23,11 +23,26 @@ export interface FontFile {
   data: ArrayBuffer;
 }
 
+/** A zine saved to a file on Google Drive (src/cloud/links.ts). Never part of the zine's JSON. */
+export interface DriveLink {
+  zineId: string;
+  fileId: string;
+  /** The file's Drive `version` at the last upload or download. */
+  version: string;
+  /** The zine's `updatedAt` at the last upload or download: a different one means unsent changes. */
+  syncedUpdatedAt: string;
+  /** Who changed the file last and when, as Drive reported at the last sync. */
+  modifiedTime: string;
+  modifiedBy: string | null;
+  modifiedByMe: boolean;
+}
+
 interface ZiniarzSchema extends DBSchema {
   zines: { key: string; value: Zine };
   images: { key: string; value: StoredImage };
   fontFamilies: { key: string; value: FontFamily };
   fontFiles: { key: string; value: FontFile; indexes: { byFamily: string } };
+  driveLinks: { key: string; value: DriveLink; indexes: { byFile: string } };
 }
 
 export type ZiniarzDb = IDBPDatabase<ZiniarzSchema>;
@@ -41,15 +56,24 @@ export class StorageFullError extends Error {
 
 export const DB_NAME = 'ziniarz';
 
-export function openZiniarzDb(name = DB_NAME): Promise<ZiniarzDb> {
-  return openDB<ZiniarzSchema>(name, 1, {
-    upgrade(db) {
-      db.createObjectStore('zines', { keyPath: 'id' });
-      db.createObjectStore('images', { keyPath: 'id' });
-      db.createObjectStore('fontFamilies', { keyPath: 'id' });
-      db.createObjectStore('fontFiles', { keyPath: 'id' }).createIndex('byFamily', 'familyId');
+export async function openZiniarzDb(name = DB_NAME): Promise<ZiniarzDb> {
+  const db: ZiniarzDb = await openDB<ZiniarzSchema>(name, 2, {
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        db.createObjectStore('zines', { keyPath: 'id' });
+        db.createObjectStore('images', { keyPath: 'id' });
+        db.createObjectStore('fontFamilies', { keyPath: 'id' });
+        db.createObjectStore('fontFiles', { keyPath: 'id' }).createIndex('byFamily', 'familyId');
+      }
+      if (oldVersion < 2) db.createObjectStore('driveLinks', { keyPath: 'zineId' }).createIndex('byFile', 'fileId');
+    },
+    // A newer version of the app opened in another tab waits for this one to let go of the database.
+    blocking() {
+      db.close();
+      if (typeof location !== 'undefined') location.reload();
     },
   });
+  return db;
 }
 
 async function guarded<T>(operation: () => Promise<T>): Promise<T> {
@@ -73,8 +97,10 @@ export function listZines(db: ZiniarzDb): Promise<Zine[]> {
   return db.getAll('zines');
 }
 
+/** Deletes the zine and its link to Google Drive (the file on Drive stays). */
 export async function deleteZine(db: ZiniarzDb, id: string): Promise<void> {
-  await db.delete('zines', id);
+  const tx = db.transaction(['zines', 'driveLinks'], 'readwrite');
+  await Promise.all([tx.objectStore('zines').delete(id), tx.objectStore('driveLinks').delete(id), tx.done]);
 }
 
 export async function putImage(db: ZiniarzDb, image: StoredImage): Promise<void> {
