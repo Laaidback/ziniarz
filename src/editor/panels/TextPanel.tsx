@@ -90,7 +90,15 @@ export function TextPanel({ element }: { element: TextElement }) {
           </button>
         ))}
       </div>
-      <NumberField label="Obrót" unit="°" value={element.rotation} min={-360} max={360} onChange={(rotation) => update({ rotation }, key('rotation'))} />
+      <NumberField
+        label="Obrót"
+        unit="°"
+        value={element.rotation}
+        min={-360}
+        max={360}
+        disabled={element.locked}
+        onChange={(rotation) => update({ rotation }, key('rotation'))}
+      />
       <LayerButtons />
     </section>
   );

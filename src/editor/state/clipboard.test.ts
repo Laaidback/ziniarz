@@ -16,3 +16,8 @@ test('the copy steps aside while it would cover an element exactly', () => {
   expect(cloneForPaste(photo, [photo])).toMatchObject({ x: 15, y: 25 });
   expect(cloneForPaste(photo, [photo, shifted])).toMatchObject({ x: 20, y: 30 });
 });
+
+test('a copy of a locked element is unlocked', () => {
+  const photo = createPhotoElement('img', { locked: true });
+  expect(cloneForPaste(photo, []).locked).toBe(false);
+});

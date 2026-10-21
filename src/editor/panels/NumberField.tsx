@@ -8,6 +8,7 @@ interface Props {
   max: number;
   step?: number;
   unit?: string;
+  disabled?: boolean;
   onChange(value: number): void;
 }
 
@@ -17,7 +18,7 @@ const format = (value: number) => String(Math.round(value * 100) / 100);
  * Number input that only reports valid values in [min, max]; what is typed stays until the field loses focus.
  * Blur or Enter ends the undo step.
  */
-export function NumberField({ label, value, min, max, step = 1, unit, onChange }: Props) {
+export function NumberField({ label, value, min, max, step = 1, unit, disabled, onChange }: Props) {
   const { store } = useEditorEnv();
   const [draft, setDraft] = useState<string | null>(null);
   return (
@@ -31,6 +32,7 @@ export function NumberField({ label, value, min, max, step = 1, unit, onChange }
           min={min}
           max={max}
           step={step}
+          disabled={disabled}
           onChange={(event) => {
             setDraft(event.target.value);
             const number = Number(event.target.value);

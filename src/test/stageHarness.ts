@@ -15,6 +15,7 @@ export function mountStage(zine: Zine, view: Partial<StageView> = {}) {
     doubleClick: vi.fn(),
     endCrop: vi.fn(),
     endGesture: vi.fn(),
+    gesture: vi.fn(),
   };
   const editor = new EditorStage(container, callbacks);
   editor.resize(800, 500);

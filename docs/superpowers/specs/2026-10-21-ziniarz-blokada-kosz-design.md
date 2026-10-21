@@ -13,9 +13,9 @@ Odrzucone:
 
 ## Jak to wygląda w użyciu
 
-- Zaznaczone zdjęcie albo napis ma tuż nad sobą mały pasek z dwoma przyciskami: **kłódka** i **kosz**. Gdy nad elementem brak miejsca w oknie płótna, pasek stoi pod nim. Pasek znika, gdy nic nie jest zaznaczone, w trakcie przeciągania, zmiany rozmiaru i obracania (wraca po puszczeniu myszy) oraz w trybie pisania w napisie i kadrowania zdjęcia.
+- Zaznaczone zdjęcie albo napis ma tuż pod sobą mały pasek z dwoma przyciskami: **kłódka** i **kosz** (nad elementem jest uchwyt obracania). Gdy pod elementem brak miejsca w oknie płótna, pasek stoi nad nim; zawsze zostaje w oknie płótna. Pasek znika, gdy nic nie jest zaznaczone, w trakcie przeciągania, zmiany rozmiaru i obracania (wraca po puszczeniu myszy) oraz w trybie pisania w napisie i kadrowania zdjęcia.
 - **Kosz** (`aria-label` „Wyrzuć”) usuwa element od razu, bez pytania. „Cofnij” (⌘Z) przywraca go.
-- **Kłódka** (`aria-label` „Zablokuj” / „Odblokuj”, `aria-pressed`) przełącza blokadę. Blokada i odblokowanie to zwykły krok cofania.
+- **Kłódka** (`aria-label` „Zablokuj” albo „Odblokuj”, zależnie od stanu) przełącza blokadę. Blokada i odblokowanie to zwykły krok cofania.
 - **Zablokowany element:**
   - da się go zaznaczyć kliknięciem (pokazuje ramkę zaznaczenia, bez uchwytów), żeby go odblokować albo zmienić treść;
   - nie przesuwa się myszą ani strzałkami, nie zmienia rozmiaru ani obrotu (pole „Obrót” w ustawieniach jest wyszarzone);
@@ -27,18 +27,18 @@ Odrzucone:
 
 ## Dane
 
-- Nowe pole elementu `locked: boolean` (w `Frame`, więc ma je zdjęcie i napis). `parseZine` daje `false`, gdy go brak; bez zmiany `FORMAT_VERSION`. Starsza wersja Ziniarza pomija to pole.
+- Nowe pole elementu `locked: boolean` (w `ElementBase`, wspólnej części zdjęcia i napisu; `Frame` zostaje samą geometrią). `parseZine` daje `false`, gdy go brak; bez zmiany `FORMAT_VERSION`. Starsza wersja Ziniarza pomija to pole.
 - Blokada jest w JSON-ie zina, więc idzie z plikiem `.zin`, z „Powiel” zina i na Dysk Google.
 - Rysownik, druk, miniatury i 3D blokady nie czytają.
 
 ## Jak to zrobić
 
 - **Sklep pilnuje blokady** (jedno miejsce, niezależne od przycisków): `updateElement` dla zablokowanego elementu pomija zmiany `x`, `y`, `width`, `height` z zewnątrz i `rotation` (wysokość napisu liczy dalej `normalize`); `deleteSelected` i `nudgeSelected` nic nie robią. Nowa akcja `toggleLockSelected()` przełącza `locked` (krok cofania). `cloneForPaste` ustawia `locked: false`.
-- **Płótno** (`EditorStage`): zablokowany węzeł nie jest `draggable`, Transformer nie ma uchwytów ani obrotu, zostaje sama ramka. `StageCallbacks` dostaje informację o początku i końcu gestu (przeciąganie, Transformer), żeby pasek mógł się schować.
-- **Pasek** (`SelectionToolbar.tsx` w `src/editor/canvas/`): zwykłe przyciski HTML nałożone na płótno jak `TextEditor`, pozycja z ramki elementu (obrócony prostokąt → najmniejszy prostokąt wokół niego) przeliczonej przez `Viewport`. Pozycję liczy czysta funkcja z testem w Node. Ikony to SVG w kodzie (bez nowych plików i bibliotek).
+- **Płótno** (`EditorStage`): zablokowany węzeł nie jest `draggable`, Transformer nie ma uchwytów ani obrotu, zostaje sama ramka. `StageCallbacks.gesture(active)` mówi o początku i końcu gestu (przeciąganie, Transformer), żeby pasek mógł się schować.
+- **Pasek** (`SelectionToolbar.tsx` w `src/editor/canvas/`): zwykłe przyciski HTML nałożone na płótno jak `TextEditor`, pozycja z ramki elementu (obrócony prostokąt → najmniejszy prostokąt wokół niego) przeliczonej przez `Viewport`. Pozycję liczy czysta funkcja `toolbarPosition` (`toolbarPosition.ts`) z testem w Node. Ikony to SVG w kodzie (bez nowych plików i bibliotek).
 - **Ustawienia:** pole „Obrót” i przycisk „Usuń” wyszarzone, gdy element zablokowany.
 
 ## Testy
 
-- Node: `parseZine` (brak pola → `false`, `true` zostaje), sklep (zablokowany: brak przesunięcia, zmiany rozmiaru, obrotu, usunięcia; zmiana koloru i tekstu działa; przełączenie to jeden krok cofania; kopia odblokowana), pozycja paska (nad, pod przy górnej krawędzi).
+- Node: `parseZine` (brak pola → `false`, `true` zostaje), sklep (zablokowany: brak przesunięcia, zmiany rozmiaru, obrotu, usunięcia; zmiana koloru i tekstu działa; przełączenie to jeden krok cofania; kopia odblokowana), pozycja paska (pod, nad przy dolnej krawędzi, obrócona ramka, w oknie płótna).
 - Przeglądarka: płótno nie przesuwa zablokowanego elementu przeciągnięciem i nie pokazuje uchwytów; pasek w edytorze: kosz wyrzuca i ⌘Z przywraca, kłódka blokuje i kosz staje się wyszarzony, pasek znika przy pustym zaznaczeniu i w trybie pisania.

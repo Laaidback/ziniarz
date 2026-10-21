@@ -68,6 +68,55 @@ describe('elements', () => {
   });
 });
 
+describe('locked elements', () => {
+  function lockedPhoto() {
+    const t = setup();
+    const photo = createPhotoElement('img', { x: 10, y: 20, width: 100, height: 100 });
+    t.s().addElement(photo);
+    t.s().toggleLockSelected();
+    return { ...t, photo };
+  }
+
+  test('locking and unlocking are undo steps', () => {
+    const { s, photo } = lockedPhoto();
+    expect(selectedElement(s())?.locked).toBe(true);
+    s().undo();
+    expect(selectedElement(s())?.locked).toBe(false);
+    s().redo();
+    s().toggleLockSelected();
+    expect(selectedElement(s())?.locked).toBe(false);
+    s().undo();
+    expect(selectedElement(s())).toMatchObject({ id: photo.id, locked: true });
+  });
+
+  test('a locked element does not move, resize, rotate or go away', () => {
+    const { s, zine, photo } = lockedPhoto();
+    const before = zine();
+    s().updateElement(photo.id, { x: 50, y: 60, width: 10, height: 10, rotation: 45 });
+    s().nudgeSelected(1, 1);
+    s().deleteSelected();
+    expect(zine()).toBe(before);
+    expect(selectedElement(s())).toMatchObject({ x: 10, y: 20, width: 100, height: 100, rotation: 0 });
+  });
+
+  test('the content of a locked element still changes', () => {
+    const { s, photo } = lockedPhoto();
+    s().updateElement(photo.id, { opacity: 0.5, x: 99 });
+    expect(selectedElement(s())).toMatchObject({ opacity: 0.5, x: 10 });
+    const text = createTextElement({ text: 'a' });
+    s().addElement(text);
+    s().toggleLockSelected();
+    s().updateElement(text.id, { text: 'a\nb', color: '#ff0000' });
+    expect(selectedElement(s())).toMatchObject({ text: 'a\nb', color: '#ff0000', height: 10, locked: true });
+  });
+
+  test('duplicating a locked element gives an unlocked copy next to it', () => {
+    const { s, zine } = lockedPhoto();
+    s().duplicateSelected();
+    expect(zine().spreads[0].elements.map((e) => e.locked)).toEqual([true, false]);
+  });
+});
+
 describe('clipboard', () => {
   test('copy on one spread, paste on another, paste again steps aside', () => {
     const { s, zine } = setup();

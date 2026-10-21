@@ -1,5 +1,6 @@
 import { useEditor, useEditorEnv } from '../EditorContext';
 import { canMoveLayer, type LayerOp } from '../state/layers';
+import { selectedElement } from '../state/store';
 
 const OPS: [LayerOp, string][] = [
   ['front', 'Na wierzch'],
@@ -12,6 +13,7 @@ export function LayerButtons() {
   const { store } = useEditorEnv();
   const elements = useEditor((s) => s.history.present.spreads[s.spread].elements);
   const id = useEditor((s) => s.selectedId);
+  const locked = useEditor((s) => selectedElement(s)?.locked ?? false);
   if (!id) return null;
   return (
     <div className="panel-group">
@@ -27,7 +29,13 @@ export function LayerButtons() {
         <button type="button" onClick={() => store.getState().duplicateSelected()}>
           Powiel
         </button>
-        <button type="button" className="danger" onClick={() => store.getState().deleteSelected()}>
+        <button
+          type="button"
+          className="danger"
+          disabled={locked}
+          title={locked ? 'Odblokuj, żeby usunąć' : undefined}
+          onClick={() => store.getState().deleteSelected()}
+        >
           Usuń
         </button>
       </div>

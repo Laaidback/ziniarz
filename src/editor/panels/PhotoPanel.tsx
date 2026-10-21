@@ -59,6 +59,7 @@ export function PhotoPanel({ element }: { element: PhotoElement }) {
         value={element.rotation}
         min={-360}
         max={360}
+        disabled={element.locked}
         onChange={(rotation) => update({ rotation }, `rotation:${element.id}`)}
       />
       <LayerButtons />

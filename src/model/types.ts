@@ -32,6 +32,12 @@ export interface Frame {
   rotation: number;
 }
 
+/** What photos and text frames share. */
+export interface ElementBase extends Frame {
+  /** Locked: the frame (position, size, rotation) stays put and the element cannot be deleted; its content still changes. */
+  locked: boolean;
+}
+
 /** Photo position inside its frame: offset of the image centre from the frame centre (mm), zoom >= 1. */
 export interface PhotoCrop {
   offsetX: number;
@@ -39,7 +45,7 @@ export interface PhotoCrop {
   zoom: number;
 }
 
-export interface PhotoElement extends Frame {
+export interface PhotoElement extends ElementBase {
   kind: 'photo';
   imageId: string;
   crop: PhotoCrop;
@@ -50,7 +56,7 @@ export interface PhotoElement extends Frame {
 export type TextAlign = 'left' | 'center' | 'right' | 'justify';
 
 /** Text frame: `width` is the wrap width, `height` is recomputed from the text by the renderer. */
-export interface TextElement extends Frame {
+export interface TextElement extends ElementBase {
   kind: 'text';
   text: string;
   fontFamilyId: string;

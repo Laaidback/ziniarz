@@ -47,6 +47,27 @@ test('dragging an unselected frame leaves it selected with handles, even if the 
   near(nodes[0].x(), photo.x + photo.width / 2);
 });
 
+test('a locked frame does not move when dragged and shows no handles, only its outline', async () => {
+  const zine = createZine('t', 1);
+  const photo = createPhotoElement('img', { x: 20, y: 40, width: 60, height: 60, locked: true });
+  zine.spreads[1].elements.push(photo);
+  const { editor, callbacks, surface, at } = mount(zine, { selectedId: photo.id });
+  const transformer = editor.stage.findOne('Transformer') as Konva.Transformer;
+  expect(transformer.nodes()).toHaveLength(1);
+  expect(transformer.enabledAnchors()).toEqual([]);
+  expect(transformer.rotateEnabled()).toBe(false);
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(80, 90) });
+  expect(callbacks.change).not.toHaveBeenCalled();
+  expect(callbacks.gesture).not.toHaveBeenCalled();
+});
+
+test('a drag tells when the gesture starts and ends', async () => {
+  const { zine } = photoZine();
+  const { callbacks, surface, at } = mount(zine);
+  await userEvent.dragAndDrop(surface, surface, { sourcePosition: at(50, 70), targetPosition: at(70, 90) });
+  expect(callbacks.gesture.mock.calls).toEqual([[true], [false]]);
+});
+
 test('holding Alt turns snapping off', async () => {
   const { zine } = photoZine();
   const { callbacks, surface, at } = mount(zine);

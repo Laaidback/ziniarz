@@ -33,6 +33,16 @@ export function patchElement(element: ZineElement, patch: ElementPatch): ZineEle
   return { ...element, ...patch } as ZineElement;
 }
 
+const FRAME_KEYS = ['x', 'y', 'width', 'height', 'rotation'] as const;
+
+/** The part of `patch` a locked element takes: everything but its frame (and its lock, toggled on its own). */
+export function lockedPatch(patch: ElementPatch): ElementPatch {
+  const allowed: ElementPatch = { ...patch };
+  for (const key of FRAME_KEYS) delete allowed[key];
+  delete allowed.locked;
+  return allowed;
+}
+
 /** Adds on top of everything else on the spread. */
 export function addElement(zine: Zine, spread: number, element: ZineElement): Zine {
   return updateSpreadElements(zine, spread, (elements) => [...elements, element]);

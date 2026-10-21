@@ -56,6 +56,8 @@ export interface StageCallbacks {
   endCrop(): void;
   /** A crop drag ended: its `crop` calls were one gesture, so the next one is a new undo step. */
   endGesture(): void;
+  /** A drag, resize or rotation started (true) or ended (false). */
+  gesture(active: boolean): void;
 }
 
 /** Where spread mm (0, 0) lies in the stage, and how many pixels one mm takes. */
@@ -125,7 +127,7 @@ export class EditorStage {
     this.content.on('dragstart', (event) => this.handleDragStart(event));
     this.content.on('dragmove', (event) => this.handleDragMove(event));
     this.content.on('dragend', (event) => this.handleDragEnd(event));
-    this.transformer.on('transformstart', () => (this.interacting = true));
+    this.transformer.on('transformstart', () => this.startGesture());
     this.transformer.on('transform', () => this.mirrorProxy());
     this.transformer.on('transformend', () => this.handleTransformEnd());
     this.stage.on('mousedown touchstart', (event) => this.handlePointerDown(event));
@@ -218,8 +220,9 @@ export class EditorStage {
     this.builtView = view;
     this.content.destroyChildren();
     const spread = buildSpreadGroup(view.zine, view.spread, view.assets);
+    const locked = new Set(view.zine.spreads[view.spread]?.elements.filter((e) => e.locked).map((e) => e.id));
     for (const node of spread.getChildren((child) => child.hasName(ELEMENT_NODE_NAME))) {
-      node.draggable(view.mode === 'idle');
+      node.draggable(view.mode === 'idle' && !locked.has(node.id()));
       node.dragDistance(3);
       if (view.mode === 'text' && node.id() === view.selectedId) node.visible(false);
     }
@@ -251,7 +254,9 @@ export class EditorStage {
       this.decorations.add(this.cropGhost(element));
       return;
     }
-    this.transformer.enabledAnchors(element.kind === 'text' ? TEXT_ANCHORS : PHOTO_ANCHORS);
+    // A locked frame shows only its outline.
+    this.transformer.enabledAnchors(element.locked ? [] : element.kind === 'text' ? TEXT_ANCHORS : PHOTO_ANCHORS);
+    this.transformer.rotateEnabled(!element.locked);
     this.transformer.nodes([this.proxy]);
     this.transformer.forceUpdate();
   }
@@ -304,7 +309,7 @@ export class EditorStage {
   private handleDragStart(event: Konva.KonvaEventObject<DragEvent>): void {
     const node = event.target;
     if (!this.view || !node.hasName(ELEMENT_NODE_NAME)) return;
-    this.interacting = true;
+    this.startGesture();
     this.dragTargets = snapTargets(this.view.zine, this.view.spread, node.id());
     if (node.id() !== this.view.selectedId) {
       this.transformer.nodes([]);
@@ -335,6 +340,11 @@ export class EditorStage {
     this.finishGesture(() => this.callbacks.change(node.id(), { x: node.x() - node.offsetX(), y: node.y() - node.offsetY() }));
   }
 
+  private startGesture(): void {
+    this.interacting = true;
+    this.callbacks.gesture(true);
+  }
+
   /**
    * Ends a drag or resize and reports it. If the store skips a no-op change, no update follows,
    * so a view that arrived during the gesture (such as the new selection) is drawn here.
@@ -343,6 +353,7 @@ export class EditorStage {
     this.interacting = false;
     this.drawSnapLines(null, null);
     report();
+    this.callbacks.gesture(false);
     if (this.stale) {
       this.stale = false;
       this.redraw(true);

@@ -762,6 +762,34 @@ body.resizing-column {
   inset: 0;
 }
 
+/* Lock and trash next to the selected element (SelectionToolbar, size from toolbarPosition.ts). */
+.selection-toolbar {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.selection-toolbar button {
+  flex: 1;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.selection-toolbar button.active,
+.selection-toolbar button.active:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .cover-caption {
   position: absolute;
   transform: translateX(-50%);

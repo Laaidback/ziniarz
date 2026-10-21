@@ -10,7 +10,7 @@ import { pageExists, spreadCount } from './geometry';
 import { newId } from './ids';
 import { sanitizeNotes } from './notesHtml';
 import { A6_FORMAT_VERSION, COVER_FORMAT_VERSION, mergeCovers, migrateA5ToA6 } from './migrate';
-import type { Frame, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
+import type { ElementBase, PageStyle, Spread, TextAlign, Zine, ZineElement } from './types';
 
 export class ZineFormatError extends Error {
   constructor(
@@ -31,7 +31,7 @@ const str = (v: unknown, fallback: string) => (typeof v === 'string' ? v : fallb
 const bool = (v: unknown, fallback: boolean) => (typeof v === 'boolean' ? v : fallback);
 const ALIGNS: TextAlign[] = ['left', 'center', 'right', 'justify'];
 
-function parseFrame(o: Obj): Frame {
+function parseFrame(o: Obj): ElementBase {
   return {
     id: str(o.id, newId()),
     x: num(o.x, 0),
@@ -39,6 +39,7 @@ function parseFrame(o: Obj): Frame {
     width: num(o.width, 50),
     height: num(o.height, 50),
     rotation: num(o.rotation, 0),
+    locked: o.locked === true,
   };
 }
 

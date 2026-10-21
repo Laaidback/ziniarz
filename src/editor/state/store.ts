@@ -8,6 +8,7 @@ import { cloneForPaste } from './clipboard';
 import {
   addElement,
   findElement,
+  lockedPatch,
   mapElement,
   patchElement,
   removeElement,
@@ -61,7 +62,10 @@ export interface EditorState {
   endMerge(): void;
   addElement(element: ZineElement): void;
   updateElement(id: string, patch: ElementPatch, key?: string): void;
+  /** Does nothing for a locked element. */
   deleteSelected(): void;
+  /** Locks or unlocks the selected element (an undo step). */
+  toggleLockSelected(): void;
   nudgeSelected(dx: number, dy: number): void;
   copySelected(): void;
   paste(): void;
@@ -234,10 +238,21 @@ export function createEditorStore(zine: Zine, deps: EditorDeps): EditorStore {
         set({ selectedId: element.id, mode: 'idle' });
       },
       updateElement: (id, patch, key) =>
-        edit((z) => mapElement(z, get().spread, id, (e) => normalize(patchElement(e, patch))), key),
+        edit(
+          (z) =>
+            mapElement(z, get().spread, id, (e) => {
+              const allowed = e.locked ? lockedPatch(patch) : patch;
+              return Object.keys(allowed).length === 0 ? e : normalize(patchElement(e, allowed));
+            }),
+          key,
+        ),
       deleteSelected: () => {
+        const element = current();
+        if (element && !element.locked) edit((z) => removeElement(z, get().spread, element.id));
+      },
+      toggleLockSelected: () => {
         const id = get().selectedId;
-        if (id) edit((z) => removeElement(z, get().spread, id));
+        if (id) edit((z) => mapElement(z, get().spread, id, (e) => ({ ...e, locked: !e.locked })));
       },
       nudgeSelected: (dx, dy) => {
         const element = current();

@@ -94,7 +94,17 @@ describe('parseZine', () => {
     ];
     const zine = parseZine(raw);
     expect(zine.spreads[1].elements).toHaveLength(1);
-    expect(zine.spreads[1].elements[0]).toMatchObject({ kind: 'text', text: 'A', size: 9, lineHeight: 1.2 });
+    expect(zine.spreads[1].elements[0]).toMatchObject({ kind: 'text', text: 'A', size: 9, lineHeight: 1.2, locked: false });
+  });
+
+  test('a locked element stays locked; anything but true is unlocked', () => {
+    const raw = roundTrip(createZine('Lato', 1));
+    raw.spreads[1].elements = [
+      { kind: 'text', id: 't', text: 'A', locked: true },
+      { kind: 'photo', id: 'p', imageId: 'img', locked: 'yes' },
+    ];
+    const elements = parseZine(raw).spreads[1].elements;
+    expect(elements.map((e) => e.locked)).toEqual([true, false]);
   });
 
   test('opens an A5 zine (format 1) converted to A6', () => {

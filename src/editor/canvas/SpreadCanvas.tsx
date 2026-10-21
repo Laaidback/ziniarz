@@ -8,6 +8,7 @@ import { findElement } from '../state/commands';
 import { selectZine } from '../state/store';
 import { CoverCaptions } from './CoverCaptions';
 import { EditorStage, type Viewport } from './EditorStage';
+import { SelectionToolbar } from './SelectionToolbar';
 import { TextEditor } from './TextEditor';
 
 /** React wrapper around EditorStage: passes store changes in, store actions out, and takes file drops. */
@@ -24,6 +25,8 @@ export function SpreadCanvas() {
   const host = useRef<HTMLDivElement>(null);
   const [editor, setEditor] = useState<EditorStage | null>(null);
   const [viewport, setViewport] = useState<Viewport | null>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [moving, setMoving] = useState(false);
 
   useEffect(() => {
     const element = host.current!;
@@ -41,10 +44,12 @@ export function SpreadCanvas() {
       },
       endCrop: () => store.getState().setMode('idle'),
       endGesture: () => store.getState().endMerge(),
+      gesture: setMoving,
     });
     const fit = () => {
       stage.resize(element.clientWidth, element.clientHeight);
       setViewport(stage.viewport());
+      setBox({ width: element.clientWidth, height: element.clientHeight });
     };
     const observer = new ResizeObserver(fit);
     observer.observe(element);
@@ -87,6 +92,7 @@ export function SpreadCanvas() {
       <div ref={host} className="spread-stage" />
       {spread === 0 && viewport && <CoverCaptions viewport={viewport} />}
       {mode === 'text' && viewport && <TextEditor viewport={viewport} />}
+      {viewport && <SelectionToolbar viewport={viewport} width={box.width} height={box.height} moving={moving} />}
     </div>
   );
 }
