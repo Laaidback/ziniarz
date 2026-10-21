@@ -44,7 +44,8 @@ test('runs in linear time, also on unclosed tags and quotes', () => {
     const input = piece.repeat(Math.ceil(100_000 / piece.length));
     const start = performance.now();
     sanitizeNotes(input);
-    expect(performance.now() - start, piece).toBeLessThan(100);
+    // A quadratic scan of 100 KB takes seconds; linear takes a few ms. The margin absorbs slow CI runners.
+    expect(performance.now() - start, piece).toBeLessThan(1000);
   }
 });
 
