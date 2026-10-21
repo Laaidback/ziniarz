@@ -16,7 +16,8 @@ export default defineConfig({
     launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] },
   },
   webServer: {
-    command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
+    // With Google ids, so the Drive buttons are there; e2e/fakeGoogle.ts stands in for Google itself.
+    command: `VITE_GOOGLE_CLIENT_ID=e2e-client VITE_GOOGLE_API_KEY=e2e-key VITE_GOOGLE_APP_ID=1 npm run build && npx vite preview --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

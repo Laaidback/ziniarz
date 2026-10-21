@@ -11,8 +11,8 @@ import { cloudErrorOf } from './errors';
 import { getLink } from './links';
 import type { CloudStatusAction } from './statusText';
 
-/** Changes go to Drive this long after the last one (and when leaving the editor). */
-export const CLOUD_SYNC_DELAY_MS = 10_000;
+/** Changes go to Drive `delayMs` after the last one (and when leaving the editor); tests shorten it. */
+export const cloudSyncTiming = { delayMs: 10_000 };
 
 export interface EditorCloud {
   cloud: CloudServices;
@@ -79,7 +79,7 @@ export function useEditorCloudSync({ db, zineId, store, flushSaves, reopen }: Op
       if (state.history.present === previous.history.present) return;
       setCloudStatus(zineId, { state: 'pending' });
       if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(() => void sync(false), CLOUD_SYNC_DELAY_MS);
+      timer = setTimeout(() => void sync(false), cloudSyncTiming.delayMs);
     });
     return () => {
       unsubscribe();

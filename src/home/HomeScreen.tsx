@@ -88,9 +88,11 @@ export function HomeScreen() {
     };
   }, []);
 
+  // Cleanup takes the same lock as the Drive sync below, which waits for it.
+  const pruned = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     let cancelled = false;
-    void (async () => {
+    pruned.current = (async () => {
       // Never prune while the editor may still be saving (a new photo would look unused),
       // nor while any tab has a zine open: it may need photos and fonts its saved copy does not list yet.
       await whenSavesSettled();
@@ -107,7 +109,7 @@ export function HomeScreen() {
     if (!cloud || !signedIn) return;
     let cancelled = false;
     void (async () => {
-      await whenSavesSettled();
+      await pruned.current;
       const changed = await syncLinkedZines(db, cloud.drive).catch(() => false);
       if (changed && !cancelled) await reload();
     })();
