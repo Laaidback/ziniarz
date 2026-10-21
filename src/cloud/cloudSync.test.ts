@@ -7,6 +7,7 @@ import type { Zine } from '../model/types';
 import { listZines, loadZine, openZiniarzDb, saveZine, type ZiniarzDb } from '../storage/db';
 import { bundleFromDb, writeZin } from '../storage/zinFile';
 import { createFakeDriveServer } from '../test/fakeDriveServer';
+import { holdOpenZineLock } from '../storage/zineLock';
 import { cloudStatusStore } from './cloudStatus';
 import { linkToDrive, openFromDrive, relinkAsNew, resolveConflict, syncLinkedZines, syncZine, unlinkFromDrive } from './cloudSync';
 import { createDriveClient } from './driveApi';
@@ -50,7 +51,7 @@ test('linkToDrive saves the zine as a .zin file and remembers the version', asyn
   const { db, zine } = await setup();
   const change = await linkToDrive(db, ala, zine.id);
   const link = (await getLink(db, zine.id))!;
-  expect(link).toMatchObject({ version: '1', syncedUpdatedAt: zine.updatedAt, modifiedBy: 'Ala', modifiedByMe: true });
+  expect(link).toMatchObject({ revision: 'rev-1', syncedUpdatedAt: zine.updatedAt, modifiedBy: 'Ala', modifiedByMe: true });
   expect(server.file(link.fileId)?.name).toBe('Lato.zin');
   expect(change.modifiedBy).toBe('Ala');
   expect(cloudStatusStore.getState().zines[zine.id]).toMatchObject({ state: 'synced' });
@@ -136,20 +137,18 @@ test('opening a shared file creates a zine; opening it again reuses it', async (
   server.pick(fileId, 'Ola');
 
   const olas = await openZiniarzDb(`test-${newId()}`);
-  const opened = await openFromDrive(olas, ola, fileId);
-  expect(opened.result.kind).toBe('downloaded');
-  expect(opened.zineId).not.toBe(alas.zine.id);
-  const zine = parseZine(await loadZine(olas, opened.zineId));
+  const openedId = await openFromDrive(olas, ola, fileId);
+  expect(openedId).not.toBe(alas.zine.id);
+  const zine = parseZine(await loadZine(olas, openedId));
   expect(zine.title).toBe('Wspólny');
   expect(zine.spreads[1].elements).toHaveLength(1);
 
-  const again = await openFromDrive(olas, ola, fileId);
-  expect(again).toMatchObject({ zineId: opened.zineId, result: { kind: 'upToDate' } });
+  expect(await openFromDrive(olas, ola, fileId)).toBe(openedId);
   expect((await listZines(olas)).length).toBe(1);
 
   // Ola's change reaches Ala.
-  await edit(olas, opened.zineId, (z) => (z.title = 'Wspólny, poprawiony'));
-  expect((await syncZine(olas, ola, opened.zineId, { allowDownload: true })).kind).toBe('uploaded');
+  await edit(olas, openedId, (z) => (z.title = 'Wspólny, poprawiony'));
+  expect((await syncZine(olas, ola, openedId, { allowDownload: true })).kind).toBe('uploaded');
   expect(await syncZine(alas.db, ala, alas.zine.id, { allowDownload: true })).toMatchObject({
     kind: 'downloaded',
     change: { modifiedBy: 'Ola', modifiedByMe: false },
@@ -225,4 +224,47 @@ test('syncLinkedZines uploads and downloads every linked zine', async () => {
   expect(await titleIn(db, zine.id)).toBe('A od Oli');
   expect(server.zinFiles().map((f) => f.name).sort()).toEqual(['A.zin', 'B2.zin']);
   expect(await syncLinkedZines(db, ala)).toBe(false);
+});
+
+test('a zine unlinked from a file and the file opened again are two zines; nothing is replaced', async () => {
+  const { db, zine } = await setup('Lato');
+  const fileId = await linkedFile(db, zine.id);
+  await unlinkFromDrive(db, zine.id);
+  await edit(db, zine.id, (z) => (z.title = 'Lato, dalej tutaj'));
+  const openedId = await openFromDrive(db, ala, fileId);
+  expect(openedId).not.toBe(zine.id);
+  expect(await titleIn(db, zine.id)).toBe('Lato, dalej tutaj');
+  expect(await titleIn(db, openedId)).toBe('Lato');
+});
+
+test('sharing or renaming the file on Drive is not a change of the zine', async () => {
+  const { db, zine } = await setup();
+  const fileId = await linkedFile(db, zine.id);
+  server.share(fileId, 'Ola');
+  server.rename(fileId, 'Inna nazwa.zin');
+  await edit(db, zine.id, (z) => (z.title = 'Dalej'));
+  expect((await syncZine(db, ala, zine.id, { allowDownload: true })).kind).toBe('uploaded');
+});
+
+test('saving to Drive twice keeps one file', async () => {
+  const { db, zine } = await setup();
+  await Promise.all([linkToDrive(db, ala, zine.id), linkToDrive(db, ala, zine.id)]);
+  expect(server.zinFiles()).toHaveLength(1);
+});
+
+test('syncLinkedZines does not download while a zine is open, and stops when cancelled', async () => {
+  const { db, zine } = await setup('A');
+  const fileId = await linkedFile(db, zine.id);
+  const other = await setup('A od Oli');
+  server.replaceBytes(fileId, await writeZin((await bundleFromDb(other.db, other.zine.id)).bundle), 'Ola');
+
+  const release = holdOpenZineLock(db.name);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  expect(await syncLinkedZines(db, ala)).toBe(false);
+  expect(await titleIn(db, zine.id)).toBe('A');
+  expect(cloudStatusStore.getState().zines[zine.id]?.state).toBe('remoteNewer');
+  release();
+
+  expect(await syncLinkedZines(db, ala, () => true)).toBe(false);
+  expect(await titleIn(db, zine.id)).toBe('A');
 });

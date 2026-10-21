@@ -33,9 +33,10 @@ export function App() {
   const route = useRoute();
   const [db, setDb] = useState<ZiniarzDb | null>(null);
   const [failed, setFailed] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
-    openZiniarzDb().then(setDb, () => setFailed(true));
+    openZiniarzDb(undefined, () => setBlocked(true)).then(setDb, () => setFailed(true));
     void persistentStorage();
   }, []);
 
@@ -45,6 +46,9 @@ export function App() {
         Ta przeglądarka nie pozwala zapisywać zinów. Wyłącz tryb prywatny albo użyj innej przeglądarki.
       </main>
     );
+  }
+  if (!db && blocked) {
+    return <main className="screen-message">Ziniarz jest otwarty w innej karcie w starszej wersji. Zamknij tamtą kartę albo ją odśwież.</main>;
   }
   if (!db) return <main className="screen-message">Wczytywanie…</main>;
   return (

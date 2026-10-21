@@ -73,19 +73,19 @@ Zmienne przy budowie (Vite): `VITE_GOOGLE_CLIENT_ID` (OAuth Client ID), `VITE_GO
 - `driveApi.ts`: `DriveClient` na `fetch` i REST v3 Dysku:
   - `ensureFolder()`: folder „Ziniarz”,
   - `create(name, bytes)` i `update(id, name, bytes)`: wysyłanie wznawialne (`uploadType=resumable`),
-  - `meta(id)`: `id, name, version, modifiedTime, trashed, lastModifyingUser(displayName, me)`,
+  - `meta(id)`: `id, name, headRevisionId, modifiedTime, trashed, lastModifyingUser(displayName, me)`,
   - `download(id)`: `alt=media`.
 
   Błędy zamienia na `CloudError` z rodzajem (`offline`, `auth`, `notFound`, `forbidden`, `quota`, `other`) i polskim komunikatem. Dostaje funkcję tokenu i `fetch` z zewnątrz, więc testuje się na sztucznym Dysku.
 - `links.ts`: połączenia zin ↔ plik w nowym magazynie IndexedDB `driveLinks` (baza w wersji 2). Każde połączenie ma:
   - `zineId`,
   - `fileId`,
-  - `version`: wersja pliku na Dysku przy ostatniej synchronizacji,
+  - `revision`: wersja treści pliku na Dysku (`headRevisionId`) przy ostatniej synchronizacji; `version` Dysku rośnie też przy udostępnieniu i zmianie nazwy, więc dawałaby fałszywe konflikty,
   - `syncedUpdatedAt`: `updatedAt` zina przy ostatniej synchronizacji,
   - `modifiedTime` i `modifiedBy`: do „Ostatnia zmiana”.
 
   Nie ma tego w JSON-ie zina, więc plik `.zin` nie zdradza niczyjego Dysku.
-- `sync.ts` (czysta logika): `decideSync({ localChanged, remoteChanged })` daje `none`, `upload`, `download` albo `conflict`. „Lokalnie zmieniony” znaczy `zine.updatedAt ≠ link.syncedUpdatedAt`; autozapis edytora i ekranu druku ustawia `updatedAt`, więc nie trzeba osobnego znacznika. „Zmieniony na Dysku” znaczy `meta.version ≠ link.version`. Do tego `lastChangeText` („Ostatnia zmiana: Ola, 10 min temu”, „ty”, gdy `me`).
+- `sync.ts` (czysta logika): `decideSync({ localChanged, remoteChanged })` daje `none`, `upload`, `download` albo `conflict`. „Lokalnie zmieniony” znaczy `zine.updatedAt ≠ link.syncedUpdatedAt`; autozapis edytora i ekranu druku ustawia `updatedAt`, więc nie trzeba osobnego znacznika. „Zmieniony na Dysku” znaczy `meta.revision ≠ link.revision`. Do tego `lastChangeText` („Ostatnia zmiana: Ola, 10 min temu”, „ty”, gdy `me`).
 - `cloudSync.ts` (praca z bazą i Dyskiem):
   - `linkToDrive`,
   - `syncZine(…, { allowDownload })`: zwraca wynik, a nie wyjątek przy konflikcie,
@@ -107,13 +107,14 @@ Nigdy nie zmieniamy w miejscu rodziny używanej przez inny zin. Zin przechodzi p
 
 ### Wykrywanie konfliktu
 
-Tuż przed wysłaniem Ziniarz czyta `version` pliku. Gdy różni się od `link.version`, wysyłanie się nie odbywa i zwraca `conflict` albo `download`. REST v3 Dysku nie ma warunkowego zapisu, więc między odczytem a zapisem zostaje okno rzędu sekundy. Przy pracy po kolei to w praktyce nie wystąpi, a spec to akceptuje.
+Tuż przed wysłaniem Ziniarz czyta `headRevisionId` pliku. Gdy różni się od `link.revision`, wysyłanie się nie odbywa i zwraca `conflict` albo `download`. REST v3 Dysku nie ma warunkowego zapisu, więc między odczytem a zapisem zostaje okno rzędu sekundy. Przy pracy po kolei to w praktyce nie wystąpi, a spec to akceptuje.
 
 ### Gdzie dzieje się synchronizacja
 
 - **Lista zinów:** po wczytaniu, gdy jest ważny token, synchronizuje po kolei ziny z Dyskiem: wysyła oczekujące, pobiera nowsze, a konflikt tylko oznacza. Okno konfliktu pokazuje się dopiero przy otwarciu zina. Bez tokenu znaczek mówi „Zaloguj się”. Sprzątanie zdjęć idzie dopiero po tej synchronizacji.
 - **Wejście do edytora:** przed otwarciem sesji `syncZine({ allowDownload: true })`; przy konflikcie okno wyboru, potem otwarcie. Bez tokenu albo internetu edytor otwiera wersję z przeglądarki ze stanem błędu.
-- **W edytorze:** 10 s po ostatniej zmianie zina (`history.present`) i przy wyjściu: autozapis `flush`, potem `syncZine({ allowDownload: false })`. Gdy Dysk ma nowszą wersję, wynik to `remoteNewer` (pasek „Wczytaj”) albo `conflict` (okno). Wybór, który zmienia zina („Weź wersję z Dysku”, „Zapisz moją jako kopię”, „Wczytaj”), otwiera edytor od nowa.
+- **W edytorze:** 10 s po ostatniej zmianie zina (`history.present`), przy wyjściu i po zalogowaniu: autozapis `flush`, potem `syncZine({ allowDownload: false })`. Gdy Dysk ma nowszą wersję, wynik to `remoteNewer` („Wczytaj”) albo `conflict` (okno). Wybór, który pobiera („Weź wersję z Dysku”, „Zapisz moją jako kopię”, „Wczytaj”), zamyka edytor, a pobranie dzieje się przy ponownym otwarciu: nigdy pod działającym autozapisem.
+- **Blokada:** edytor, druk i 3D czekają na współdzieloną blokadę otwartego zina, zanim go przeczytają; lista pobiera tylko pod blokadą na wyłączność (`whenNoZineIsOpen`), więc nic nie pobiera się do zina otwartego w innej karcie.
 - Ekrany druku i 3D tylko czytają lokalnego zina, bez zmian.
 
 ## Testy

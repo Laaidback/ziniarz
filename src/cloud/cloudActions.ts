@@ -1,7 +1,7 @@
 import { notify } from '../app/notices';
 import type { ZiniarzDb } from '../storage/db';
 import type { CloudServices } from './CloudContext';
-import { resolveConflict, type SyncResult } from './cloudSync';
+import { resolveConflict, type ConflictChoice, type SyncResult } from './cloudSync';
 import { askConflict } from './conflict';
 import { cloudErrorOf } from './errors';
 import type { LastChange } from './sync';
@@ -17,7 +17,24 @@ export async function signInFromClick(cloud: CloudServices): Promise<boolean> {
   }
 }
 
-/** Asks which version to keep and applies the answer; null when the person chose "not now". */
+/**
+ * Applies the answer to a conflict and tells the person where a copy went or what failed.
+ * "theirs" and "copy" download into the zine: never call them with the zine open in an editor.
+ */
+export async function applyChoice(
+  db: ZiniarzDb,
+  cloud: CloudServices,
+  zineId: string,
+  title: string,
+  choice: ConflictChoice,
+): Promise<SyncResult> {
+  const { result, copyId } = await resolveConflict(db, cloud.drive, zineId, choice);
+  if (copyId) notify(`Twoja wersja jest na liście zinów jako „${title} (kopia)”.`);
+  if (result.kind === 'failed') notify(result.error.message);
+  return result;
+}
+
+/** Asks which version to keep and applies the answer; null when the person chose "not now". Same caution. */
 export async function chooseVersion(
   db: ZiniarzDb,
   cloud: CloudServices,
@@ -26,9 +43,5 @@ export async function chooseVersion(
   change: LastChange,
 ): Promise<SyncResult | null> {
   const choice = await askConflict(title, change);
-  if (!choice) return null;
-  const { result, copyId } = await resolveConflict(db, cloud.drive, zineId, choice);
-  if (copyId) notify(`Twoja wersja jest na liście zinów jako „${title} (kopia)”.`);
-  if (result.kind === 'failed') notify(result.error.message);
-  return result;
+  return choice && applyChoice(db, cloud, zineId, title, choice);
 }

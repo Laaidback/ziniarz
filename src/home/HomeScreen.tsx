@@ -110,7 +110,7 @@ export function HomeScreen() {
     let cancelled = false;
     void (async () => {
       await pruned.current;
-      const changed = await syncLinkedZines(db, cloud.drive).catch(() => false);
+      const changed = await syncLinkedZines(db, cloud.drive, () => cancelled).catch(() => false);
       if (changed && !cancelled) await reload();
     })();
     return () => {
@@ -154,10 +154,8 @@ export function HomeScreen() {
     // Until the downloaded zine is saved its photos belong to no zine: keep other tabs from pruning them.
     const release = holdOpenZineLock(db.name);
     try {
-      // A conflict (the zine was on the list with changes of its own) is asked about in the editor.
-      const { zineId, result } = await openFromDrive(db, cloud.drive, fileId);
-      if (result.kind === 'failed') notify(result.error.message);
-      navigate({ name: 'editor', zineId });
+      // A zine already on the list is synced (or asked about) by the editor on opening.
+      navigate({ name: 'editor', zineId: await openFromDrive(db, cloud.drive, fileId) });
     } catch (error) {
       notify(`Nie da się otworzyć tego pliku. ${cloudErrorOf(error).message}`);
     } finally {

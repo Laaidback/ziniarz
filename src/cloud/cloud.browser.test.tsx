@@ -11,6 +11,7 @@ import { parseZine } from '../model/parse';
 import type { Zine } from '../model/types';
 import { listZines, loadZine, openZiniarzDb, saveZine, type ZiniarzDb } from '../storage/db';
 import { bundleFromDb, writeZin } from '../storage/zinFile';
+import { holdOpenZineLock } from '../storage/zineLock';
 import { openInEditor } from '../test/editorHarness';
 import { fakeCloud } from '../test/fakeCloud';
 import { createFakeDriveServer } from '../test/fakeDriveServer';
@@ -212,4 +213,44 @@ test('a conflict found while editing asks, and "take Drive\'s" reopens the zine 
   await expect.element(screen.getByRole('heading', { name: 'Od Oli' })).toBeVisible();
   expect(await titleIn(db, zine.id)).toBe('Od Oli');
   expect(noticeStore.getState().notices).toEqual([]);
+});
+
+test('signing in in the editor finds a newer version on Drive; "Wczytaj" opens it', async () => {
+  const { services } = fakeCloud(server, 'Ala', { signedIn: false });
+  const zine = zineNamed('Lato');
+  const { db, screen } = await openInEditor(
+    zine,
+    async (db) => {
+      await linkToDrive(db, alasDrive, zine.id);
+      server.replaceBytes((await getLink(db, zine.id))!.fileId, await zinBytesOf(zineNamed('Od Oli')), 'Ola');
+    },
+    undefined,
+    services,
+  );
+  await expect.element(screen.getByRole('heading', { name: 'Lato' })).toBeVisible();
+  await screen.getByRole('button', { name: 'Zaloguj', exact: true }).click();
+  await expect.element(screen.getByText('Na Dysku jest nowsza wersja')).toBeVisible();
+  expect(await titleIn(db, zine.id)).toBe('Lato');
+  await screen.getByRole('button', { name: 'Wczytaj' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Od Oli' })).toBeVisible();
+  await expect.element(screen.getByText('Zapisano na Dysku')).toBeVisible();
+});
+
+test('a zine card does not download into a zine open in another tab', async () => {
+  const { services } = fakeCloud(server, 'Ala');
+  const zine = zineNamed('Lato');
+  const { db, screen } = await renderHome(services, async (db) => {
+    await saveZine(db, zine);
+    await linkToDrive(db, alasDrive, zine.id);
+    server.replaceBytes((await getLink(db, zine.id))!.fileId, await zinBytesOf(zineNamed('Od Oli')), 'Ola');
+  });
+  // The list itself downloads it, unless a zine is open: hold the lock first, as an editor would.
+  const release = holdOpenZineLock(db.name);
+  await expect.element(screen.getByText('Na Dysku jest nowsza wersja')).toBeVisible();
+  await screen.getByRole('button', { name: 'Wczytaj' }).click();
+  await expect.element(screen.getByText('Ten zin jest otwarty w innej karcie. Zamknij go tam i spróbuj jeszcze raz.')).toBeVisible();
+  expect(await titleIn(db, zine.id)).toBe('Lato');
+  release();
+  await screen.getByRole('button', { name: 'Wczytaj' }).click();
+  await expect.poll(() => titleIn(db, zine.id)).toBe('Od Oli');
 });

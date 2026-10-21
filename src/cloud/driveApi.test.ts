@@ -25,7 +25,7 @@ test('create puts the file in one "Ziniarz" folder and reports its version and a
   const ala = clientOf('Ala');
   const first = await ala.create('lato.zin', bytes(1, 2, 3));
   const second = await ala.create('zima.zin', bytes(4));
-  expect(first).toMatchObject({ name: 'lato.zin', version: '1', modifiedBy: 'Ala', modifiedByMe: true });
+  expect(first).toMatchObject({ name: 'lato.zin', revision: 'rev-1', modifiedBy: 'Ala', modifiedByMe: true });
   const folder = server.folder(FOLDER_NAME)!;
   expect(server.file(first.id)?.parents).toEqual([folder.id]);
   expect(server.file(second.id)?.parents).toEqual([folder.id]);
@@ -37,7 +37,7 @@ test('update, meta and download', async () => {
   const ala = clientOf('Ala');
   const { id } = await ala.create('lato.zin', bytes(1));
   const updated = await ala.update(id, 'lato 2.zin', bytes(7, 8));
-  expect(updated).toMatchObject({ id, name: 'lato 2.zin', version: '2' });
+  expect(updated).toMatchObject({ id, name: 'lato 2.zin', revision: 'rev-2' });
   expect(await ala.meta(id)).toEqual(updated);
   expect(new Uint8Array(await ala.download(id))).toEqual(bytes(7, 8));
 });
@@ -87,5 +87,5 @@ test('a failed folder lookup is tried again', async () => {
   const ala = clientOf('Ala');
   server.failNext(500);
   await failure(ala.create('a.zin', bytes(1)));
-  expect((await ala.create('a.zin', bytes(1))).version).toBe('1');
+  expect((await ala.create('a.zin', bytes(1))).revision).toBe('rev-1');
 });

@@ -59,7 +59,7 @@ test('two people work on one zine through Google Drive, one after the other', as
   await expect(olasPage.getByText('Zmiany czekają na zapis na Dysku')).toBeVisible();
   // Leaving the editor sends the change at once.
   await olasPage.getByRole('link', { name: '← Ziny' }).click();
-  await expect.poll(() => server.file(file.id)?.version).toBe(2);
+  await expect.poll(() => server.file(file.id)?.revision).toBe(2);
   expect(server.file(file.id)?.modifiedBy).toBe('Ola');
 
   // Ala's list takes the newer version; her editor shows Ola's text.

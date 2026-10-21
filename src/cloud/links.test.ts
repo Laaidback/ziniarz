@@ -9,7 +9,7 @@ import { deleteLink, getLink, linkOfFile, listLinks, putLink } from './links';
 const link = (zineId: string, fileId: string): DriveLink => ({
   zineId,
   fileId,
-  version: '1',
+  revision: 'rev-1',
   syncedUpdatedAt: '2026-10-21T10:00:00.000Z',
   modifiedTime: '2026-10-21T10:00:00.000Z',
   modifiedBy: 'Ala',

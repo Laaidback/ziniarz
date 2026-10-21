@@ -3,10 +3,10 @@ import { useDb } from '../app/dbContext';
 import { errorMessage, notify } from '../app/notices';
 import { onPageHide } from '../app/onPageHide';
 import { routeHash } from '../app/route';
-import { chooseVersion } from '../cloud/cloudActions';
+import { applyChoice, chooseVersion } from '../cloud/cloudActions';
 import { EditorCloudBar } from '../cloud/EditorCloudBar';
 import { useCloud, type CloudServices } from '../cloud/CloudContext';
-import { syncZine } from '../cloud/cloudSync';
+import { syncZine, type ConflictChoice } from '../cloud/cloudSync';
 import { getLink } from '../cloud/links';
 import { useEditorCloudSync } from '../cloud/useEditorCloudSync';
 import { parseZine } from '../model/parse';
@@ -14,7 +14,7 @@ import type { FontChoice } from '../fonts/fontChoices';
 import { releaseRenderAssets, type RenderAssets } from '../render/assets';
 import { measureTextHeight } from '../render/buildSpread';
 import { loadZine, saveZine, type ZiniarzDb } from '../storage/db';
-import { holdOpenZineLock } from '../storage/zineLock';
+import { acquireOpenZineLock } from '../storage/zineLock';
 import { SpreadCanvas } from './canvas/SpreadCanvas';
 import { EditorContext, type EditorEnv } from './EditorContext';
 import { HideButton } from './HideButton';
@@ -36,7 +36,7 @@ interface Loaded {
   assets: RenderAssets;
 }
 
-function EditorWorkspace({ env, reopen }: { env: EditorEnv; reopen(): void }) {
+function EditorWorkspace({ env, reopen }: { env: EditorEnv; reopen(choice?: ConflictChoice): void }) {
   useEditorKeyboard(env.store);
   const saver = useRef<Autosaver | null>(null);
   const flushSaves = useCallback(async () => {
@@ -166,16 +166,23 @@ function EditorWorkspace({ env, reopen }: { env: EditorEnv; reopen(): void }) {
 
 /**
  * A zine saved on Google Drive takes the newer version from Drive before opening, or asks when both sides
- * changed. Without a token or internet it opens as it is in the browser; the top bar says so.
+ * changed; `choice` is an answer already given in the editor that reopened it. This is the only place the
+ * editor downloads: no editor is open on the zine yet. Without a token or internet it opens as it is in
+ * the browser; the top bar says so.
  */
-async function syncBeforeOpening(db: ZiniarzDb, cloud: CloudServices | null, zineId: string): Promise<void> {
+async function syncBeforeOpening(db: ZiniarzDb, cloud: CloudServices | null, zineId: string, choice: ConflictChoice | null): Promise<void> {
   if (!cloud || !cloud.auth.token() || !(await getLink(db, zineId))) return;
   await whenSavesSettled();
-  const result = await syncZine(db, cloud.drive, zineId, { allowDownload: true });
-  if (result.kind === 'conflict') {
+  const title = async () => {
     const raw = await loadZine(db, zineId);
-    await chooseVersion(db, cloud, zineId, raw ? parseZine(raw).title : '', result.change);
+    return raw ? parseZine(raw).title : '';
+  };
+  if (choice) {
+    await applyChoice(db, cloud, zineId, await title(), choice);
+    return;
   }
+  const result = await syncZine(db, cloud.drive, zineId, { allowDownload: true });
+  if (result.kind === 'conflict') await chooseVersion(db, cloud, zineId, await title(), result.change);
 }
 
 export function EditorScreen({ zineId }: { zineId: string }) {
@@ -184,20 +191,31 @@ export function EditorScreen({ zineId }: { zineId: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [fonts, setFonts] = useState<FontChoice[]>([]);
   const [error, setError] = useState<string | null>(null);
-  // Bumped to open the zine again after its content came from Google Drive.
+  // Bumped to open the zine again and take its version from Google Drive (with the conflict answer, if any).
   const [opening, setOpening] = useState(0);
-  const reopen = useCallback(() => {
+  const reopenChoice = useRef<ConflictChoice | null>(null);
+  const reopen = useCallback((choice?: ConflictChoice) => {
+    reopenChoice.current = choice ?? null;
     setLoaded(null);
     setOpening((n) => n + 1);
   }, []);
 
-  // Other tabs must not prune this zine's photos and fonts while it is open.
-  useEffect(() => holdOpenZineLock(db.name), [db]);
+  // Other tabs must not prune this zine's photos and fonts while it is open, nor download into it from
+  // Google Drive; the editor waits while the zine list holds the lock for that.
+  const lockGranted = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    const lock = acquireOpenZineLock(db.name);
+    lockGranted.current = lock.granted;
+    return lock.release;
+  }, [db]);
 
   useEffect(() => {
     let cancelled = false;
     let assets: RenderAssets | null = null;
-    syncBeforeOpening(db, cloud, zineId)
+    const choice = reopenChoice.current;
+    reopenChoice.current = null;
+    lockGranted.current
+      .then(() => syncBeforeOpening(db, cloud, zineId, choice))
       .catch(() => {}) // the zine opens as it is in the browser
       .then(() => (cancelled ? Promise.reject(new Error('cancelled')) : openEditorSession(db, zineId)))
       .then(

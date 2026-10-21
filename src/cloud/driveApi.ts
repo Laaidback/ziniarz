@@ -4,8 +4,11 @@ import { CloudError } from './errors';
 export interface DriveFileMeta {
   id: string;
   name: string;
-  /** Drive's version number of the file; it grows with every change, by anyone. */
-  version: string;
+  /**
+   * The file's current content revision (`headRevisionId`). Unlike Drive's `version` it does not change when
+   * the file is only shared, moved or renamed, so those never look like someone else's changes.
+   */
+  revision: string;
   modifiedTime: string;
   modifiedBy: string | null;
   modifiedByMe: boolean;
@@ -28,12 +31,12 @@ const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 const API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD = 'https://www.googleapis.com/upload/drive/v3';
-const FIELDS = 'id,name,version,modifiedTime,trashed,lastModifyingUser(displayName,me)';
+const FIELDS = 'id,name,headRevisionId,modifiedTime,trashed,lastModifyingUser(displayName,me)';
 
 interface RawMeta {
   id: string;
   name: string;
-  version: string;
+  headRevisionId?: string;
   modifiedTime: string;
   trashed?: boolean;
   lastModifyingUser?: { displayName?: string; me?: boolean };
@@ -44,7 +47,7 @@ function toMeta(raw: RawMeta): DriveFileMeta {
   return {
     id: raw.id,
     name: raw.name,
-    version: String(raw.version),
+    revision: raw.headRevisionId ?? '',
     modifiedTime: raw.modifiedTime,
     modifiedBy: raw.lastModifyingUser?.displayName || null,
     modifiedByMe: raw.lastModifyingUser?.me === true,

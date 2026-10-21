@@ -27,8 +27,8 @@ export interface FontFile {
 export interface DriveLink {
   zineId: string;
   fileId: string;
-  /** The file's Drive `version` at the last upload or download. */
-  version: string;
+  /** The file's content revision on Drive (`headRevisionId`) at the last upload or download. */
+  revision: string;
   /** The zine's `updatedAt` at the last upload or download: a different one means unsent changes. */
   syncedUpdatedAt: string;
   /** Who changed the file last and when, as Drive reported at the last sync. */
@@ -56,7 +56,11 @@ export class StorageFullError extends Error {
 
 export const DB_NAME = 'ziniarz';
 
-export async function openZiniarzDb(name = DB_NAME): Promise<ZiniarzDb> {
+/**
+ * Opens the database, upgrading it when needed. `onBlocked` is called when another tab with an older
+ * version of Ziniarz keeps the database open, so the upgrade waits until that tab is closed.
+ */
+export async function openZiniarzDb(name = DB_NAME, onBlocked?: () => void): Promise<ZiniarzDb> {
   const db: ZiniarzDb = await openDB<ZiniarzSchema>(name, 2, {
     upgrade(db, oldVersion) {
       if (oldVersion < 1) {
@@ -67,10 +71,14 @@ export async function openZiniarzDb(name = DB_NAME): Promise<ZiniarzDb> {
       }
       if (oldVersion < 2) db.createObjectStore('driveLinks', { keyPath: 'zineId' }).createIndex('byFile', 'fileId');
     },
-    // A newer version of the app opened in another tab waits for this one to let go of the database.
+    blocked() {
+      onBlocked?.();
+    },
+    // A newer version of the app opened in another tab waits for this one to let go of the database:
+    // reload (which still saves on pagehide, then closes it) into the new version.
     blocking() {
-      db.close();
       if (typeof location !== 'undefined') location.reload();
+      else db.close();
     },
   });
   return db;

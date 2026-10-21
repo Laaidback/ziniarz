@@ -25,7 +25,10 @@ interface FakeFile {
   mimeType: string;
   parents: string[];
   bytes: Uint8Array;
+  /** Grows with every change, also sharing or renaming (Drive's `version`). */
   version: number;
+  /** Grows only when the content changes (Drive's `headRevisionId`). */
+  revision: number;
   modifiedTime: string;
   modifiedBy: string;
   owner: string;
@@ -70,7 +73,7 @@ export function createFakeDriveServer() {
   const metaOf = (file: FakeFile, user: string) => ({
     id: file.id,
     name: file.name,
-    version: String(file.version),
+    headRevisionId: `rev-${file.revision}`,
     modifiedTime: file.modifiedTime,
     trashed: file.trashed,
     lastModifyingUser: { displayName: file.modifiedBy, me: file.modifiedBy === user },
@@ -111,6 +114,7 @@ export function createFakeDriveServer() {
           parents: session.metadata.parents ?? [],
           bytes,
           version: 1,
+          revision: 1,
           modifiedTime,
           modifiedBy: session.user,
           owner: session.user,
@@ -122,7 +126,7 @@ export function createFakeDriveServer() {
         return json(200, metaOf(file, session.user));
       }
       const file = files.get(session.fileId)!;
-      Object.assign(file, { bytes, version: file.version + 1, modifiedTime, modifiedBy: session.user });
+      Object.assign(file, { bytes, version: file.version + 1, revision: file.revision + 1, modifiedTime, modifiedBy: session.user });
       if (session.metadata.name) file.name = session.metadata.name;
       return json(200, metaOf(file, session.user));
     }
@@ -159,6 +163,7 @@ export function createFakeDriveServer() {
         parents: [],
         bytes: new Uint8Array(),
         version: 1,
+        revision: 1,
         modifiedTime: now(),
         modifiedBy: user,
         owner: user,
@@ -195,7 +200,9 @@ export function createFakeDriveServer() {
     }) as typeof fetch,
     /** Shares a file like Drive's "Share" dialog; the person still has to pick it in Ziniarz. */
     share(fileId: string, user: string, role: 'reader' | 'writer' = 'writer') {
-      files.get(fileId)!.sharedWith.set(user, role);
+      const file = files.get(fileId)!;
+      file.sharedWith.set(user, role);
+      file.version++;
     },
     /** What the Google Picker does: gives the app access to a file the person can see. */
     pick(fileId: string, user: string): boolean {
@@ -207,7 +214,12 @@ export function createFakeDriveServer() {
     /** Someone else changes the file on Drive. */
     replaceBytes(fileId: string, bytes: Uint8Array, user: string) {
       const file = files.get(fileId)!;
-      Object.assign(file, { bytes, version: file.version + 1, modifiedTime: now(), modifiedBy: user });
+      Object.assign(file, { bytes, version: file.version + 1, revision: file.revision + 1, modifiedTime: now(), modifiedBy: user });
+    },
+    /** Someone renames the file on Drive: a new version, the same content. */
+    rename(fileId: string, name: string) {
+      const file = files.get(fileId)!;
+      Object.assign(file, { name, version: file.version + 1 });
     },
     trash(fileId: string) {
       files.get(fileId)!.trashed = true;

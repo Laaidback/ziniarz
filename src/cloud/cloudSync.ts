@@ -48,7 +48,7 @@ async function loadParsed(db: ZiniarzDb, zineId: string): Promise<Zine | null> {
 }
 
 async function remember(db: ZiniarzDb, zineId: string, meta: DriveFileMeta, syncedUpdatedAt: string): Promise<LastChange> {
-  const link: DriveLink = { zineId, fileId: meta.id, version: meta.version, syncedUpdatedAt, ...changeOf(meta) };
+  const link: DriveLink = { zineId, fileId: meta.id, revision: meta.revision, syncedUpdatedAt, ...changeOf(meta) };
   await putLink(db, link);
   return changeOf(meta);
 }
@@ -83,9 +83,11 @@ function failed(zineId: string, error: unknown): SyncResult {
   return { kind: 'failed', error: cloudError };
 }
 
-/** Saves a zine to a new file on Drive. Throws CloudError. */
+/** Saves a zine to a new file on Drive; a zine already there keeps its file (a double click). Throws CloudError. */
 export function linkToDrive(db: ZiniarzDb, drive: DriveClient, zineId: string): Promise<LastChange> {
   return queued(zineId, async () => {
+    const existing = await getLink(db, zineId);
+    if (existing) return existing;
     setCloudStatus(zineId, { state: 'syncing' });
     try {
       const change = await upload(db, drive, zineId, null);
@@ -111,7 +113,7 @@ export function syncZine(db: ZiniarzDb, drive: DriveClient, zineId: string, opti
       setCloudStatus(zineId, { state: 'syncing' });
       const meta = await drive.meta(link.fileId);
       const change = changeOf(meta);
-      switch (decideSync(zine.updatedAt !== link.syncedUpdatedAt, meta.version !== link.version)) {
+      switch (decideSync(zine.updatedAt !== link.syncedUpdatedAt, meta.revision !== link.revision)) {
         case 'none':
           setCloudStatus(zineId, { state: 'synced' }, change);
           return { kind: 'upToDate', change };
@@ -177,21 +179,20 @@ export function resolveConflict(
 }
 
 /**
- * Opens a file picked on Drive: a file already on the list syncs into its zine (no second copy),
- * a new one becomes a new zine. Returns the zine id. Throws CloudError.
+ * Opens a file picked on Drive and returns the zine to open in the editor. A file already on the list
+ * gives its zine (the editor syncs it on opening, no second copy); a new one becomes a new zine (readZin
+ * gives it a new id, so it never replaces a zine already here, one unlinked from the same file say). Throws CloudError.
  */
-export async function openFromDrive(db: ZiniarzDb, drive: DriveClient, fileId: string): Promise<{ zineId: string; result: SyncResult }> {
+export async function openFromDrive(db: ZiniarzDb, drive: DriveClient, fileId: string): Promise<string> {
   const known = await linkOfFile(db, fileId);
-  if (known && (await loadZine(db, known.zineId))) {
-    return { zineId: known.zineId, result: await syncZine(db, drive, known.zineId, { allowDownload: true }) };
-  }
+  if (known && (await loadZine(db, known.zineId))) return known.zineId;
   try {
     const meta = await drive.meta(fileId);
     const bundle = await readDriveZin(drive, fileId);
     const zine = await replaceFromBundle(db, bundle.zine.id, bundle);
     const change = await remember(db, zine.id, meta, zine.updatedAt);
     setCloudStatus(zine.id, { state: 'synced' }, change);
-    return { zineId: zine.id, result: { kind: 'downloaded', change } };
+    return zine.id;
   } catch (error) {
     throw cloudErrorOf(error);
   }
@@ -212,18 +213,25 @@ export async function relinkAsNew(db: ZiniarzDb, drive: DriveClient, zineId: str
 }
 
 /**
- * Syncs every zine saved on Drive (the zine list does it on opening). Newer versions are downloaded only
- * while no tab has a zine open: an editor in another tab would otherwise save its older copy over them.
+ * Syncs every zine saved on Drive (the zine list does it on opening): sends changes made here, then
+ * downloads newer versions, but only while no tab has a zine open (an editor would otherwise save its
+ * older copy over them; editors wait for the lock). Stops between zines once `cancelled()`.
  * Returns whether any zine's content changed here.
  */
-export async function syncLinkedZines(db: ZiniarzDb, drive: DriveClient): Promise<boolean> {
+export async function syncLinkedZines(db: ZiniarzDb, drive: DriveClient, cancelled: () => boolean = () => false): Promise<boolean> {
+  const newer: string[] = [];
+  for (const link of await listLinks(db)) {
+    if (cancelled()) return false;
+    const result = await syncZine(db, drive, link.zineId, { allowDownload: false });
+    if (result.kind === 'remoteNewer') newer.push(link.zineId);
+  }
   let downloaded = false;
-  const syncAll = async (allowDownload: boolean) => {
-    for (const link of await listLinks(db)) {
-      const result = await syncZine(db, drive, link.zineId, { allowDownload });
-      if (result.kind === 'downloaded') downloaded = true;
+  await whenNoZineIsOpen(db.name, async () => {
+    for (const zineId of newer) {
+      if (cancelled()) return;
+      if ((await syncZine(db, drive, zineId, { allowDownload: true })).kind === 'downloaded') downloaded = true;
     }
-  };
-  if (!(await whenNoZineIsOpen(db.name, () => syncAll(true)))) await syncAll(false);
+  });
   return downloaded;
 }
+

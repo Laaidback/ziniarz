@@ -14,13 +14,33 @@ export function openZineLockName(dbName: string): string {
 
 const browserLocks = (): LockManager | null => (typeof navigator !== 'undefined' && navigator.locks) || null;
 
-/** Holds the shared lock until the returned function is called. Without Web Locks it does nothing. */
-export function holdOpenZineLock(dbName: string, locks: LockManager | null = browserLocks()): () => void {
-  if (!locks) return () => {};
+/**
+ * Asks for the shared lock and holds it until `release` is called. `granted` resolves once it is held:
+ * while the zine list holds the lock exclusively (cleanup, or a download from Google Drive), a screen
+ * waits for it before reading its zine, so it never shows a copy that is about to be replaced.
+ * Without Web Locks it does nothing and `granted` is resolved.
+ */
+export function acquireOpenZineLock(
+  dbName: string,
+  locks: LockManager | null = browserLocks(),
+): { release(): void; granted: Promise<void> } {
+  if (!locks) return { release: () => {}, granted: Promise.resolve() };
   let release!: () => void;
   const held = new Promise<void>((resolve) => (release = resolve));
-  locks.request(openZineLockName(dbName), { mode: 'shared' }, () => held).catch(() => {});
-  return release;
+  let grant!: () => void;
+  const granted = new Promise<void>((resolve) => (grant = resolve));
+  locks
+    .request(openZineLockName(dbName), { mode: 'shared' }, () => {
+      grant();
+      return held;
+    })
+    .catch(() => grant());
+  return { release, granted };
+}
+
+/** Holds the shared lock until the returned function is called. Without Web Locks it does nothing. */
+export function holdOpenZineLock(dbName: string, locks: LockManager | null = browserLocks()): () => void {
+  return acquireOpenZineLock(dbName, locks).release;
 }
 
 /**

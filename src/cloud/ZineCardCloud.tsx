@@ -3,13 +3,18 @@ import { useDb } from '../app/dbContext';
 import { notify } from '../app/notices';
 import type { Zine } from '../model/types';
 import type { DriveLink } from '../storage/db';
-import { chooseVersion, signInFromClick } from './cloudActions';
+import { whenNoZineIsOpen } from '../storage/zineLock';
+import { applyChoice, signInFromClick } from './cloudActions';
 import { useCloud } from './CloudContext';
 import { cloudStatusStore } from './cloudStatus';
 import { linkToDrive, relinkAsNew, syncZine, unlinkFromDrive } from './cloudSync';
+import { askConflict } from './conflict';
 import { CloudStatusLine } from './CloudStatusLine';
 import { cloudErrorOf } from './errors';
 import type { CloudStatusAction } from './statusText';
+import type { LastChange } from './sync';
+
+const OPEN_ELSEWHERE = 'Ten zin jest otwarty w innej karcie. Zamknij go tam i spróbuj jeszcze raz.';
 
 /** Google Drive on a zine card: save to Drive, or the status with "show on Drive" and "unlink". */
 export function ZineCardCloud({ zine, link, onChanged }: { zine: Zine; link: DriveLink | undefined; onChanged(): void }) {
@@ -36,6 +41,17 @@ export function ZineCardCloud({ zine, link, onChanged }: { zine: Zine; link: Dri
     );
   }
 
+  /** Downloads only while no tab has a zine open: an editor there would save its older copy over it. */
+  const download = async (work: () => Promise<unknown>) => {
+    if (!(await whenNoZineIsOpen(db.name, work))) notify(OPEN_ELSEWHERE);
+  };
+
+  const choose = async (change: LastChange) => {
+    const choice = await askConflict(zine.title, change);
+    if (choice === 'mine') await applyChoice(db, cloud, zine.id, zine.title, 'mine');
+    else if (choice) await download(() => applyChoice(db, cloud, zine.id, zine.title, choice));
+  };
+
   const act = async (action: CloudStatusAction) => {
     if (action === 'signIn') {
       await signInFromClick(cloud);
@@ -47,12 +63,11 @@ export function ZineCardCloud({ zine, link, onChanged }: { zine: Zine; link: Dri
       } catch (error) {
         notify(cloudErrorOf(error).message);
       }
-    } else if (action === 'choose') {
-      const change = cloudStatusStore.getState().zines[zine.id]?.change;
-      if (change) await chooseVersion(db, cloud, zine.id, zine.title, change);
     } else {
-      const result = await syncZine(db, cloud.drive, zine.id, { allowDownload: true });
-      if (result.kind === 'conflict') await chooseVersion(db, cloud, zine.id, zine.title, result.change);
+      const known = action === 'choose' ? cloudStatusStore.getState().zines[zine.id]?.change : undefined;
+      const result = known ? ({ kind: 'conflict', change: known } as const) : await syncZine(db, cloud.drive, zine.id, { allowDownload: false });
+      if (result.kind === 'conflict') await choose(result.change);
+      else if (result.kind === 'remoteNewer') await download(() => syncZine(db, cloud.drive, zine.id, { allowDownload: true }));
     }
     onChanged();
   };

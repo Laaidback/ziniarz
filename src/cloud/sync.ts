@@ -2,7 +2,7 @@ export type SyncAction = 'none' | 'upload' | 'download' | 'conflict';
 
 /**
  * What to do with a zine saved on Drive: `localChanged` means the zine changed since the last sync
- * (its `updatedAt` differs from the link's), `remoteChanged` that the file on Drive did (its version differs).
+ * (its `updatedAt` differs from the link's), `remoteChanged` that the file on Drive did (its content revision differs).
  */
 export function decideSync(localChanged: boolean, remoteChanged: boolean): SyncAction {
   if (localChanged) return remoteChanged ? 'conflict' : 'upload';
