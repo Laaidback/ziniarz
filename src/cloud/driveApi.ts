@@ -66,6 +66,10 @@ async function errorOf(response: Response): Promise<CloudError> {
   if (response.status === 404) return new CloudError('notFound');
   if (response.status === 403) {
     if (reason === 'storageQuotaExceeded' || reason === 'quotaExceeded') return new CloudError('quota');
+    // The Google Cloud project has Drive API switched off: a setup problem, not the person's rights.
+    if (reason === 'accessNotConfigured' || reason === 'SERVICE_DISABLED') {
+      return new CloudError('other', 'Dysk Google nie jest włączony w projekcie Google. Włącz Google Drive API w konsoli Google Cloud.');
+    }
     if (reason.endsWith('RateLimitExceeded') || reason === 'rateLimitExceeded') return new CloudError('other');
     return new CloudError('forbidden');
   }

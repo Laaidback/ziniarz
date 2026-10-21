@@ -62,6 +62,8 @@ test('errors become CloudError kinds', async () => {
 
   server.failNext(403, 'storageQuotaExceeded');
   expect((await failure(ala.update(id, 'x', bytes(1)))).kind).toBe('quota');
+  server.failNext(403, 'accessNotConfigured');
+  expect(await failure(ala.meta(id))).toMatchObject({ kind: 'other', message: expect.stringContaining('Włącz Google Drive API') });
   server.failNext(403, 'userRateLimitExceeded');
   expect((await failure(ala.meta(id))).kind).toBe('other');
   server.failNext(500);
